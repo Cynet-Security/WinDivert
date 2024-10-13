@@ -44,8 +44,8 @@
 #define WINDIVERT_KERNEL
 #include "windivert.h"
 
-#define WINDIVERT_VERSION_MAJOR                     2
-#define WINDIVERT_VERSION_MINOR                     2
+#define WINDIVERT_VERSION_MAJOR                     1
+#define WINDIVERT_VERSION_MINOR                     0
 
 #define WINDIVERT_MAGIC_DLL                         0x4C4C447669645724ull
 #define WINDIVERT_MAGIC_SYS                         0x5359537669645723ull
@@ -60,7 +60,7 @@
         WINDIVERT_LSTR(WINDIVERT_VERSION_MINOR)
 
 #define WINDIVERT_DEVICE_NAME                                               \
-    L"WinDivert"
+    L"CyDivert"
 #define WINDIVERT_LAYER_NAME                                                \
     WINDIVERT_DEVICE_NAME WINDIVERT_VERSION_LSTR
 
@@ -303,23 +303,23 @@ typedef struct
  * IOCTL codes.
  */
 #define IOCTL_WINDIVERT_INITIALIZE                                          \
-    CTL_CODE(FILE_DEVICE_NETWORK, 0x921, METHOD_OUT_DIRECT, FILE_READ_DATA |\
+    CTL_CODE(FILE_DEVICE_NETWORK, 0x821, METHOD_OUT_DIRECT, FILE_READ_DATA |\
         FILE_WRITE_DATA)
 #define IOCTL_WINDIVERT_STARTUP                                             \
-    CTL_CODE(FILE_DEVICE_NETWORK, 0x922, METHOD_IN_DIRECT, FILE_READ_DATA | \
+    CTL_CODE(FILE_DEVICE_NETWORK, 0x822, METHOD_IN_DIRECT, FILE_READ_DATA | \
         FILE_WRITE_DATA)
 #define IOCTL_WINDIVERT_RECV                                                \
-    CTL_CODE(FILE_DEVICE_NETWORK, 0x923, METHOD_OUT_DIRECT, FILE_READ_DATA)
+    CTL_CODE(FILE_DEVICE_NETWORK, 0x823, METHOD_OUT_DIRECT, FILE_READ_DATA)
 #define IOCTL_WINDIVERT_SEND                                                \
-    CTL_CODE(FILE_DEVICE_NETWORK, 0x924, METHOD_IN_DIRECT, FILE_READ_DATA | \
+    CTL_CODE(FILE_DEVICE_NETWORK, 0x824, METHOD_IN_DIRECT, FILE_READ_DATA | \
         FILE_WRITE_DATA)
 #define IOCTL_WINDIVERT_SET_PARAM                                           \
-    CTL_CODE(FILE_DEVICE_NETWORK, 0x925, METHOD_IN_DIRECT, FILE_READ_DATA | \
+    CTL_CODE(FILE_DEVICE_NETWORK, 0x825, METHOD_IN_DIRECT, FILE_READ_DATA | \
         FILE_WRITE_DATA)
 #define IOCTL_WINDIVERT_GET_PARAM                                           \
-    CTL_CODE(FILE_DEVICE_NETWORK, 0x926, METHOD_OUT_DIRECT, FILE_READ_DATA)
+    CTL_CODE(FILE_DEVICE_NETWORK, 0x826, METHOD_OUT_DIRECT, FILE_READ_DATA)
 #define IOCTL_WINDIVERT_SHUTDOWN                                            \
-    CTL_CODE(FILE_DEVICE_NETWORK, 0x927, METHOD_IN_DIRECT, FILE_READ_DATA | \
+    CTL_CODE(FILE_DEVICE_NETWORK, 0x827, METHOD_IN_DIRECT, FILE_READ_DATA | \
         FILE_WRITE_DATA)
 
 #endif      /* __WINDIVERT_DEVICE_H */

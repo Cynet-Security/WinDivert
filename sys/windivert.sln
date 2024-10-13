@@ -1,0 +1,23 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.33529.622
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WinDivert", "windivert.vcxproj", "{232D17F6-D715-45D5-AD42-945583422C36}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{232D17F6-D715-45D5-AD42-945583422C36}.Release|x64.ActiveCfg = Release|x64
+		{232D17F6-D715-45D5-AD42-945583422C36}.Release|x64.Build.0 = Release|x64
+		{232D17F6-D715-45D5-AD42-945583422C36}.Release|x64.Deploy.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {25947EFD-2EBE-4ECC-89F6-E437E4F54061}
+	EndGlobalSection
+EndGlobal

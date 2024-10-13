@@ -1445,7 +1445,6 @@ static void windivert_driver_unload(void)
 static NTSTATUS windivert_install_provider()
 {
     FWPM_PROVIDER0 provider;
-    NTSTATUS status;
 
     RtlZeroMemory(&provider, sizeof(provider));
     provider.providerKey             = WINDIVERT_PROVIDER_GUID;
@@ -2619,9 +2618,7 @@ static NTSTATUS windivert_write(context_t context, WDFREQUEST request,
     PWINDIVERT_IPV6HDR ipv6_header;
     UINT8 layer;
     UINT32 priority;
-    UINT64 flags, checksums;
-    HANDLE handle;
-    PNET_BUFFER_LIST buffers = NULL;
+    UINT64 flags;
     PWINDIVERT_ADDRESS addr;
     UINT i, addr_len, addr_len_max, version;
     NTSTATUS status = STATUS_SUCCESS, status_soft_error = STATUS_SUCCESS;
@@ -5304,7 +5301,7 @@ static void windivert_inject_packet_too_big(packet_t packet)
             UINT32_MAX
     };
     PWINDIVERT_IPHDR ip_header, ip_header_2;
-    PWINDIVERT_IPV6HDR ipv6_header, ipv6_header_2;
+    PWINDIVERT_IPV6HDR ipv6_header = NULL, ipv6_header_2;
     PWINDIVERT_ICMPHDR icmp_header;
     PWINDIVERT_ICMPV6HDR icmpv6_header;
     packet_t icmp;
@@ -5741,7 +5738,7 @@ static BOOL windivert_filter(PNET_BUFFER buffer, WINDIVERT_LAYER layer,
     PWINDIVERT_UDPHDR udp_header = NULL;
     BOOL fragment = FALSE;
     UINT8 protocol = 0;
-    UINT header_len = 0, payload_len = 0, total_len = 0;
+    UINT header_len = 0, payload_len = 0;
     PWINDIVERT_DATA_NETWORK network_data = NULL;
     PWINDIVERT_DATA_FLOW flow_data = NULL;
     PWINDIVERT_DATA_SOCKET socket_data = NULL;
@@ -6448,7 +6445,7 @@ static void windivert_log_event(PEPROCESS process, PDRIVER_OBJECT driver,
     const wchar_t windivert_str[] = WINDIVERT_DEVICE_NAME
         WINDIVERT_VERSION_LSTR;
     wchar_t pid_str[16];
-    size_t windivert_size = sizeof(windivert_str), msg_size, pid_size, size;
+    size_t windivert_size = sizeof(windivert_str), msg_size, pid_size = 0, size;
     UNICODE_STRING string;
     UINT8 *str;
     PIO_ERROR_LOG_PACKET packet;
