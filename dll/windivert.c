@@ -49,7 +49,7 @@
 #include "windivert.h"
 #include "windivert_device.h"
 
-#define WINDIVERT_DRIVER_NAME           L"WinDivert"
+#define WINDIVERT_DRIVER_NAME           L"CyDivert"
 #define WINDIVERT_DRIVER32_SYS          L"\\" WINDIVERT_DRIVER_NAME L"32.sys"
 #define WINDIVERT_DRIVER64_SYS          L"\\" WINDIVERT_DRIVER_NAME L"64.sys"
 #define WINDIVERT_VERSION_MAJOR_MIN     2
@@ -303,7 +303,7 @@ static BOOLEAN WinDivertDriverInstall(VOID)
 
     // Create & lock a named mutex.  This is to stop two processes trying
     // to start the driver at the same time.
-    mutex = CreateMutex(NULL, FALSE, L"WinDivertDriverInstallMutex");
+    mutex = CreateMutex(NULL, FALSE, L"CyDivertDriverInstallMutex");
     if (mutex == NULL)
     {
         return FALSE;
