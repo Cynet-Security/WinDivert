@@ -1,10 +1,10 @@
 /*
- * windivert_helper.c
+ * cydivert_helper.c
  * (C) 2021, all rights reserved,
  *
- * This file is part of WinDivert.
+ * This file is part of CyDivert.
  *
- * WinDivert is free software: you can redistribute it and/or modify it under
+ * CyDivert is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
  * option) any later version.
@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * WinDivert is free software; you can redistribute it and/or modify it under
+ * CyDivert is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
@@ -33,7 +33,7 @@
  */
 
 /****************************************************************************/
-/* WINDIVERT HELPER IMPLEMENTATION                                          */
+/* CYDIVERT HELPER IMPLEMENTATION                                          */
 /****************************************************************************/
 
 /*
@@ -224,20 +224,20 @@ struct EXPR
 #undef ERROR
 typedef UINT64 ERROR, *PERROR;
 
-#define WINDIVERT_ERROR_NONE                    0
-#define WINDIVERT_ERROR_NO_MEMORY               1
-#define WINDIVERT_ERROR_TOO_DEEP                2
-#define WINDIVERT_ERROR_TOO_LONG                3
-#define WINDIVERT_ERROR_BAD_TOKEN               4
-#define WINDIVERT_ERROR_BAD_TOKEN_FOR_LAYER     5
-#define WINDIVERT_ERROR_UNEXPECTED_TOKEN        6
-#define WINDIVERT_ERROR_INDEX_OOB               7
-#define WINDIVERT_ERROR_OUTPUT_TOO_SHORT        8
-#define WINDIVERT_ERROR_BAD_OBJECT              9
-#define WINDIVERT_ERROR_ASSERTION_FAILED        10
+#define CYDIVERT_ERROR_NONE                    0
+#define CYDIVERT_ERROR_NO_MEMORY               1
+#define CYDIVERT_ERROR_TOO_DEEP                2
+#define CYDIVERT_ERROR_TOO_LONG                3
+#define CYDIVERT_ERROR_BAD_TOKEN               4
+#define CYDIVERT_ERROR_BAD_TOKEN_FOR_LAYER     5
+#define CYDIVERT_ERROR_UNEXPECTED_TOKEN        6
+#define CYDIVERT_ERROR_INDEX_OOB               7
+#define CYDIVERT_ERROR_OUTPUT_TOO_SHORT        8
+#define CYDIVERT_ERROR_BAD_OBJECT              9
+#define CYDIVERT_ERROR_ASSERTION_FAILED        10
 
-#define WINDIVERT_MIN_POOL_SIZE                 12288
-#define WINDIVERT_MAX_POOL_SIZE                 131072
+#define CYDIVERT_MIN_POOL_SIZE                 12288
+#define CYDIVERT_MAX_POOL_SIZE                 131072
 
 #define MAKE_ERROR(code, pos)                   \
     (((ERROR)(code) << 32) | (ERROR)(pos));
@@ -247,27 +247,27 @@ typedef UINT64 ERROR, *PERROR;
     ((UINT)((err) & 0xFFFFFFFF))
 #undef IS_ERROR
 #define IS_ERROR(err)                           \
-    (GET_CODE(err) != WINDIVERT_ERROR_NONE)
+    (GET_CODE(err) != CYDIVERT_ERROR_NONE)
 
 /*
  * Prototypes.
  */
-static UINT32 WinDivertKindToField(KIND kind);
-static PEXPR WinDivertParseFilter(HANDLE pool, TOKEN *toks, UINT *i,
+static UINT32 CyDivertKindToField(KIND kind);
+static PEXPR CyDivertParseFilter(HANDLE pool, TOKEN *toks, UINT *i,
     INT depth, BOOL and, PERROR error);
-static BOOL WinDivertCondExecFilter(PWINDIVERT_FILTER filter, UINT length,
+static BOOL CyDivertCondExecFilter(PCYDIVERT_FILTER filter, UINT length,
     UINT8 field, UINT32 arg);
-static int WinDivertCompare128(BOOL neg_a, const UINT32 *a, BOOL neg_b,
+static int CyDivertCompare128(BOOL neg_a, const UINT32 *a, BOOL neg_b,
     const UINT32 *b, BOOL big);
-static BOOL WinDivertDeserializeFilter(PWINDIVERT_STREAM stream,
-    PWINDIVERT_FILTER filter, UINT *length);
-static void WinDivertFormatExpr(PWINDIVERT_STREAM stream, PEXPR expr,
-    WINDIVERT_LAYER layer, BOOL top_level, BOOL and);
+static BOOL CyDivertDeserializeFilter(PCYDIVERT_STREAM stream,
+    PCYDIVERT_FILTER filter, UINT *length);
+static void CyDivertFormatExpr(PCYDIVERT_STREAM stream, PEXPR expr,
+    CYDIVERT_LAYER layer, BOOL top_level, BOOL and);
 
 /*
  * Parse an IPv4 address.
  */
-BOOL WinDivertHelperParseIPv4Address(const char *str, UINT32 *addr_ptr)
+BOOL CyDivertHelperParseIPv4Address(const char *str, UINT32 *addr_ptr)
 {
     UINT32 addr = 0;
     UINT32 part, i;
@@ -280,7 +280,7 @@ BOOL WinDivertHelperParseIPv4Address(const char *str, UINT32 *addr_ptr)
 
     for (i = 0; i < 4; i++)
     {
-        if (!WinDivertAToI(str, (char **)&str, &part, 1) || part > UINT8_MAX)
+        if (!CyDivertAToI(str, (char **)&str, &part, 1) || part > UINT8_MAX)
         {
             SetLastError(ERROR_INVALID_PARAMETER);
             return FALSE;
@@ -307,7 +307,7 @@ BOOL WinDivertHelperParseIPv4Address(const char *str, UINT32 *addr_ptr)
 /*
  * Parse an IPv6 address.
  */
-BOOL WinDivertHelperParseIPv6Address(const char *str, UINT32 *addr_ptr)
+BOOL CyDivertHelperParseIPv6Address(const char *str, UINT32 *addr_ptr)
 {
     UINT16 laddr[8] = {0};
     UINT16 raddr[8] = {0};
@@ -330,7 +330,7 @@ BOOL WinDivertHelperParseIPv6Address(const char *str, UINT32 *addr_ptr)
         str++;
         if (*str == '\0')
         {
-            goto WinDivertHelperParseIPv6AddressSuccess;
+            goto CyDivertHelperParseIPv6AddressSuccess;
         }
     }
 
@@ -351,14 +351,14 @@ BOOL WinDivertHelperParseIPv6Address(const char *str, UINT32 *addr_ptr)
             }
         }
 
-        if (i < 6 && WinDivertHelperParseIPv4Address(str, &ipv4_addr))
+        if (i < 6 && CyDivertHelperParseIPv4Address(str, &ipv4_addr))
         {
             // Tail is IPv4 address:
             ipv4 = TRUE;
             j += 2;
-            goto WinDivertHelperParseIPv6AddressSuccess;
+            goto CyDivertHelperParseIPv6AddressSuccess;
         }
-        for (l = 0; l < 4 && WinDivertIsXDigit(*str); l++)
+        for (l = 0; l < 4 && CyDivertIsXDigit(*str); l++)
         {
             part_str[l] = *str;
             str++;
@@ -374,7 +374,7 @@ BOOL WinDivertHelperParseIPv6Address(const char *str, UINT32 *addr_ptr)
             SetLastError(ERROR_INVALID_PARAMETER);
             return FALSE;
         }
-        WinDivertAToX(part_str, NULL, &part, /*size=*/1, /*prefix=*/FALSE);
+        CyDivertAToX(part_str, NULL, &part, /*size=*/1, /*prefix=*/FALSE);
         if (left)
         {
             laddr[i++] = (UINT16)part;
@@ -395,7 +395,7 @@ BOOL WinDivertHelperParseIPv6Address(const char *str, UINT32 *addr_ptr)
         str++;
     }
 
-WinDivertHelperParseIPv6AddressSuccess:
+CyDivertHelperParseIPv6AddressSuccess:
 
     if (!ipv4 && addr_ptr == NULL)
     {
@@ -434,7 +434,7 @@ WinDivertHelperParseIPv6AddressSuccess:
 /*
  * Lookup a token.
  */
-static PTOKEN_INFO WinDivertTokenLookup(PTOKEN_INFO token_info,
+static PTOKEN_INFO CyDivertTokenLookup(PTOKEN_INFO token_info,
     size_t token_info_len, const char *name)
 {
     int lo = 0, hi = (int)token_info_len-1, mid;
@@ -442,7 +442,7 @@ static PTOKEN_INFO WinDivertTokenLookup(PTOKEN_INFO token_info,
     while (hi >= lo)
     {
         mid = (lo + hi) / 2;
-        cmp = WinDivertStrCmp(token_info[mid].name, name);
+        cmp = CyDivertStrCmp(token_info[mid].name, name);
         if (cmp < 0)
         {
             lo = mid+1;
@@ -462,15 +462,15 @@ static PTOKEN_INFO WinDivertTokenLookup(PTOKEN_INFO token_info,
 /*
  * Parse IPv4/IPv6/ICMP/ICMPv6/TCP/UDP headers from a raw packet.
  */
-BOOL WinDivertHelperParsePacket(const VOID *pPacket, UINT packetLen,
-    PWINDIVERT_IPHDR *ppIPHeader, PWINDIVERT_IPV6HDR *ppIPv6Header,
-    UINT8 *pProtocol, PWINDIVERT_ICMPHDR *ppICMPHeader,
-    PWINDIVERT_ICMPV6HDR *ppICMPv6Header, PWINDIVERT_TCPHDR *ppTCPHeader,
-    PWINDIVERT_UDPHDR *ppUDPHeader, PVOID *ppData, UINT *pDataLen,
+BOOL CyDivertHelperParsePacket(const VOID *pPacket, UINT packetLen,
+    PCYDIVERT_IPHDR *ppIPHeader, PCYDIVERT_IPV6HDR *ppIPv6Header,
+    UINT8 *pProtocol, PCYDIVERT_ICMPHDR *ppICMPHeader,
+    PCYDIVERT_ICMPV6HDR *ppICMPv6Header, PCYDIVERT_TCPHDR *ppTCPHeader,
+    PCYDIVERT_UDPHDR *ppUDPHeader, PVOID *ppData, UINT *pDataLen,
     PVOID *ppNext, UINT *pNextLen)
 {
-    WINDIVERT_PACKET info;
-    if (!WinDivertHelperParsePacketEx(pPacket, packetLen, &info))
+    CYDIVERT_PACKET info;
+    if (!CyDivertHelperParsePacketEx(pPacket, packetLen, &info))
     {
         return FALSE;
     }
@@ -532,58 +532,58 @@ BOOL WinDivertHelperParsePacket(const VOID *pPacket, UINT packetLen,
 /*
  * Expand a "macro" value.
  */
-static BOOL WinDivertExpandMacro(KIND kind, WINDIVERT_LAYER layer, UINT32 *val)
+static BOOL CyDivertExpandMacro(KIND kind, CYDIVERT_LAYER layer, UINT32 *val)
 {
     switch (kind)
     {
         case TOKEN_NETWORK:
-            *val = WINDIVERT_LAYER_NETWORK;
+            *val = CYDIVERT_LAYER_NETWORK;
             return TRUE;
         case TOKEN_NETWORK_FORWARD:
-            *val = WINDIVERT_LAYER_NETWORK_FORWARD;
+            *val = CYDIVERT_LAYER_NETWORK_FORWARD;
             return TRUE;
         case TOKEN_FLOW:
-            *val = WINDIVERT_LAYER_FLOW;
+            *val = CYDIVERT_LAYER_FLOW;
             return TRUE;
         case TOKEN_SOCKET:
-            *val = WINDIVERT_LAYER_SOCKET;
+            *val = CYDIVERT_LAYER_SOCKET;
             return TRUE;
         case TOKEN_REFLECT:
-            *val = WINDIVERT_LAYER_REFLECT;
+            *val = CYDIVERT_LAYER_REFLECT;
             return TRUE;
         case TOKEN_EVENT_PACKET:
-            *val = WINDIVERT_EVENT_NETWORK_PACKET;
-            return (layer == WINDIVERT_LAYER_NETWORK ||
-                    layer == WINDIVERT_LAYER_NETWORK_FORWARD);
+            *val = CYDIVERT_EVENT_NETWORK_PACKET;
+            return (layer == CYDIVERT_LAYER_NETWORK ||
+                    layer == CYDIVERT_LAYER_NETWORK_FORWARD);
         case TOKEN_EVENT_ESTABLISHED:
-            *val = WINDIVERT_EVENT_FLOW_ESTABLISHED;
-            return (layer == WINDIVERT_LAYER_FLOW);
+            *val = CYDIVERT_EVENT_FLOW_ESTABLISHED;
+            return (layer == CYDIVERT_LAYER_FLOW);
         case TOKEN_EVENT_DELETED:
-            *val = WINDIVERT_EVENT_FLOW_DELETED;
-            return (layer == WINDIVERT_LAYER_FLOW);
+            *val = CYDIVERT_EVENT_FLOW_DELETED;
+            return (layer == CYDIVERT_LAYER_FLOW);
         case TOKEN_EVENT_BIND:
-            *val = WINDIVERT_EVENT_SOCKET_BIND;
-            return (layer == WINDIVERT_LAYER_SOCKET);
+            *val = CYDIVERT_EVENT_SOCKET_BIND;
+            return (layer == CYDIVERT_LAYER_SOCKET);
         case TOKEN_EVENT_CONNECT:
-            *val = WINDIVERT_EVENT_SOCKET_CONNECT;
-            return (layer == WINDIVERT_LAYER_SOCKET);
+            *val = CYDIVERT_EVENT_SOCKET_CONNECT;
+            return (layer == CYDIVERT_LAYER_SOCKET);
         case TOKEN_EVENT_LISTEN:
-            *val = WINDIVERT_EVENT_SOCKET_LISTEN;
-            return (layer == WINDIVERT_LAYER_SOCKET);
+            *val = CYDIVERT_EVENT_SOCKET_LISTEN;
+            return (layer == CYDIVERT_LAYER_SOCKET);
         case TOKEN_EVENT_ACCEPT:
-            *val = WINDIVERT_EVENT_SOCKET_ACCEPT;
-            return (layer == WINDIVERT_LAYER_SOCKET);
+            *val = CYDIVERT_EVENT_SOCKET_ACCEPT;
+            return (layer == CYDIVERT_LAYER_SOCKET);
         case TOKEN_EVENT_OPEN:
-            *val = WINDIVERT_EVENT_REFLECT_OPEN;
-            return (layer == WINDIVERT_LAYER_REFLECT);
+            *val = CYDIVERT_EVENT_REFLECT_OPEN;
+            return (layer == CYDIVERT_LAYER_REFLECT);
         case TOKEN_EVENT_CLOSE:
             switch (layer)
             {
-                case WINDIVERT_LAYER_SOCKET:
-                    *val = WINDIVERT_EVENT_SOCKET_CLOSE;
+                case CYDIVERT_LAYER_SOCKET:
+                    *val = CYDIVERT_EVENT_SOCKET_CLOSE;
                     return TRUE;
-                case WINDIVERT_LAYER_REFLECT:
-                    *val = WINDIVERT_EVENT_REFLECT_CLOSE;
+                case CYDIVERT_LAYER_REFLECT:
+                    *val = CYDIVERT_EVENT_REFLECT_CLOSE;
                     return TRUE;
                 default:
                     return FALSE;
@@ -614,7 +614,7 @@ static BOOL WinDivertExpandMacro(KIND kind, WINDIVERT_LAYER layer, UINT32 *val)
 /*
  * Tokenize the given filter string.
  */
-static ERROR WinDivertTokenizeFilter(const char *filter, WINDIVERT_LAYER layer,
+static ERROR CyDivertTokenizeFilter(const char *filter, CYDIVERT_LAYER layer,
     TOKEN *tokens, UINT tokensmax)
 {
     static const TOKEN_INFO token_info[] =
@@ -742,10 +742,10 @@ static ERROR WinDivertTokenizeFilter(const char *filter, WINDIVERT_LAYER layer,
     {
         if (tp >= tokensmax-1)
         {
-            return MAKE_ERROR(WINDIVERT_ERROR_TOO_LONG, i);
+            return MAKE_ERROR(CYDIVERT_ERROR_TOO_LONG, i);
         }
         memset(tokens[tp].val, 0, sizeof(tokens[tp].val));
-        while (WinDivertIsSpace(filter[i]))
+        while (CyDivertIsSpace(filter[i]))
         {
             i++;
         }
@@ -755,7 +755,7 @@ static ERROR WinDivertTokenizeFilter(const char *filter, WINDIVERT_LAYER layer,
         {
             case '\0':
                 tokens[tp].kind = TOKEN_END;
-                return MAKE_ERROR(WINDIVERT_ERROR_NONE, 0);
+                return MAKE_ERROR(CYDIVERT_ERROR_NONE, 0);
             case '(':
                 tokens[tp++].kind = TOKEN_OPEN;
                 continue;
@@ -824,14 +824,14 @@ static ERROR WinDivertTokenizeFilter(const char *filter, WINDIVERT_LAYER layer,
             case '&':
                 if (filter[i++] != '&')
                 {
-                    return MAKE_ERROR(WINDIVERT_ERROR_BAD_TOKEN, i-1);
+                    return MAKE_ERROR(CYDIVERT_ERROR_BAD_TOKEN, i-1);
                 }
                 tokens[tp++].kind = TOKEN_AND;
                 continue;
             case '|':
                 if (filter[i++] != '|')
                 {
-                    return MAKE_ERROR(WINDIVERT_ERROR_BAD_TOKEN, i-1);
+                    return MAKE_ERROR(CYDIVERT_ERROR_BAD_TOKEN, i-1);
                 }
                 tokens[tp++].kind = TOKEN_OR;
                 continue;
@@ -839,11 +839,11 @@ static ERROR WinDivertTokenizeFilter(const char *filter, WINDIVERT_LAYER layer,
                 break;
         }
         token[0] = c;
-        if (WinDivertIsAlNum(c) || c == '.' || c == ':' || c == '_')
+        if (CyDivertIsAlNum(c) || c == '.' || c == ':' || c == '_')
         {
             UINT32 num[4];
             char *end;
-            for (j = 1; j < TOKEN_MAXLEN && (WinDivertIsAlNum(filter[i]) ||
+            for (j = 1; j < TOKEN_MAXLEN && (CyDivertIsAlNum(filter[i]) ||
                     filter[i] == '.' || filter[i] == ':' || filter[i] == '_');
                     j++, i++)
             {
@@ -851,7 +851,7 @@ static ERROR WinDivertTokenizeFilter(const char *filter, WINDIVERT_LAYER layer,
             }
             if (j >= TOKEN_MAXLEN)
             {
-                return MAKE_ERROR(WINDIVERT_ERROR_BAD_TOKEN, i-j);
+                return MAKE_ERROR(CYDIVERT_ERROR_BAD_TOKEN, i-j);
             }
             token[j] = '\0';
 
@@ -866,18 +866,18 @@ static ERROR WinDivertTokenizeFilter(const char *filter, WINDIVERT_LAYER layer,
             }
 
             // Check for symbol:
-            result = WinDivertTokenLookup((PTOKEN_INFO)token_info,
+            result = CyDivertTokenLookup((PTOKEN_INFO)token_info,
                 sizeof(token_info) / sizeof(TOKEN_INFO), token);
             if (result != NULL)
             {
-                field = WinDivertKindToField(result->kind);
-                if (field <= WINDIVERT_FILTER_FIELD_MAX &&
-                        !WinDivertValidateField(layer, field))
+                field = CyDivertKindToField(result->kind);
+                if (field <= CYDIVERT_FILTER_FIELD_MAX &&
+                        !CyDivertValidateField(layer, field))
                 {
-                    return MAKE_ERROR(WINDIVERT_ERROR_BAD_TOKEN_FOR_LAYER,
+                    return MAKE_ERROR(CYDIVERT_ERROR_BAD_TOKEN_FOR_LAYER,
                         i-j);
                 }
-                if (WinDivertExpandMacro(result->kind, layer,
+                if (CyDivertExpandMacro(result->kind, layer,
                         &tokens[tp].val[0]))
                 {
                     tokens[tp].kind = TOKEN_NUMBER;
@@ -898,7 +898,7 @@ static ERROR WinDivertTokenizeFilter(const char *filter, WINDIVERT_LAYER layer,
             }
 
             // Check for base 10 number:
-            if (WinDivertAToI(token, &end, num, sizeof(num)/sizeof(num[0])))
+            if (CyDivertAToI(token, &end, num, sizeof(num)/sizeof(num[0])))
             {
                 BOOL b = (*end == 'b' && *(end+1) == '\0');
                 if (*end == '\0' || b)
@@ -918,7 +918,7 @@ static ERROR WinDivertTokenizeFilter(const char *filter, WINDIVERT_LAYER layer,
 
             // Check for base 16 number:
             if (token[0] == '0' && token[1] == 'x' &&
-                WinDivertAToX(token, &end, num, sizeof(num)/sizeof(num[0]),
+                CyDivertAToX(token, &end, num, sizeof(num)/sizeof(num[0]),
                     /*prefix=*/TRUE) &&
                 *end == '\0')
             {
@@ -929,7 +929,7 @@ static ERROR WinDivertTokenizeFilter(const char *filter, WINDIVERT_LAYER layer,
             }
 
             // Check for IPv4 address:
-            if (WinDivertHelperParseIPv4Address(token, tokens[tp].val))
+            if (CyDivertHelperParseIPv4Address(token, tokens[tp].val))
             {
                 tokens[tp].val[1] = 0x0000FFFF;
                 tokens[tp].kind = TOKEN_NUMBER;
@@ -939,18 +939,18 @@ static ERROR WinDivertTokenizeFilter(const char *filter, WINDIVERT_LAYER layer,
 
             // Check for IPv6 address:
             SetLastError(0);
-            if (WinDivertHelperParseIPv6Address(token, tokens[tp].val))
+            if (CyDivertHelperParseIPv6Address(token, tokens[tp].val))
             {
                 tokens[tp].kind = TOKEN_NUMBER;
                 tp++;
                 continue;
             }
 
-            return MAKE_ERROR(WINDIVERT_ERROR_BAD_TOKEN, i-j);
+            return MAKE_ERROR(CYDIVERT_ERROR_BAD_TOKEN, i-j);
         }
         else
         {
-            return MAKE_ERROR(WINDIVERT_ERROR_BAD_TOKEN, i);
+            return MAKE_ERROR(CYDIVERT_ERROR_BAD_TOKEN, i);
         }
     }
 }
@@ -958,7 +958,7 @@ static ERROR WinDivertTokenizeFilter(const char *filter, WINDIVERT_LAYER layer,
 /*
  * Construct a variable/field.
  */
-static PEXPR WinDivertMakeVar(KIND kind, PERROR error)
+static PEXPR CyDivertMakeVar(KIND kind, PERROR error)
 {
     // NOTE: must be in order of kind.
     static const EXPR vars[] =
@@ -1063,7 +1063,7 @@ static PEXPR WinDivertMakeVar(KIND kind, PERROR error)
     }
     if (error != NULL)
     {
-        *error = MAKE_ERROR(WINDIVERT_ERROR_ASSERTION_FAILED, 0);
+        *error = MAKE_ERROR(CYDIVERT_ERROR_ASSERTION_FAILED, 0);
     }
     return NULL;
 }
@@ -1071,13 +1071,13 @@ static PEXPR WinDivertMakeVar(KIND kind, PERROR error)
 /*
  * Construct array varable.
  */
-static PEXPR WinDivertMakeArrayVar(HANDLE pool, KIND kind, INT idx,
+static PEXPR CyDivertMakeArrayVar(HANDLE pool, KIND kind, INT idx,
     PERROR error)
 {
     PEXPR var = (PEXPR)HeapAlloc(pool, HEAP_ZERO_MEMORY, sizeof(EXPR));
     if (var == NULL)
     {
-        *error = MAKE_ERROR(WINDIVERT_ERROR_NO_MEMORY, 0);
+        *error = MAKE_ERROR(CYDIVERT_ERROR_NO_MEMORY, 0);
         return NULL;
     }
     var->kind = kind;
@@ -1088,7 +1088,7 @@ static PEXPR WinDivertMakeArrayVar(HANDLE pool, KIND kind, INT idx,
 /*
  * Construct zero.
  */
-static PEXPR WinDivertMakeZero(void)
+static PEXPR CyDivertMakeZero(void)
 {
     static const EXPR zero = {{{0, 0, 0, 0}}, TOKEN_NUMBER};
     return (PEXPR)&zero;
@@ -1097,7 +1097,7 @@ static PEXPR WinDivertMakeZero(void)
 /*
  * Construct one.
  */
-static PEXPR WinDivertMakeOne(void)
+static PEXPR CyDivertMakeOne(void)
 {
     static const EXPR one = {{{1, 0, 0, 0}}, TOKEN_NUMBER};
     return (PEXPR)&one;
@@ -1106,12 +1106,12 @@ static PEXPR WinDivertMakeOne(void)
 /*
  * Construct a number.
  */
-static PEXPR WinDivertMakeNumber(HANDLE pool, UINT32 *val, PERROR error)
+static PEXPR CyDivertMakeNumber(HANDLE pool, UINT32 *val, PERROR error)
 {
     PEXPR expr = (PEXPR)HeapAlloc(pool, HEAP_ZERO_MEMORY, sizeof(EXPR));
     if (expr == NULL)
     {
-        *error = MAKE_ERROR(WINDIVERT_ERROR_NO_MEMORY, 0);
+        *error = MAKE_ERROR(CYDIVERT_ERROR_NO_MEMORY, 0);
         return NULL;
     }
     expr->kind = TOKEN_NUMBER;
@@ -1125,7 +1125,7 @@ static PEXPR WinDivertMakeNumber(HANDLE pool, UINT32 *val, PERROR error)
 /*
  * Construct a binary operator.
  */
-static PEXPR WinDivertMakeBinOp(HANDLE pool, KIND kind, PEXPR arg0, PEXPR arg1,
+static PEXPR CyDivertMakeBinOp(HANDLE pool, KIND kind, PEXPR arg0, PEXPR arg1,
     PERROR error)
 {
     PEXPR expr;
@@ -1136,7 +1136,7 @@ static PEXPR WinDivertMakeBinOp(HANDLE pool, KIND kind, PEXPR arg0, PEXPR arg1,
     expr = (PEXPR)HeapAlloc(pool, HEAP_ZERO_MEMORY, sizeof(EXPR));
     if (expr == NULL)
     {
-        *error = MAKE_ERROR(WINDIVERT_ERROR_NO_MEMORY, 0);
+        *error = MAKE_ERROR(CYDIVERT_ERROR_NO_MEMORY, 0);
         return NULL;
     }
     expr->kind = kind;
@@ -1148,13 +1148,13 @@ static PEXPR WinDivertMakeBinOp(HANDLE pool, KIND kind, PEXPR arg0, PEXPR arg1,
 /*
  * Construct an if-then-else.
  */
-static PEXPR WinDivertMakeIfThenElse(HANDLE pool, PEXPR cond, PEXPR th,
+static PEXPR CyDivertMakeIfThenElse(HANDLE pool, PEXPR cond, PEXPR th,
     PEXPR el, PERROR error)
 {
     PEXPR expr = (PEXPR)HeapAlloc(pool, HEAP_ZERO_MEMORY, sizeof(EXPR));
     if (expr == NULL)
     {
-        *error = MAKE_ERROR(WINDIVERT_ERROR_NO_MEMORY, 0);
+        *error = MAKE_ERROR(CYDIVERT_ERROR_NO_MEMORY, 0);
         return NULL;
     }
     expr->kind = TOKEN_QUESTION;
@@ -1167,7 +1167,7 @@ static PEXPR WinDivertMakeIfThenElse(HANDLE pool, PEXPR cond, PEXPR th,
 /*
  * Parse a filter test.
  */
-static PEXPR WinDivertParseTest(HANDLE pool, TOKEN *toks, UINT *i, PERROR error)
+static PEXPR CyDivertParseTest(HANDLE pool, TOKEN *toks, UINT *i, PERROR error)
 {
     PEXPR var, val;
     KIND kind;
@@ -1259,7 +1259,7 @@ static PEXPR WinDivertParseTest(HANDLE pool, TOKEN *toks, UINT *i, PERROR error)
         case TOKEN_UDP_LENGTH:
         case TOKEN_UDP_CHECKSUM:
         case TOKEN_UDP_PAYLOAD_LENGTH:
-            var = WinDivertMakeVar(toks[*i].kind, error);
+            var = CyDivertMakeVar(toks[*i].kind, error);
             *i = *i + 1;
             break;
         case TOKEN_PACKET:
@@ -1295,9 +1295,9 @@ static PEXPR WinDivertParseTest(HANDLE pool, TOKEN *toks, UINT *i, PERROR error)
                 goto unexpected_token;
             }
             if (toks[*i].val[3] != 0 || toks[*i].val[2] != 0 ||
-                toks[*i].val[1] != 0 || toks[*i].val[0] > WINDIVERT_MTU_MAX)
+                toks[*i].val[1] != 0 || toks[*i].val[0] > CYDIVERT_MTU_MAX)
             {
-                *error = MAKE_ERROR(WINDIVERT_ERROR_INDEX_OOB, toks[*i].pos);
+                *error = MAKE_ERROR(CYDIVERT_ERROR_INDEX_OOB, toks[*i].pos);
                 return NULL;
             }
             idx = toks[*i].val[0];
@@ -1313,10 +1313,10 @@ static PEXPR WinDivertParseTest(HANDLE pool, TOKEN *toks, UINT *i, PERROR error)
             if ((!neg && idx > UINT16_MAX - size) ||
                 (neg && idx > UINT16_MAX) || (neg && idx < size))
             {
-                *error = MAKE_ERROR(WINDIVERT_ERROR_INDEX_OOB, toks[*i].pos);
+                *error = MAKE_ERROR(CYDIVERT_ERROR_INDEX_OOB, toks[*i].pos);
                 return NULL;
             }
-            var = WinDivertMakeArrayVar(pool, kind, (neg? -(INT)idx: (INT)idx),
+            var = CyDivertMakeArrayVar(pool, kind, (neg? -(INT)idx: (INT)idx),
                 error);
             if (var == NULL)
             {
@@ -1330,7 +1330,7 @@ static PEXPR WinDivertParseTest(HANDLE pool, TOKEN *toks, UINT *i, PERROR error)
             break;
         default:
         unexpected_token:
-            *error = MAKE_ERROR(WINDIVERT_ERROR_UNEXPECTED_TOKEN, toks[*i].pos);
+            *error = MAKE_ERROR(CYDIVERT_ERROR_UNEXPECTED_TOKEN, toks[*i].pos);
             return NULL;
     }
     switch (toks[*i].kind)
@@ -1344,8 +1344,8 @@ static PEXPR WinDivertParseTest(HANDLE pool, TOKEN *toks, UINT *i, PERROR error)
             kind = toks[*i].kind;
             break;
         default:
-            return WinDivertMakeBinOp(pool, (not? TOKEN_EQ: TOKEN_NEQ), var,
-                WinDivertMakeZero(), error);
+            return CyDivertMakeBinOp(pool, (not? TOKEN_EQ: TOKEN_NEQ), var,
+                CyDivertMakeZero(), error);
     }
     if (not)
     {
@@ -1382,32 +1382,32 @@ static PEXPR WinDivertParseTest(HANDLE pool, TOKEN *toks, UINT *i, PERROR error)
     }
     if (toks[*i].kind != TOKEN_NUMBER)
     {
-        *error = MAKE_ERROR(WINDIVERT_ERROR_UNEXPECTED_TOKEN, toks[*i].pos);
+        *error = MAKE_ERROR(CYDIVERT_ERROR_UNEXPECTED_TOKEN, toks[*i].pos);
         return NULL;
     }
-    val = WinDivertMakeNumber(pool, toks[*i].val, error);
+    val = CyDivertMakeNumber(pool, toks[*i].val, error);
     val->neg = neg;
     *i = *i + 1;
-    return WinDivertMakeBinOp(pool, kind, var, val, error);
+    return CyDivertMakeBinOp(pool, kind, var, val, error);
 }
 
 /*
  * Parse a filter argument to an (and) (or) operator.
  */
-static PEXPR WinDivertParseAndOrArg(HANDLE pool, TOKEN *toks, UINT *i,
+static PEXPR CyDivertParseAndOrArg(HANDLE pool, TOKEN *toks, UINT *i,
     INT depth, PERROR error)
 {
     PEXPR arg, th, el;
     if (depth-- < 0)
     {
-        *error = MAKE_ERROR(WINDIVERT_ERROR_TOO_DEEP, toks[*i].pos);
+        *error = MAKE_ERROR(CYDIVERT_ERROR_TOO_DEEP, toks[*i].pos);
         return NULL;
     }
     switch (toks[*i].kind)
     {
         case TOKEN_OPEN:
             *i = *i + 1;
-            arg = WinDivertParseFilter(pool, toks, i, depth, FALSE, error);
+            arg = CyDivertParseFilter(pool, toks, i, depth, FALSE, error);
             if (toks[*i].kind == TOKEN_CLOSE)
             {
                 *i = *i + 1;
@@ -1416,56 +1416,56 @@ static PEXPR WinDivertParseAndOrArg(HANDLE pool, TOKEN *toks, UINT *i,
             if (toks[*i].kind == TOKEN_QUESTION)
             {
                 *i = *i + 1;
-                th = WinDivertParseFilter(pool, toks, i, depth, FALSE, error);
+                th = CyDivertParseFilter(pool, toks, i, depth, FALSE, error);
                 if (th == NULL)
                 {
                     return NULL;
                 }
                 if (toks[*i].kind != TOKEN_COLON)
                 {
-                    *error = MAKE_ERROR(WINDIVERT_ERROR_UNEXPECTED_TOKEN,
+                    *error = MAKE_ERROR(CYDIVERT_ERROR_UNEXPECTED_TOKEN,
                         toks[*i].pos);
                     return NULL;
                 }
                 *i = *i + 1;
-                el = WinDivertParseFilter(pool, toks, i, depth, FALSE, error);
+                el = CyDivertParseFilter(pool, toks, i, depth, FALSE, error);
                 if (el == NULL)
                 {
                     return NULL;
                 }
                 if (toks[*i].kind != TOKEN_CLOSE)
                 {
-                    *error = MAKE_ERROR(WINDIVERT_ERROR_UNEXPECTED_TOKEN,
+                    *error = MAKE_ERROR(CYDIVERT_ERROR_UNEXPECTED_TOKEN,
                         toks[*i].pos);
                     return NULL;
                 }
                 *i = *i + 1;
-                arg = WinDivertMakeIfThenElse(pool, arg, th, el, error);
+                arg = CyDivertMakeIfThenElse(pool, arg, th, el, error);
                 return arg;
             }
-            *error = MAKE_ERROR(WINDIVERT_ERROR_UNEXPECTED_TOKEN, toks[*i].pos);
+            *error = MAKE_ERROR(CYDIVERT_ERROR_UNEXPECTED_TOKEN, toks[*i].pos);
             return NULL;
         default:
-            return WinDivertParseTest(pool, toks, i, error);
+            return CyDivertParseTest(pool, toks, i, error);
     }
 }
 
 /*
  * Parse the filter into an expression object.
  */
-static PEXPR WinDivertParseFilter(HANDLE pool, TOKEN *toks, UINT *i, INT depth,
+static PEXPR CyDivertParseFilter(HANDLE pool, TOKEN *toks, UINT *i, INT depth,
     BOOL and, PERROR error)
 {
     PEXPR expr, arg;
     if (depth-- < 0)
     {
-        *error = MAKE_ERROR(WINDIVERT_ERROR_TOO_DEEP, toks[*i].pos);
+        *error = MAKE_ERROR(CYDIVERT_ERROR_TOO_DEEP, toks[*i].pos);
         return NULL;
     }
     if (and)
-        expr = WinDivertParseAndOrArg(pool, toks, i, depth, error);
+        expr = CyDivertParseAndOrArg(pool, toks, i, depth, error);
     else
-        expr = WinDivertParseFilter(pool, toks, i, depth, TRUE, error);
+        expr = CyDivertParseFilter(pool, toks, i, depth, TRUE, error);
     do
     {
         if (expr == NULL)
@@ -1476,13 +1476,13 @@ static PEXPR WinDivertParseFilter(HANDLE pool, TOKEN *toks, UINT *i, INT depth,
         {
             case TOKEN_AND:
                 *i = *i + 1;
-                arg = WinDivertParseAndOrArg(pool, toks, i, depth, error);
-                expr = WinDivertMakeBinOp(pool, TOKEN_AND, expr, arg, error);
+                arg = CyDivertParseAndOrArg(pool, toks, i, depth, error);
+                expr = CyDivertMakeBinOp(pool, TOKEN_AND, expr, arg, error);
                 continue;
             case TOKEN_OR:
                 *i = *i + 1;
-                arg = WinDivertParseFilter(pool, toks, i, depth, TRUE, error);
-                expr = WinDivertMakeBinOp(pool, TOKEN_OR, expr, arg, error);
+                arg = CyDivertParseFilter(pool, toks, i, depth, TRUE, error);
+                expr = CyDivertMakeBinOp(pool, TOKEN_OR, expr, arg, error);
                 continue;
             default:
                 return expr;
@@ -1494,7 +1494,7 @@ static PEXPR WinDivertParseFilter(HANDLE pool, TOKEN *toks, UINT *i, INT depth,
 /*
  * Simplify a test if possible.
  */
-static void WinDivertSimplifyTest(PEXPR test)
+static void CyDivertSimplifyTest(PEXPR test)
 {
     PEXPR var = test->arg[0];
     PEXPR val = test->arg[1];
@@ -1516,14 +1516,14 @@ static void WinDivertSimplifyTest(PEXPR test)
             lb[0] = ub[0] = 1;
             break;
         case TOKEN_LAYER:
-            lb[0] = 0; ub[0] = WINDIVERT_LAYER_MAX;
+            lb[0] = 0; ub[0] = CYDIVERT_LAYER_MAX;
             break;
         case TOKEN_PRIORITY:
             neg_lb = TRUE;
-            lb[0] = ub[0] = WINDIVERT_PRIORITY_MAX;
+            lb[0] = ub[0] = CYDIVERT_PRIORITY_MAX;
             break;
         case TOKEN_EVENT:
-            lb[0] = 0; ub[0] = WINDIVERT_EVENT_MAX;
+            lb[0] = 0; ub[0] = CYDIVERT_EVENT_MAX;
             break;
         case TOKEN_IP_DF:
         case TOKEN_IP_MF:
@@ -1641,7 +1641,7 @@ static void WinDivertSimplifyTest(PEXPR test)
             lb[0] = 0; ub[0] = 0xFFFF;
             break;
         case TOKEN_LENGTH:
-            lb[0] = sizeof(WINDIVERT_IPHDR); ub[0] = WINDIVERT_MTU_MAX;
+            lb[0] = sizeof(CYDIVERT_IPHDR); ub[0] = CYDIVERT_MTU_MAX;
             break;
         case TOKEN_IPV6_FLOW_LABEL:
             type = TOKEN_IPV6;
@@ -1694,8 +1694,8 @@ static void WinDivertSimplifyTest(PEXPR test)
             return;
     }
     neg = (val->neg? TRUE: FALSE);
-    result_lb = WinDivertCompare128(neg, val->val, neg_lb, lb, /*big=*/TRUE);
-    result_ub = WinDivertCompare128(neg, val->val, neg_ub, ub, /*big=*/TRUE);
+    result_lb = CyDivertCompare128(neg, val->val, neg_lb, lb, /*big=*/TRUE);
+    result_ub = CyDivertCompare128(neg, val->val, neg_ub, ub, /*big=*/TRUE);
     switch (test->kind)
     {
         case TOKEN_EQ:
@@ -1773,15 +1773,15 @@ static void WinDivertSimplifyTest(PEXPR test)
         default:
             return;
     }
-    test->arg[0] = WinDivertMakeVar(type, NULL);
-    test->arg[1] = (result? WinDivertMakeOne(): WinDivertMakeZero());
+    test->arg[0] = CyDivertMakeVar(type, NULL);
+    test->arg[1] = (result? CyDivertMakeOne(): CyDivertMakeZero());
     test->kind   = TOKEN_EQ;
 }
 
 /*
  * Flatten an expression into a sequence of tests and jumps.
  */
-static INT16 WinDivertFlattenExpr(PEXPR expr, INT16 *label, INT16 succ,
+static INT16 CyDivertFlattenExpr(PEXPR expr, INT16 *label, INT16 succ,
     INT16 fail, PEXPR *stack)
 {
     INT16 succ1, fail1;
@@ -1792,29 +1792,29 @@ static INT16 WinDivertFlattenExpr(PEXPR expr, INT16 *label, INT16 succ,
     switch (expr->kind)
     {
         case TOKEN_AND:
-            succ = WinDivertFlattenExpr(expr->arg[1], label, succ, fail, stack);
-            succ = WinDivertFlattenExpr(expr->arg[0], label, succ, fail, stack);
+            succ = CyDivertFlattenExpr(expr->arg[1], label, succ, fail, stack);
+            succ = CyDivertFlattenExpr(expr->arg[0], label, succ, fail, stack);
             return succ;
         case TOKEN_OR:
-            fail = WinDivertFlattenExpr(expr->arg[1], label, succ, fail, stack);
-            fail = WinDivertFlattenExpr(expr->arg[0], label, succ, fail, stack);
+            fail = CyDivertFlattenExpr(expr->arg[1], label, succ, fail, stack);
+            fail = CyDivertFlattenExpr(expr->arg[0], label, succ, fail, stack);
             return fail;
         case TOKEN_QUESTION:
-            fail1 = WinDivertFlattenExpr(expr->arg[2], label, succ, fail,
+            fail1 = CyDivertFlattenExpr(expr->arg[2], label, succ, fail,
                 stack);
-            succ1 = WinDivertFlattenExpr(expr->arg[1], label, succ, fail,
+            succ1 = CyDivertFlattenExpr(expr->arg[1], label, succ, fail,
                 stack);
-            succ = WinDivertFlattenExpr(expr->arg[0], label, succ1, fail1,
+            succ = CyDivertFlattenExpr(expr->arg[0], label, succ1, fail1,
                 stack);
             return succ;
         default:
-            WinDivertSimplifyTest(expr);
+            CyDivertSimplifyTest(expr);
             if (expr->kind == TOKEN_EQ &&
                 expr->arg[0]->kind == TOKEN_TRUE)
             {
                 return (expr->arg[1]->val[0] != 0? succ: fail);
             }
-            if (*label >= WINDIVERT_FILTER_MAXLEN)
+            if (*label >= CYDIVERT_FILTER_MAXLEN)
             {
                 return -1;
             }
@@ -1830,182 +1830,182 @@ static INT16 WinDivertFlattenExpr(PEXPR expr, INT16 *label, INT16 succ,
 /*
  * Convert a kind to a field.
  */
-static UINT32 WinDivertKindToField(KIND kind)
+static UINT32 CyDivertKindToField(KIND kind)
 {
     switch (kind)
     {
         case TOKEN_ZERO:
-            return WINDIVERT_FILTER_FIELD_ZERO;
+            return CYDIVERT_FILTER_FIELD_ZERO;
         case TOKEN_EVENT:
-            return WINDIVERT_FILTER_FIELD_EVENT;
+            return CYDIVERT_FILTER_FIELD_EVENT;
         case TOKEN_RANDOM8:
-            return WINDIVERT_FILTER_FIELD_RANDOM8;
+            return CYDIVERT_FILTER_FIELD_RANDOM8;
         case TOKEN_RANDOM16:
-            return WINDIVERT_FILTER_FIELD_RANDOM16;
+            return CYDIVERT_FILTER_FIELD_RANDOM16;
         case TOKEN_RANDOM32:
-            return WINDIVERT_FILTER_FIELD_RANDOM32;
+            return CYDIVERT_FILTER_FIELD_RANDOM32;
         case TOKEN_PACKET:
-            return WINDIVERT_FILTER_FIELD_PACKET;
+            return CYDIVERT_FILTER_FIELD_PACKET;
         case TOKEN_PACKET16:
-            return WINDIVERT_FILTER_FIELD_PACKET16;
+            return CYDIVERT_FILTER_FIELD_PACKET16;
         case TOKEN_PACKET32:
-            return WINDIVERT_FILTER_FIELD_PACKET32;
+            return CYDIVERT_FILTER_FIELD_PACKET32;
         case TOKEN_LENGTH:
-            return WINDIVERT_FILTER_FIELD_LENGTH;
+            return CYDIVERT_FILTER_FIELD_LENGTH;
         case TOKEN_TIMESTAMP:
-            return WINDIVERT_FILTER_FIELD_TIMESTAMP;
+            return CYDIVERT_FILTER_FIELD_TIMESTAMP;
         case TOKEN_TCP_PAYLOAD:
-            return WINDIVERT_FILTER_FIELD_TCP_PAYLOAD;
+            return CYDIVERT_FILTER_FIELD_TCP_PAYLOAD;
         case TOKEN_TCP_PAYLOAD16:
-            return WINDIVERT_FILTER_FIELD_TCP_PAYLOAD16;
+            return CYDIVERT_FILTER_FIELD_TCP_PAYLOAD16;
         case TOKEN_TCP_PAYLOAD32:
-            return WINDIVERT_FILTER_FIELD_TCP_PAYLOAD32;
+            return CYDIVERT_FILTER_FIELD_TCP_PAYLOAD32;
         case TOKEN_UDP_PAYLOAD:
-            return WINDIVERT_FILTER_FIELD_UDP_PAYLOAD;
+            return CYDIVERT_FILTER_FIELD_UDP_PAYLOAD;
         case TOKEN_UDP_PAYLOAD16:
-            return WINDIVERT_FILTER_FIELD_UDP_PAYLOAD16;
+            return CYDIVERT_FILTER_FIELD_UDP_PAYLOAD16;
         case TOKEN_UDP_PAYLOAD32:
-            return WINDIVERT_FILTER_FIELD_UDP_PAYLOAD32;
+            return CYDIVERT_FILTER_FIELD_UDP_PAYLOAD32;
         case TOKEN_OUTBOUND:
-            return WINDIVERT_FILTER_FIELD_OUTBOUND;
+            return CYDIVERT_FILTER_FIELD_OUTBOUND;
         case TOKEN_INBOUND:
-            return WINDIVERT_FILTER_FIELD_INBOUND;
+            return CYDIVERT_FILTER_FIELD_INBOUND;
         case TOKEN_FRAGMENT:
-            return WINDIVERT_FILTER_FIELD_FRAGMENT;
+            return CYDIVERT_FILTER_FIELD_FRAGMENT;
         case TOKEN_IF_IDX:
-            return WINDIVERT_FILTER_FIELD_IFIDX;
+            return CYDIVERT_FILTER_FIELD_IFIDX;
         case TOKEN_SUB_IF_IDX:
-            return WINDIVERT_FILTER_FIELD_SUBIFIDX;
+            return CYDIVERT_FILTER_FIELD_SUBIFIDX;
         case TOKEN_LOOPBACK:
-            return WINDIVERT_FILTER_FIELD_LOOPBACK;
+            return CYDIVERT_FILTER_FIELD_LOOPBACK;
         case TOKEN_IMPOSTOR:
-            return WINDIVERT_FILTER_FIELD_IMPOSTOR;
+            return CYDIVERT_FILTER_FIELD_IMPOSTOR;
         case TOKEN_PROCESS_ID:
-            return WINDIVERT_FILTER_FIELD_PROCESSID;
+            return CYDIVERT_FILTER_FIELD_PROCESSID;
         case TOKEN_LOCAL_ADDR:
-            return WINDIVERT_FILTER_FIELD_LOCALADDR;
+            return CYDIVERT_FILTER_FIELD_LOCALADDR;
         case TOKEN_REMOTE_ADDR:
-            return WINDIVERT_FILTER_FIELD_REMOTEADDR;
+            return CYDIVERT_FILTER_FIELD_REMOTEADDR;
         case TOKEN_LOCAL_PORT:
-            return WINDIVERT_FILTER_FIELD_LOCALPORT;
+            return CYDIVERT_FILTER_FIELD_LOCALPORT;
         case TOKEN_REMOTE_PORT:
-            return WINDIVERT_FILTER_FIELD_REMOTEPORT;
+            return CYDIVERT_FILTER_FIELD_REMOTEPORT;
         case TOKEN_PROTOCOL:
-            return WINDIVERT_FILTER_FIELD_PROTOCOL;
+            return CYDIVERT_FILTER_FIELD_PROTOCOL;
         case TOKEN_ENDPOINT_ID:
-            return WINDIVERT_FILTER_FIELD_ENDPOINTID;
+            return CYDIVERT_FILTER_FIELD_ENDPOINTID;
         case TOKEN_PARENT_ENDPOINT_ID:
-            return WINDIVERT_FILTER_FIELD_PARENTENDPOINTID;
+            return CYDIVERT_FILTER_FIELD_PARENTENDPOINTID;
         case TOKEN_LAYER:
-            return WINDIVERT_FILTER_FIELD_LAYER;
+            return CYDIVERT_FILTER_FIELD_LAYER;
         case TOKEN_PRIORITY:
-            return WINDIVERT_FILTER_FIELD_PRIORITY;
+            return CYDIVERT_FILTER_FIELD_PRIORITY;
         case TOKEN_IP:
-            return WINDIVERT_FILTER_FIELD_IP;
+            return CYDIVERT_FILTER_FIELD_IP;
         case TOKEN_IPV6:
-            return WINDIVERT_FILTER_FIELD_IPV6;
+            return CYDIVERT_FILTER_FIELD_IPV6;
         case TOKEN_ICMP:
-            return WINDIVERT_FILTER_FIELD_ICMP;
+            return CYDIVERT_FILTER_FIELD_ICMP;
         case TOKEN_ICMPV6:
-            return WINDIVERT_FILTER_FIELD_ICMPV6;
+            return CYDIVERT_FILTER_FIELD_ICMPV6;
         case TOKEN_TCP:
-            return WINDIVERT_FILTER_FIELD_TCP;
+            return CYDIVERT_FILTER_FIELD_TCP;
         case TOKEN_UDP:
-            return WINDIVERT_FILTER_FIELD_UDP;
+            return CYDIVERT_FILTER_FIELD_UDP;
         case TOKEN_IP_HDR_LENGTH:
-            return WINDIVERT_FILTER_FIELD_IP_HDRLENGTH;
+            return CYDIVERT_FILTER_FIELD_IP_HDRLENGTH;
         case TOKEN_IP_TOS:
-            return WINDIVERT_FILTER_FIELD_IP_TOS;
+            return CYDIVERT_FILTER_FIELD_IP_TOS;
         case TOKEN_IP_LENGTH:
-            return WINDIVERT_FILTER_FIELD_IP_LENGTH;
+            return CYDIVERT_FILTER_FIELD_IP_LENGTH;
         case TOKEN_IP_ID:
-            return WINDIVERT_FILTER_FIELD_IP_ID;
+            return CYDIVERT_FILTER_FIELD_IP_ID;
         case TOKEN_IP_DF:
-            return WINDIVERT_FILTER_FIELD_IP_DF;
+            return CYDIVERT_FILTER_FIELD_IP_DF;
         case TOKEN_IP_MF:
-            return WINDIVERT_FILTER_FIELD_IP_MF;
+            return CYDIVERT_FILTER_FIELD_IP_MF;
         case TOKEN_IP_FRAG_OFF:
-            return WINDIVERT_FILTER_FIELD_IP_FRAGOFF;
+            return CYDIVERT_FILTER_FIELD_IP_FRAGOFF;
         case TOKEN_IP_TTL:
-            return WINDIVERT_FILTER_FIELD_IP_TTL;
+            return CYDIVERT_FILTER_FIELD_IP_TTL;
         case TOKEN_IP_PROTOCOL:
-            return WINDIVERT_FILTER_FIELD_IP_PROTOCOL;
+            return CYDIVERT_FILTER_FIELD_IP_PROTOCOL;
         case TOKEN_IP_CHECKSUM:
-            return WINDIVERT_FILTER_FIELD_IP_CHECKSUM;
+            return CYDIVERT_FILTER_FIELD_IP_CHECKSUM;
         case TOKEN_IP_SRC_ADDR:
-            return WINDIVERT_FILTER_FIELD_IP_SRCADDR;
+            return CYDIVERT_FILTER_FIELD_IP_SRCADDR;
         case TOKEN_IP_DST_ADDR:
-            return WINDIVERT_FILTER_FIELD_IP_DSTADDR;
+            return CYDIVERT_FILTER_FIELD_IP_DSTADDR;
         case TOKEN_IPV6_TRAFFIC_CLASS:
-            return WINDIVERT_FILTER_FIELD_IPV6_TRAFFICCLASS;
+            return CYDIVERT_FILTER_FIELD_IPV6_TRAFFICCLASS;
         case TOKEN_IPV6_FLOW_LABEL:
-            return WINDIVERT_FILTER_FIELD_IPV6_FLOWLABEL;
+            return CYDIVERT_FILTER_FIELD_IPV6_FLOWLABEL;
         case TOKEN_IPV6_LENGTH:
-            return WINDIVERT_FILTER_FIELD_IPV6_LENGTH;
+            return CYDIVERT_FILTER_FIELD_IPV6_LENGTH;
         case TOKEN_IPV6_NEXT_HDR:
-            return WINDIVERT_FILTER_FIELD_IPV6_NEXTHDR;
+            return CYDIVERT_FILTER_FIELD_IPV6_NEXTHDR;
         case TOKEN_IPV6_HOP_LIMIT:
-            return WINDIVERT_FILTER_FIELD_IPV6_HOPLIMIT;
+            return CYDIVERT_FILTER_FIELD_IPV6_HOPLIMIT;
         case TOKEN_IPV6_SRC_ADDR:
-            return WINDIVERT_FILTER_FIELD_IPV6_SRCADDR;
+            return CYDIVERT_FILTER_FIELD_IPV6_SRCADDR;
         case TOKEN_IPV6_DST_ADDR:
-            return WINDIVERT_FILTER_FIELD_IPV6_DSTADDR;
+            return CYDIVERT_FILTER_FIELD_IPV6_DSTADDR;
         case TOKEN_ICMP_TYPE:
-            return WINDIVERT_FILTER_FIELD_ICMP_TYPE;
+            return CYDIVERT_FILTER_FIELD_ICMP_TYPE;
         case TOKEN_ICMP_CODE:
-            return WINDIVERT_FILTER_FIELD_ICMP_CODE;
+            return CYDIVERT_FILTER_FIELD_ICMP_CODE;
         case TOKEN_ICMP_CHECKSUM:
-            return WINDIVERT_FILTER_FIELD_ICMP_CHECKSUM;
+            return CYDIVERT_FILTER_FIELD_ICMP_CHECKSUM;
         case TOKEN_ICMP_BODY:
-            return WINDIVERT_FILTER_FIELD_ICMP_BODY;
+            return CYDIVERT_FILTER_FIELD_ICMP_BODY;
         case TOKEN_ICMPV6_TYPE:
-            return WINDIVERT_FILTER_FIELD_ICMPV6_TYPE;
+            return CYDIVERT_FILTER_FIELD_ICMPV6_TYPE;
         case TOKEN_ICMPV6_CODE:
-            return WINDIVERT_FILTER_FIELD_ICMPV6_CODE;
+            return CYDIVERT_FILTER_FIELD_ICMPV6_CODE;
         case TOKEN_ICMPV6_CHECKSUM:
-            return WINDIVERT_FILTER_FIELD_ICMPV6_CHECKSUM;
+            return CYDIVERT_FILTER_FIELD_ICMPV6_CHECKSUM;
         case TOKEN_ICMPV6_BODY:
-            return WINDIVERT_FILTER_FIELD_ICMPV6_BODY;
+            return CYDIVERT_FILTER_FIELD_ICMPV6_BODY;
         case TOKEN_TCP_SRC_PORT:
-            return WINDIVERT_FILTER_FIELD_TCP_SRCPORT;
+            return CYDIVERT_FILTER_FIELD_TCP_SRCPORT;
         case TOKEN_TCP_DST_PORT:
-            return WINDIVERT_FILTER_FIELD_TCP_DSTPORT;
+            return CYDIVERT_FILTER_FIELD_TCP_DSTPORT;
         case TOKEN_TCP_SEQ_NUM:
-            return WINDIVERT_FILTER_FIELD_TCP_SEQNUM;
+            return CYDIVERT_FILTER_FIELD_TCP_SEQNUM;
         case TOKEN_TCP_ACK_NUM:
-            return WINDIVERT_FILTER_FIELD_TCP_ACKNUM;
+            return CYDIVERT_FILTER_FIELD_TCP_ACKNUM;
         case TOKEN_TCP_HDR_LENGTH:
-            return WINDIVERT_FILTER_FIELD_TCP_HDRLENGTH;
+            return CYDIVERT_FILTER_FIELD_TCP_HDRLENGTH;
         case TOKEN_TCP_URG:
-            return WINDIVERT_FILTER_FIELD_TCP_URG;
+            return CYDIVERT_FILTER_FIELD_TCP_URG;
         case TOKEN_TCP_ACK:
-            return WINDIVERT_FILTER_FIELD_TCP_ACK;
+            return CYDIVERT_FILTER_FIELD_TCP_ACK;
         case TOKEN_TCP_PSH:
-            return WINDIVERT_FILTER_FIELD_TCP_PSH;
+            return CYDIVERT_FILTER_FIELD_TCP_PSH;
         case TOKEN_TCP_RST:
-            return WINDIVERT_FILTER_FIELD_TCP_RST;
+            return CYDIVERT_FILTER_FIELD_TCP_RST;
         case TOKEN_TCP_SYN:
-            return WINDIVERT_FILTER_FIELD_TCP_SYN;
+            return CYDIVERT_FILTER_FIELD_TCP_SYN;
         case TOKEN_TCP_FIN:
-            return WINDIVERT_FILTER_FIELD_TCP_FIN;
+            return CYDIVERT_FILTER_FIELD_TCP_FIN;
         case TOKEN_TCP_WINDOW:
-            return WINDIVERT_FILTER_FIELD_TCP_WINDOW;
+            return CYDIVERT_FILTER_FIELD_TCP_WINDOW;
         case TOKEN_TCP_CHECKSUM:
-            return WINDIVERT_FILTER_FIELD_TCP_CHECKSUM;
+            return CYDIVERT_FILTER_FIELD_TCP_CHECKSUM;
         case TOKEN_TCP_URG_PTR:
-            return WINDIVERT_FILTER_FIELD_TCP_URGPTR;
+            return CYDIVERT_FILTER_FIELD_TCP_URGPTR;
         case TOKEN_TCP_PAYLOAD_LENGTH:
-            return WINDIVERT_FILTER_FIELD_TCP_PAYLOADLENGTH;
+            return CYDIVERT_FILTER_FIELD_TCP_PAYLOADLENGTH;
         case TOKEN_UDP_SRC_PORT:
-            return WINDIVERT_FILTER_FIELD_UDP_SRCPORT;
+            return CYDIVERT_FILTER_FIELD_UDP_SRCPORT;
         case TOKEN_UDP_DST_PORT:
-            return WINDIVERT_FILTER_FIELD_UDP_DSTPORT;
+            return CYDIVERT_FILTER_FIELD_UDP_DSTPORT;
         case TOKEN_UDP_LENGTH:
-            return WINDIVERT_FILTER_FIELD_UDP_LENGTH;
+            return CYDIVERT_FILTER_FIELD_UDP_LENGTH;
         case TOKEN_UDP_CHECKSUM:
-            return WINDIVERT_FILTER_FIELD_UDP_CHECKSUM;
+            return CYDIVERT_FILTER_FIELD_UDP_CHECKSUM;
         case TOKEN_UDP_PAYLOAD_LENGTH:
-            return WINDIVERT_FILTER_FIELD_UDP_PAYLOADLENGTH;
+            return CYDIVERT_FILTER_FIELD_UDP_PAYLOADLENGTH;
         default:
             return UINT32_MAX;
     }
@@ -2014,34 +2014,34 @@ static UINT32 WinDivertKindToField(KIND kind)
 /*
  * Emit a test.
  */
-static void WinDivertEmitTest(PEXPR test, UINT16 offset,
-    PWINDIVERT_FILTER object)
+static void CyDivertEmitTest(PEXPR test, UINT16 offset,
+    PCYDIVERT_FILTER object)
 {
     PEXPR var = test->arg[0], val = test->arg[1];
     switch (test->kind)
     {
         case TOKEN_EQ:
-            object->test = WINDIVERT_FILTER_TEST_EQ;
+            object->test = CYDIVERT_FILTER_TEST_EQ;
             break;
         case TOKEN_NEQ:
-            object->test = WINDIVERT_FILTER_TEST_NEQ;
+            object->test = CYDIVERT_FILTER_TEST_NEQ;
             break;
         case TOKEN_LT:
-            object->test = WINDIVERT_FILTER_TEST_LT;
+            object->test = CYDIVERT_FILTER_TEST_LT;
             break;
         case TOKEN_LEQ:
-            object->test = WINDIVERT_FILTER_TEST_LEQ;
+            object->test = CYDIVERT_FILTER_TEST_LEQ;
             break;
         case TOKEN_GT:
-            object->test = WINDIVERT_FILTER_TEST_GT;
+            object->test = CYDIVERT_FILTER_TEST_GT;
             break;
         case TOKEN_GEQ:
-            object->test = WINDIVERT_FILTER_TEST_GEQ;
+            object->test = CYDIVERT_FILTER_TEST_GEQ;
             break;
         default:
             return;
     }
-    object->field = WinDivertKindToField(var->kind);
+    object->field = CyDivertKindToField(var->kind);
     object->neg = (val->neg? 1: 0);
     object->arg[0] = val->val[0];
     object->arg[1] = val->val[1];
@@ -2065,8 +2065,8 @@ static void WinDivertEmitTest(PEXPR test, UINT16 offset,
     }
     switch (test->succ)
     {
-        case WINDIVERT_FILTER_RESULT_ACCEPT:
-        case WINDIVERT_FILTER_RESULT_REJECT:
+        case CYDIVERT_FILTER_RESULT_ACCEPT:
+        case CYDIVERT_FILTER_RESULT_REJECT:
             object->success = test->succ;
             break;
         default:
@@ -2075,8 +2075,8 @@ static void WinDivertEmitTest(PEXPR test, UINT16 offset,
     }
     switch (test->fail)
     {
-        case WINDIVERT_FILTER_RESULT_ACCEPT:
-        case WINDIVERT_FILTER_RESULT_REJECT:
+        case CYDIVERT_FILTER_RESULT_ACCEPT:
+        case CYDIVERT_FILTER_RESULT_REJECT:
             object->failure = test->fail;
             break;
         default:
@@ -2089,16 +2089,16 @@ static void WinDivertEmitTest(PEXPR test, UINT16 offset,
 /*
  * Emit a filter object.
  */
-static void WinDivertEmitFilter(PEXPR *stack, UINT len, UINT16 label,
-    PWINDIVERT_FILTER object, UINT *obj_len)
+static void CyDivertEmitFilter(PEXPR *stack, UINT len, UINT16 label,
+    PCYDIVERT_FILTER object, UINT *obj_len)
 {
     UINT i;
     switch (label)
     {
-        case WINDIVERT_FILTER_RESULT_ACCEPT:
-        case WINDIVERT_FILTER_RESULT_REJECT:
-            object[0].field   = WINDIVERT_FILTER_FIELD_ZERO;
-            object[0].test    = WINDIVERT_FILTER_TEST_EQ;
+        case CYDIVERT_FILTER_RESULT_ACCEPT:
+        case CYDIVERT_FILTER_RESULT_REJECT:
+            object[0].field   = CYDIVERT_FILTER_FIELD_ZERO;
+            object[0].test    = CYDIVERT_FILTER_TEST_EQ;
             object[0].neg     = 0;
             object[0].arg[0]  = 0;
             object[0].arg[1]  = 0;
@@ -2114,99 +2114,99 @@ static void WinDivertEmitFilter(PEXPR *stack, UINT len, UINT16 label,
     *obj_len = len + 1;
     for (i = 0; i <= len; i++)
     {
-        WinDivertEmitTest(stack[len - i], label, object + i);
+        CyDivertEmitTest(stack[len - i], label, object + i);
     }
 }
 
 /*
  * Analyze a filter object.
  */
-static UINT64 WinDivertAnalyzeFilter(WINDIVERT_LAYER layer,
-    PWINDIVERT_FILTER filter, UINT length)
+static UINT64 CyDivertAnalyzeFilter(CYDIVERT_LAYER layer,
+    PCYDIVERT_FILTER filter, UINT length)
 {
     BOOL result;
     UINT64 flags = 0;
 
     // False filter?
-    result = WinDivertCondExecFilter(filter, length,
-        WINDIVERT_FILTER_FIELD_ZERO, 0);
+    result = CyDivertCondExecFilter(filter, length,
+        CYDIVERT_FILTER_FIELD_ZERO, 0);
     if (!result)
     {
         return 0;
     }
 
-    if (layer == WINDIVERT_LAYER_NETWORK ||
-        layer == WINDIVERT_LAYER_NETWORK_FORWARD)
+    if (layer == CYDIVERT_LAYER_NETWORK ||
+        layer == CYDIVERT_LAYER_NETWORK_FORWARD)
     {
         // Inbound?
-        result = WinDivertCondExecFilter(filter, length,
-            WINDIVERT_FILTER_FIELD_INBOUND, 1);
+        result = CyDivertCondExecFilter(filter, length,
+            CYDIVERT_FILTER_FIELD_INBOUND, 1);
         if (result)
         {
-            result = WinDivertCondExecFilter(filter, length,
-                WINDIVERT_FILTER_FIELD_OUTBOUND, 0);
+            result = CyDivertCondExecFilter(filter, length,
+                CYDIVERT_FILTER_FIELD_OUTBOUND, 0);
         }
-        flags |= (result? WINDIVERT_FILTER_FLAG_INBOUND: 0);
+        flags |= (result? CYDIVERT_FILTER_FLAG_INBOUND: 0);
 
         // Outbound?
-        result = WinDivertCondExecFilter(filter, length,
-            WINDIVERT_FILTER_FIELD_OUTBOUND, 1);
+        result = CyDivertCondExecFilter(filter, length,
+            CYDIVERT_FILTER_FIELD_OUTBOUND, 1);
         if (result)
         {
-            result = WinDivertCondExecFilter(filter, length,
-                WINDIVERT_FILTER_FIELD_INBOUND, 0);
+            result = CyDivertCondExecFilter(filter, length,
+                CYDIVERT_FILTER_FIELD_INBOUND, 0);
         }
-        flags |= (result? WINDIVERT_FILTER_FLAG_OUTBOUND: 0);
+        flags |= (result? CYDIVERT_FILTER_FLAG_OUTBOUND: 0);
     }
 
-    if (layer != WINDIVERT_LAYER_REFLECT)
+    if (layer != CYDIVERT_LAYER_REFLECT)
     {
         // IPv4? 
-        result = WinDivertCondExecFilter(filter, length,
-            WINDIVERT_FILTER_FIELD_IP, 1);
+        result = CyDivertCondExecFilter(filter, length,
+            CYDIVERT_FILTER_FIELD_IP, 1);
         if (result)
         {   
-            result = WinDivertCondExecFilter(filter, length,
-                WINDIVERT_FILTER_FIELD_IPV6, 0);
+            result = CyDivertCondExecFilter(filter, length,
+                CYDIVERT_FILTER_FIELD_IPV6, 0);
         }
-        flags |= (result? WINDIVERT_FILTER_FLAG_IP: 0);
+        flags |= (result? CYDIVERT_FILTER_FLAG_IP: 0);
 
         // Ipv6? 
-        result = WinDivertCondExecFilter(filter, length,
-            WINDIVERT_FILTER_FIELD_IPV6, 1);
+        result = CyDivertCondExecFilter(filter, length,
+            CYDIVERT_FILTER_FIELD_IPV6, 1);
         if (result)
         {   
-            result = WinDivertCondExecFilter(filter, length,
-                WINDIVERT_FILTER_FIELD_IP, 0);
+            result = CyDivertCondExecFilter(filter, length,
+                CYDIVERT_FILTER_FIELD_IP, 0);
         }
-        flags |= (result? WINDIVERT_FILTER_FLAG_IPV6: 0);
+        flags |= (result? CYDIVERT_FILTER_FLAG_IPV6: 0);
     }
 
     // Events:
     switch (layer)
     {
-        case WINDIVERT_LAYER_FLOW:
-            result = WinDivertCondExecFilter(filter, length,
-                WINDIVERT_FILTER_FIELD_EVENT, WINDIVERT_EVENT_FLOW_DELETED);
-            flags |= (result? WINDIVERT_FILTER_FLAG_EVENT_FLOW_DELETED: 0);
+        case CYDIVERT_LAYER_FLOW:
+            result = CyDivertCondExecFilter(filter, length,
+                CYDIVERT_FILTER_FIELD_EVENT, CYDIVERT_EVENT_FLOW_DELETED);
+            flags |= (result? CYDIVERT_FILTER_FLAG_EVENT_FLOW_DELETED: 0);
             break;
 
-        case WINDIVERT_LAYER_SOCKET:
-            result = WinDivertCondExecFilter(filter, length,
-                WINDIVERT_FILTER_FIELD_EVENT, WINDIVERT_EVENT_SOCKET_BIND);
-            flags |= (result? WINDIVERT_FILTER_FLAG_EVENT_SOCKET_BIND: 0);
-            result = WinDivertCondExecFilter(filter, length,
-                WINDIVERT_FILTER_FIELD_EVENT, WINDIVERT_EVENT_SOCKET_CONNECT);
-            flags |= (result? WINDIVERT_FILTER_FLAG_EVENT_SOCKET_CONNECT: 0);
-            result = WinDivertCondExecFilter(filter, length,
-                WINDIVERT_FILTER_FIELD_EVENT, WINDIVERT_EVENT_SOCKET_CLOSE);
-            flags |= (result? WINDIVERT_FILTER_FLAG_EVENT_SOCKET_CLOSE: 0);
-            result = WinDivertCondExecFilter(filter, length,
-                WINDIVERT_FILTER_FIELD_EVENT, WINDIVERT_EVENT_SOCKET_LISTEN);
-            flags |= (result? WINDIVERT_FILTER_FLAG_EVENT_SOCKET_LISTEN: 0);
-            result = WinDivertCondExecFilter(filter, length,
-                WINDIVERT_FILTER_FIELD_EVENT, WINDIVERT_EVENT_SOCKET_ACCEPT);
-            flags |= (result? WINDIVERT_FILTER_FLAG_EVENT_SOCKET_ACCEPT: 0);
+        case CYDIVERT_LAYER_SOCKET:
+            result = CyDivertCondExecFilter(filter, length,
+                CYDIVERT_FILTER_FIELD_EVENT, CYDIVERT_EVENT_SOCKET_BIND);
+            flags |= (result? CYDIVERT_FILTER_FLAG_EVENT_SOCKET_BIND: 0);
+            result = CyDivertCondExecFilter(filter, length,
+                CYDIVERT_FILTER_FIELD_EVENT, CYDIVERT_EVENT_SOCKET_CONNECT);
+            flags |= (result? CYDIVERT_FILTER_FLAG_EVENT_SOCKET_CONNECT: 0);
+            result = CyDivertCondExecFilter(filter, length,
+                CYDIVERT_FILTER_FIELD_EVENT, CYDIVERT_EVENT_SOCKET_CLOSE);
+            flags |= (result? CYDIVERT_FILTER_FLAG_EVENT_SOCKET_CLOSE: 0);
+            result = CyDivertCondExecFilter(filter, length,
+                CYDIVERT_FILTER_FIELD_EVENT, CYDIVERT_EVENT_SOCKET_LISTEN);
+            flags |= (result? CYDIVERT_FILTER_FLAG_EVENT_SOCKET_LISTEN: 0);
+            result = CyDivertCondExecFilter(filter, length,
+                CYDIVERT_FILTER_FIELD_EVENT, CYDIVERT_EVENT_SOCKET_ACCEPT);
+            flags |= (result? CYDIVERT_FILTER_FLAG_EVENT_SOCKET_ACCEPT: 0);
             break;
 
         default:
@@ -2220,12 +2220,12 @@ static UINT64 WinDivertAnalyzeFilter(WINDIVERT_LAYER layer,
  * Execute a filter object with respect to an assumption/condition.
  * FALSE = definite reject; TRUE = maybe accept.
  */
-static BOOL WinDivertCondExecFilter(PWINDIVERT_FILTER filter, UINT length,
+static BOOL CyDivertCondExecFilter(PCYDIVERT_FILTER filter, UINT length,
     UINT8 field, UINT32 arg)
 {
     INT16 ip;
     UINT16 succ, fail;
-    BOOLEAN result[WINDIVERT_FILTER_MAXLEN];
+    BOOLEAN result[CYDIVERT_FILTER_MAXLEN];
     BOOLEAN result_succ, result_fail, result_test;
 
     if (length == 0)
@@ -2238,10 +2238,10 @@ static BOOL WinDivertCondExecFilter(PWINDIVERT_FILTER filter, UINT length,
         succ = filter[ip].success;
         switch (succ)
         {
-            case WINDIVERT_FILTER_RESULT_ACCEPT:
+            case CYDIVERT_FILTER_RESULT_ACCEPT:
                 result_succ = TRUE;
                 break;
-            case WINDIVERT_FILTER_RESULT_REJECT:
+            case CYDIVERT_FILTER_RESULT_REJECT:
                 result_succ = FALSE;
                 break;
             default:
@@ -2252,10 +2252,10 @@ static BOOL WinDivertCondExecFilter(PWINDIVERT_FILTER filter, UINT length,
         fail = filter[ip].failure;
         switch (fail)
         {
-            case WINDIVERT_FILTER_RESULT_ACCEPT:
+            case CYDIVERT_FILTER_RESULT_ACCEPT:
                 result_fail = TRUE;
                 break;
-            case WINDIVERT_FILTER_RESULT_REJECT:
+            case CYDIVERT_FILTER_RESULT_REJECT:
                 result_fail = FALSE;
                 break;
             default:
@@ -2282,22 +2282,22 @@ static BOOL WinDivertCondExecFilter(PWINDIVERT_FILTER filter, UINT length,
             {
                 switch (filter[ip].test)
                 {
-                    case WINDIVERT_FILTER_TEST_EQ:
+                    case CYDIVERT_FILTER_TEST_EQ:
                         result_test = (arg == filter[ip].arg[0]);
                         break;
-                    case WINDIVERT_FILTER_TEST_NEQ:
+                    case CYDIVERT_FILTER_TEST_NEQ:
                         result_test = (arg != filter[ip].arg[0]);
                         break;
-                    case WINDIVERT_FILTER_TEST_LT:
+                    case CYDIVERT_FILTER_TEST_LT:
                         result_test = (arg < filter[ip].arg[0]);
                         break;
-                    case WINDIVERT_FILTER_TEST_LEQ:
+                    case CYDIVERT_FILTER_TEST_LEQ:
                         result_test = (arg <= filter[ip].arg[0]);
                         break;
-                    case WINDIVERT_FILTER_TEST_GT:
+                    case CYDIVERT_FILTER_TEST_GT:
                         result_test = (arg > filter[ip].arg[0]);
                         break;
-                    case WINDIVERT_FILTER_TEST_GEQ:
+                    case CYDIVERT_FILTER_TEST_GEQ:
                         result_test = (arg >= filter[ip].arg[0]);
                         break;
                     default:
@@ -2319,44 +2319,44 @@ static BOOL WinDivertCondExecFilter(PWINDIVERT_FILTER filter, UINT length,
 /*
  * Compile a filter string into an executable filter object.
  */
-static ERROR WinDivertCompileFilter(const char *filter, HANDLE pool,
-    WINDIVERT_LAYER layer, PWINDIVERT_FILTER object, UINT *obj_len)
+static ERROR CyDivertCompileFilter(const char *filter, HANDLE pool,
+    CYDIVERT_LAYER layer, PCYDIVERT_FILTER object, UINT *obj_len)
 {
     TOKEN *tokens;
     PEXPR *stack;
     PEXPR expr;
     UINT i, max_depth, pos;
     INT16 label;
-    const SIZE_T tokens_size = 5 * WINDIVERT_FILTER_MAXLEN;
+    const SIZE_T tokens_size = 5 * CYDIVERT_FILTER_MAXLEN;
     ERROR error;
 
     // Check for pre-compiled filter object:
     if (filter[0] == '@')
     {
-        WINDIVERT_STREAM stream;
+        CYDIVERT_STREAM stream;
         stream.data     = (char *)filter;
         stream.pos      = 0;
         stream.max      = UINT_MAX;
         stream.overflow = FALSE;
 
-        if (!WinDivertDeserializeFilter(&stream, object, obj_len))
+        if (!CyDivertDeserializeFilter(&stream, object, obj_len))
         {
             SetLastError(ERROR_INVALID_PARAMETER);
-            return MAKE_ERROR(WINDIVERT_ERROR_BAD_OBJECT, 0);
+            return MAKE_ERROR(CYDIVERT_ERROR_BAD_OBJECT, 0);
         }
-        return MAKE_ERROR(WINDIVERT_ERROR_NONE, 0);
+        return MAKE_ERROR(CYDIVERT_ERROR_NONE, 0);
     }
 
     tokens = (TOKEN *)HeapAlloc(pool, 0, tokens_size * sizeof(TOKEN));
     stack  = (PEXPR *)HeapAlloc(pool, 0,
-        WINDIVERT_FILTER_MAXLEN * sizeof(PEXPR));
+        CYDIVERT_FILTER_MAXLEN * sizeof(PEXPR));
     if (tokens == NULL || stack == NULL)
     {
-        return MAKE_ERROR(WINDIVERT_ERROR_NO_MEMORY, 0);
+        return MAKE_ERROR(CYDIVERT_ERROR_NO_MEMORY, 0);
     }
 
     // Tokenize the filter string:
-    error = WinDivertTokenizeFilter(filter, layer, tokens, tokens_size-1);
+    error = CyDivertTokenizeFilter(filter, layer, tokens, tokens_size-1);
     if (IS_ERROR(error))
     {
         return error;
@@ -2365,7 +2365,7 @@ static ERROR WinDivertCompileFilter(const char *filter, HANDLE pool,
     // Parse the filter into an expression:
     i = 0;
     max_depth = 1024;
-    expr = WinDivertParseFilter(pool, tokens, &i, max_depth, FALSE, &error);
+    expr = CyDivertParseFilter(pool, tokens, &i, max_depth, FALSE, &error);
     if (expr == NULL)
     {
         return error;
@@ -2373,55 +2373,55 @@ static ERROR WinDivertCompileFilter(const char *filter, HANDLE pool,
     if (tokens[i].kind != TOKEN_END)
     {
         pos = tokens[i].pos;
-        return MAKE_ERROR(WINDIVERT_ERROR_UNEXPECTED_TOKEN, pos);
+        return MAKE_ERROR(CYDIVERT_ERROR_UNEXPECTED_TOKEN, pos);
     }
 
     // Construct the filter tree:
     label = 0;
-    label = WinDivertFlattenExpr(expr, &label, WINDIVERT_FILTER_RESULT_ACCEPT,
-        WINDIVERT_FILTER_RESULT_REJECT, stack);
+    label = CyDivertFlattenExpr(expr, &label, CYDIVERT_FILTER_RESULT_ACCEPT,
+        CYDIVERT_FILTER_RESULT_REJECT, stack);
     if (label < 0)
     {
-        return MAKE_ERROR(WINDIVERT_ERROR_TOO_LONG, 0);
+        return MAKE_ERROR(CYDIVERT_ERROR_TOO_LONG, 0);
     }
 
     // Emit the final object.
     if (object != NULL)
     {
-        WinDivertEmitFilter(stack, label, label, object, obj_len);
+        CyDivertEmitFilter(stack, label, label, object, obj_len);
     }
 
-    return MAKE_ERROR(WINDIVERT_ERROR_NONE, 0);
+    return MAKE_ERROR(CYDIVERT_ERROR_NONE, 0);
 }
 
 /*
  * Convert a error code into a user readable string.
  */
-static const char *WinDivertErrorString(UINT code)
+static const char *CyDivertErrorString(UINT code)
 {
     switch (code)
     {
-        case WINDIVERT_ERROR_NONE:
+        case CYDIVERT_ERROR_NONE:
             return "No error";
-        case WINDIVERT_ERROR_NO_MEMORY:
+        case CYDIVERT_ERROR_NO_MEMORY:
             return "Out of memory";
-        case WINDIVERT_ERROR_TOO_DEEP:
+        case CYDIVERT_ERROR_TOO_DEEP:
             return "Filter expression too deep";
-        case WINDIVERT_ERROR_TOO_LONG:
+        case CYDIVERT_ERROR_TOO_LONG:
             return "Filter expression too long";
-        case WINDIVERT_ERROR_BAD_TOKEN:
+        case CYDIVERT_ERROR_BAD_TOKEN:
             return "Filter expression contains a bad token";
-        case WINDIVERT_ERROR_BAD_TOKEN_FOR_LAYER:
+        case CYDIVERT_ERROR_BAD_TOKEN_FOR_LAYER:
             return "Filter expression contains a bad token for layer";
-        case WINDIVERT_ERROR_UNEXPECTED_TOKEN:
+        case CYDIVERT_ERROR_UNEXPECTED_TOKEN:
             return "Filter expression parse error";
-        case WINDIVERT_ERROR_INDEX_OOB:
+        case CYDIVERT_ERROR_INDEX_OOB:
             return "Filter expression array index is out-of-bounds";
-        case WINDIVERT_ERROR_OUTPUT_TOO_SHORT:
+        case CYDIVERT_ERROR_OUTPUT_TOO_SHORT:
             return "Filter object buffer is too short";
-        case WINDIVERT_ERROR_BAD_OBJECT:
+        case CYDIVERT_ERROR_BAD_OBJECT:
             return "Filter object is invalid";
-        case WINDIVERT_ERROR_ASSERTION_FAILED:
+        case CYDIVERT_ERROR_ASSERTION_FAILED:
             return "Internal assertion failed";
         default:
             return "Unknown error";
@@ -2431,7 +2431,7 @@ static const char *WinDivertErrorString(UINT code)
 /*
  * Compile the given filter string.
  */
-BOOL WinDivertHelperCompileFilter(const char *filter_str, WINDIVERT_LAYER layer,
+BOOL CyDivertHelperCompileFilter(const char *filter_str, CYDIVERT_LAYER layer,
     char *object, UINT obj_len, const char **error, UINT *error_pos)
 {
     HANDLE pool;
@@ -2443,8 +2443,8 @@ BOOL WinDivertHelperCompileFilter(const char *filter_str, WINDIVERT_LAYER layer,
         return FALSE;
     }
 
-    pool = HeapCreate(HEAP_NO_SERIALIZE, WINDIVERT_MIN_POOL_SIZE,
-        WINDIVERT_MAX_POOL_SIZE);
+    pool = HeapCreate(HEAP_NO_SERIALIZE, CYDIVERT_MIN_POOL_SIZE,
+        CYDIVERT_MAX_POOL_SIZE);
     if (pool == NULL)
     {
         return FALSE;
@@ -2453,31 +2453,31 @@ BOOL WinDivertHelperCompileFilter(const char *filter_str, WINDIVERT_LAYER layer,
     SetLastError(ERROR_SUCCESS);
     if (object == NULL)
     {
-        err = WinDivertCompileFilter(filter_str, pool, layer, NULL, NULL);
+        err = CyDivertCompileFilter(filter_str, pool, layer, NULL, NULL);
     }
     else
     {
-        WINDIVERT_FILTER *filter_obj = HeapAlloc(pool, 0,
-            WINDIVERT_FILTER_MAXLEN * sizeof(WINDIVERT_FILTER));
+        CYDIVERT_FILTER *filter_obj = HeapAlloc(pool, 0,
+            CYDIVERT_FILTER_MAXLEN * sizeof(CYDIVERT_FILTER));
         UINT filter_obj_len;
-        err = WINDIVERT_ERROR_NO_MEMORY;
+        err = CYDIVERT_ERROR_NO_MEMORY;
         if (filter_obj != NULL)
         {
-            err = WinDivertCompileFilter(filter_str, pool, layer, filter_obj,
+            err = CyDivertCompileFilter(filter_str, pool, layer, filter_obj,
                 &filter_obj_len);
             if (!IS_ERROR(err))
             {
-                WINDIVERT_STREAM stream;
+                CYDIVERT_STREAM stream;
                 stream.data     = object;
                 stream.pos      = 0;
                 stream.max      = obj_len;
                 stream.overflow = FALSE;
             
-                WinDivertSerializeFilter(&stream, filter_obj, filter_obj_len);
+                CyDivertSerializeFilter(&stream, filter_obj, filter_obj_len);
                 if (stream.overflow)
                 {
                     SetLastError(ERROR_INSUFFICIENT_BUFFER);
-                    err = MAKE_ERROR(WINDIVERT_ERROR_OUTPUT_TOO_SHORT, 0);
+                    err = MAKE_ERROR(CYDIVERT_ERROR_OUTPUT_TOO_SHORT, 0);
                 }
             }
         }
@@ -2486,7 +2486,7 @@ BOOL WinDivertHelperCompileFilter(const char *filter_str, WINDIVERT_LAYER layer,
 
     if (error != NULL)
     {
-        *error = WinDivertErrorString(GET_CODE(err));
+        *error = CyDivertErrorString(GET_CODE(err));
     }
     if (error_pos != NULL)
     {
@@ -2498,7 +2498,7 @@ BOOL WinDivertHelperCompileFilter(const char *filter_str, WINDIVERT_LAYER layer,
 /*
  * Get packet/payload data.
  */
-static BOOL WinDivertGetData(const VOID *packet, UINT packet_len, INT min,
+static BOOL CyDivertGetData(const VOID *packet, UINT packet_len, INT min,
     INT max, INT idx, PVOID data, UINT size)
 {
     idx += (idx < 0? max: min);
@@ -2514,28 +2514,28 @@ static BOOL WinDivertGetData(const VOID *packet, UINT packet_len, INT min,
 /*
  * Evaluate the given filter with the given packet as input.
  */
-BOOL WinDivertHelperEvalFilter(const char *filter, const VOID *packet,
-    UINT packet_len, const WINDIVERT_ADDRESS *addr)
+BOOL CyDivertHelperEvalFilter(const char *filter, const VOID *packet,
+    UINT packet_len, const CYDIVERT_ADDRESS *addr)
 {
     ERROR err;
     DWORD error;
-    WINDIVERT_PACKET info;
-    PWINDIVERT_IPHDR ip_header = NULL;
-    PWINDIVERT_IPV6HDR ipv6_header = NULL;
-    PWINDIVERT_ICMPHDR icmp_header = NULL;
-    PWINDIVERT_ICMPV6HDR icmpv6_header = NULL;
-    PWINDIVERT_TCPHDR tcp_header = NULL;
-    PWINDIVERT_UDPHDR udp_header = NULL;
-    const WINDIVERT_DATA_NETWORK *network_data = NULL;
-    const WINDIVERT_DATA_FLOW *flow_data = NULL;
-    const WINDIVERT_DATA_SOCKET *socket_data = NULL;
-    const WINDIVERT_DATA_REFLECT *reflect_data = NULL;
+    CYDIVERT_PACKET info;
+    PCYDIVERT_IPHDR ip_header = NULL;
+    PCYDIVERT_IPV6HDR ipv6_header = NULL;
+    PCYDIVERT_ICMPHDR icmp_header = NULL;
+    PCYDIVERT_ICMPV6HDR icmpv6_header = NULL;
+    PCYDIVERT_TCPHDR tcp_header = NULL;
+    PCYDIVERT_UDPHDR udp_header = NULL;
+    const CYDIVERT_DATA_NETWORK *network_data = NULL;
+    const CYDIVERT_DATA_FLOW *flow_data = NULL;
+    const CYDIVERT_DATA_SOCKET *socket_data = NULL;
+    const CYDIVERT_DATA_REFLECT *reflect_data = NULL;
     BOOL fragment = FALSE;
     UINT8 protocol = 0;
     UINT header_len = 0, payload_len = 0;
     int result;
     HANDLE pool;
-    WINDIVERT_FILTER *object;
+    CYDIVERT_FILTER *object;
     UINT obj_len;
 
     if (filter == NULL || addr == NULL)
@@ -2545,14 +2545,14 @@ BOOL WinDivertHelperEvalFilter(const char *filter, const VOID *packet,
     }
     switch (addr->Layer)
     {
-        case WINDIVERT_LAYER_NETWORK:
-        case WINDIVERT_LAYER_NETWORK_FORWARD:
+        case CYDIVERT_LAYER_NETWORK:
+        case CYDIVERT_LAYER_NETWORK_FORWARD:
             if (packet == NULL)
             {
                 SetLastError(ERROR_INVALID_PARAMETER);
                 return FALSE;
             }
-            if (!WinDivertHelperParsePacketEx((PVOID)packet, packet_len, &info))
+            if (!CyDivertHelperParsePacketEx((PVOID)packet, packet_len, &info))
             {
                 SetLastError(ERROR_INVALID_PARAMETER);
                 return FALSE;
@@ -2574,15 +2574,15 @@ BOOL WinDivertHelperEvalFilter(const char *filter, const VOID *packet,
                 return FALSE;
             }
             break;
-        case WINDIVERT_LAYER_FLOW:
-        case WINDIVERT_LAYER_SOCKET:
+        case CYDIVERT_LAYER_FLOW:
+        case CYDIVERT_LAYER_SOCKET:
             if (packet != NULL)
             {
                 SetLastError(ERROR_INVALID_PARAMETER);
                 return FALSE;
             }
             break;
-        case WINDIVERT_LAYER_REFLECT:
+        case CYDIVERT_LAYER_REFLECT:
             break;
         default:
             SetLastError(ERROR_INVALID_PARAMETER);
@@ -2590,17 +2590,17 @@ BOOL WinDivertHelperEvalFilter(const char *filter, const VOID *packet,
     }
     switch (addr->Layer)
     {
-        case WINDIVERT_LAYER_NETWORK:
-        case WINDIVERT_LAYER_NETWORK_FORWARD:
+        case CYDIVERT_LAYER_NETWORK:
+        case CYDIVERT_LAYER_NETWORK_FORWARD:
             network_data = &addr->Network;
             break;
-        case WINDIVERT_LAYER_FLOW:
+        case CYDIVERT_LAYER_FLOW:
             flow_data = &addr->Flow;
             break;
-        case WINDIVERT_LAYER_SOCKET:
+        case CYDIVERT_LAYER_SOCKET:
             socket_data = &addr->Socket;
             break;
-        case WINDIVERT_LAYER_REFLECT:
+        case CYDIVERT_LAYER_REFLECT:
             reflect_data = &addr->Reflect;
             break;
         default:
@@ -2608,26 +2608,26 @@ BOOL WinDivertHelperEvalFilter(const char *filter, const VOID *packet,
             return FALSE;
     }
 
-    pool = HeapCreate(HEAP_NO_SERIALIZE, WINDIVERT_MIN_POOL_SIZE,
-        WINDIVERT_MAX_POOL_SIZE);
+    pool = HeapCreate(HEAP_NO_SERIALIZE, CYDIVERT_MIN_POOL_SIZE,
+        CYDIVERT_MAX_POOL_SIZE);
     if (pool == NULL)
     {
         return FALSE;
     }
     object = HeapAlloc(pool, 0,
-        WINDIVERT_FILTER_MAXLEN * sizeof(WINDIVERT_FILTER));
+        CYDIVERT_FILTER_MAXLEN * sizeof(CYDIVERT_FILTER));
     if (object == NULL)
     {
-        goto WinDivertHelperEvalFilterError;
+        goto CyDivertHelperEvalFilterError;
     }
-    err = WinDivertCompileFilter(filter, pool, addr->Layer, object, &obj_len);
+    err = CyDivertCompileFilter(filter, pool, addr->Layer, object, &obj_len);
     if (IS_ERROR(err))
     {
         SetLastError(ERROR_INVALID_PARAMETER);
-        goto WinDivertHelperEvalFilterError;
+        goto CyDivertHelperEvalFilterError;
     }
 
-    result = WinDivertExecuteFilter(
+    result = CyDivertExecuteFilter(
         object,
         addr->Layer,
         addr->Timestamp,
@@ -2669,7 +2669,7 @@ BOOL WinDivertHelperEvalFilter(const char *filter, const VOID *packet,
         return TRUE;
     }
 
-WinDivertHelperEvalFilterError:
+CyDivertHelperEvalFilterError:
     error = GetLastError();
     HeapDestroy(pool);
     SetLastError(error);
@@ -2679,7 +2679,7 @@ WinDivertHelperEvalFilterError:
 /*
  * Get a char from a stream.
  */
-static char WinDivertGetChar(PWINDIVERT_STREAM stream)
+static char CyDivertGetChar(PCYDIVERT_STREAM stream)
 {
     char c;
     if (stream->pos >= stream->max)
@@ -2695,7 +2695,7 @@ static char WinDivertGetChar(PWINDIVERT_STREAM stream)
 /*
  * Decode a digit.
  */
-static BOOL WinDivertDecodeDigit(char c, UINT8 *digit, BOOL *final)
+static BOOL CyDivertDecodeDigit(char c, UINT8 *digit, BOOL *final)
 {
     if (c >= '0' && c <= '9')
     {
@@ -2739,7 +2739,7 @@ static BOOL WinDivertDecodeDigit(char c, UINT8 *digit, BOOL *final)
 /*
  * Deserialize a number.
  */
-static BOOL WinDivertDeserializeNumber(PWINDIVERT_STREAM stream, UINT max_len,
+static BOOL CyDivertDeserializeNumber(PCYDIVERT_STREAM stream, UINT max_len,
     UINT32 *result)
 {
     UINT32 i, val = 0;
@@ -2754,8 +2754,8 @@ static BOOL WinDivertDeserializeNumber(PWINDIVERT_STREAM stream, UINT max_len,
             return FALSE;       // Overflow
         }
         val <<= 5;
-        c = WinDivertGetChar(stream);
-        if (!WinDivertDecodeDigit(c, &digit, &final))
+        c = CyDivertGetChar(stream);
+        if (!CyDivertDecodeDigit(c, &digit, &final))
         {
             return FALSE;
         }
@@ -2772,21 +2772,21 @@ static BOOL WinDivertDeserializeNumber(PWINDIVERT_STREAM stream, UINT max_len,
 /*
  * Deserialize a label.
  */
-static BOOL WinDivertDeserializeLabel(PWINDIVERT_STREAM stream, UINT16 *label)
+static BOOL CyDivertDeserializeLabel(PCYDIVERT_STREAM stream, UINT16 *label)
 {
     UINT32 val;
 
-    switch (WinDivertGetChar(stream))
+    switch (CyDivertGetChar(stream))
     {
         case 'A':
-            *label = WINDIVERT_FILTER_RESULT_ACCEPT;
+            *label = CYDIVERT_FILTER_RESULT_ACCEPT;
             return TRUE;
         case 'X':
-            *label = WINDIVERT_FILTER_RESULT_REJECT;
+            *label = CYDIVERT_FILTER_RESULT_REJECT;
             return TRUE;
         case 'L':
-            if (!WinDivertDeserializeNumber(stream, 2, &val) ||
-                    val > WINDIVERT_FILTER_MAXLEN)
+            if (!CyDivertDeserializeNumber(stream, 2, &val) ||
+                    val > CYDIVERT_FILTER_MAXLEN)
             {
                 return FALSE;
             }
@@ -2800,81 +2800,81 @@ static BOOL WinDivertDeserializeLabel(PWINDIVERT_STREAM stream, UINT16 *label)
 /*
  * Deserialize a test.
  */
-static BOOL WinDivertDeserializeTest(PWINDIVERT_STREAM stream,
-    PWINDIVERT_FILTER filter)
+static BOOL CyDivertDeserializeTest(PCYDIVERT_STREAM stream,
+    PCYDIVERT_FILTER filter)
 {
     UINT32 val;
     UINT16 success, failure;
     UINT i;
 
-    if (WinDivertGetChar(stream) != '_')
+    if (CyDivertGetChar(stream) != '_')
     {
         return FALSE;
     }
 
-    if (!WinDivertDeserializeNumber(stream, 2, &val) ||
-            val > WINDIVERT_FILTER_FIELD_MAX)
+    if (!CyDivertDeserializeNumber(stream, 2, &val) ||
+            val > CYDIVERT_FILTER_FIELD_MAX)
     {
         return FALSE;
     }
     filter->field = (UINT16)val;
 
-    if (!WinDivertDeserializeNumber(stream, 2, &val) ||
-            val > WINDIVERT_FILTER_TEST_MAX)
+    if (!CyDivertDeserializeNumber(stream, 2, &val) ||
+            val > CYDIVERT_FILTER_TEST_MAX)
     {
         return FALSE;
     }
     filter->test = (UINT16)val;
 
-    if (!WinDivertDeserializeNumber(stream, 1, &val) || val > 1)
+    if (!CyDivertDeserializeNumber(stream, 1, &val) || val > 1)
     {
         return FALSE;
     }
     filter->neg = (UINT16)val;
 
-    if (!WinDivertDeserializeNumber(stream, 7, &filter->arg[0]))
+    if (!CyDivertDeserializeNumber(stream, 7, &filter->arg[0]))
     {
         return FALSE;
     }
 
     switch (filter->field)
     {
-        case WINDIVERT_FILTER_FIELD_IPV6_SRCADDR:
-        case WINDIVERT_FILTER_FIELD_IPV6_DSTADDR:
-        case WINDIVERT_FILTER_FIELD_LOCALADDR:
-        case WINDIVERT_FILTER_FIELD_REMOTEADDR:
+        case CYDIVERT_FILTER_FIELD_IPV6_SRCADDR:
+        case CYDIVERT_FILTER_FIELD_IPV6_DSTADDR:
+        case CYDIVERT_FILTER_FIELD_LOCALADDR:
+        case CYDIVERT_FILTER_FIELD_REMOTEADDR:
             for (i = 1; i < 4; i++)
             {
-                if (!WinDivertDeserializeNumber(stream, 7, &filter->arg[i]))
+                if (!CyDivertDeserializeNumber(stream, 7, &filter->arg[i]))
                 {
                     return FALSE;
                 }
             }
             break;
-        case WINDIVERT_FILTER_FIELD_ENDPOINTID:
-        case WINDIVERT_FILTER_FIELD_PARENTENDPOINTID:
-        case WINDIVERT_FILTER_FIELD_TIMESTAMP:
-            if (!WinDivertDeserializeNumber(stream, 7, &filter->arg[1]))
+        case CYDIVERT_FILTER_FIELD_ENDPOINTID:
+        case CYDIVERT_FILTER_FIELD_PARENTENDPOINTID:
+        case CYDIVERT_FILTER_FIELD_TIMESTAMP:
+            if (!CyDivertDeserializeNumber(stream, 7, &filter->arg[1]))
             {
                 return FALSE;
             }
             filter->arg[2] = filter->arg[3] = 0;
             break;
-        case WINDIVERT_FILTER_FIELD_IP_SRCADDR:
-        case WINDIVERT_FILTER_FIELD_IP_DSTADDR:
+        case CYDIVERT_FILTER_FIELD_IP_SRCADDR:
+        case CYDIVERT_FILTER_FIELD_IP_DSTADDR:
             filter->arg[1] = 0x0000FFFF;
             filter->arg[2] = filter->arg[3] = 0;
             break;
-        case WINDIVERT_FILTER_FIELD_PACKET:
-        case WINDIVERT_FILTER_FIELD_PACKET16:
-        case WINDIVERT_FILTER_FIELD_PACKET32:
-        case WINDIVERT_FILTER_FIELD_TCP_PAYLOAD:
-        case WINDIVERT_FILTER_FIELD_TCP_PAYLOAD16:
-        case WINDIVERT_FILTER_FIELD_TCP_PAYLOAD32:
-        case WINDIVERT_FILTER_FIELD_UDP_PAYLOAD:
-        case WINDIVERT_FILTER_FIELD_UDP_PAYLOAD16:
-        case WINDIVERT_FILTER_FIELD_UDP_PAYLOAD32:
-            if (!WinDivertDeserializeNumber(stream, 7, &val))
+        case CYDIVERT_FILTER_FIELD_PACKET:
+        case CYDIVERT_FILTER_FIELD_PACKET16:
+        case CYDIVERT_FILTER_FIELD_PACKET32:
+        case CYDIVERT_FILTER_FIELD_TCP_PAYLOAD:
+        case CYDIVERT_FILTER_FIELD_TCP_PAYLOAD16:
+        case CYDIVERT_FILTER_FIELD_TCP_PAYLOAD32:
+        case CYDIVERT_FILTER_FIELD_UDP_PAYLOAD:
+        case CYDIVERT_FILTER_FIELD_UDP_PAYLOAD16:
+        case CYDIVERT_FILTER_FIELD_UDP_PAYLOAD32:
+            if (!CyDivertDeserializeNumber(stream, 7, &val))
             {
                 return FALSE;
             }
@@ -2886,8 +2886,8 @@ static BOOL WinDivertDeserializeTest(PWINDIVERT_STREAM stream,
             break;
     }
 
-    if (!WinDivertDeserializeLabel(stream, &success) ||
-        !WinDivertDeserializeLabel(stream, &failure))
+    if (!CyDivertDeserializeLabel(stream, &success) ||
+        !CyDivertDeserializeLabel(stream, &failure))
     {
         return FALSE;
     }
@@ -2899,30 +2899,30 @@ static BOOL WinDivertDeserializeTest(PWINDIVERT_STREAM stream,
 /*
  * Deserialize a filter header.
  */
-static BOOL WinDivertDeserializeFilterHeader(PWINDIVERT_STREAM stream,
+static BOOL CyDivertDeserializeFilterHeader(PCYDIVERT_STREAM stream,
     UINT *length)
 {
     UINT32 version, length32;
 
-    if (WinDivertGetChar(stream) != '@' ||
-        WinDivertGetChar(stream) != 'W' ||
-        WinDivertGetChar(stream) != 'i' ||
-        WinDivertGetChar(stream) != 'n' ||
-        WinDivertGetChar(stream) != 'D' ||
-        WinDivertGetChar(stream) != 'i' ||
-        WinDivertGetChar(stream) != 'v' ||
-        WinDivertGetChar(stream) != '_')
+    if (CyDivertGetChar(stream) != '@' ||
+        CyDivertGetChar(stream) != 'W' ||
+        CyDivertGetChar(stream) != 'i' ||
+        CyDivertGetChar(stream) != 'n' ||
+        CyDivertGetChar(stream) != 'D' ||
+        CyDivertGetChar(stream) != 'i' ||
+        CyDivertGetChar(stream) != 'v' ||
+        CyDivertGetChar(stream) != '_')
     {
         return FALSE;
     }
 
-    if (!WinDivertDeserializeNumber(stream, 4, &version) || (version != 0))
+    if (!CyDivertDeserializeNumber(stream, 4, &version) || (version != 0))
     {
         return FALSE;
     }
 
-    if (!WinDivertDeserializeNumber(stream, 2, &length32) ||
-            length32 == 0 || length32 > WINDIVERT_FILTER_MAXLEN)
+    if (!CyDivertDeserializeNumber(stream, 2, &length32) ||
+            length32 == 0 || length32 > CYDIVERT_FILTER_MAXLEN)
     {
         return FALSE;
     }
@@ -2934,26 +2934,26 @@ static BOOL WinDivertDeserializeFilterHeader(PWINDIVERT_STREAM stream,
 /*
  * Deserialize a filter.
  */
-static BOOL WinDivertDeserializeFilter(PWINDIVERT_STREAM stream,
-    PWINDIVERT_FILTER filter, UINT *length)
+static BOOL CyDivertDeserializeFilter(PCYDIVERT_STREAM stream,
+    PCYDIVERT_FILTER filter, UINT *length)
 {
     UINT i;
 
-    if (!WinDivertDeserializeFilterHeader(stream, length))
+    if (!CyDivertDeserializeFilterHeader(stream, length))
     {
         return FALSE;
     }
 
     for (i = 0; i < *length; i++)
     {
-        if (!WinDivertDeserializeTest(stream, filter + i))
+        if (!CyDivertDeserializeTest(stream, filter + i))
         {
             return FALSE;
         }
         switch (filter[i].success)
         {
-            case WINDIVERT_FILTER_RESULT_ACCEPT:
-            case WINDIVERT_FILTER_RESULT_REJECT:
+            case CYDIVERT_FILTER_RESULT_ACCEPT:
+            case CYDIVERT_FILTER_RESULT_REJECT:
                 break;
             default:
                 if (filter[i].success <= i || filter[i].success >= *length)
@@ -2963,8 +2963,8 @@ static BOOL WinDivertDeserializeFilter(PWINDIVERT_STREAM stream,
         }
         switch (filter[i].failure)
         {
-            case WINDIVERT_FILTER_RESULT_ACCEPT:
-            case WINDIVERT_FILTER_RESULT_REJECT:
+            case CYDIVERT_FILTER_RESULT_ACCEPT:
+            case CYDIVERT_FILTER_RESULT_REJECT:
                 break;
             default:
                 if (filter[i].failure <= i || filter[i].failure >= *length)
@@ -2974,7 +2974,7 @@ static BOOL WinDivertDeserializeFilter(PWINDIVERT_STREAM stream,
         }
     }
 
-    if (WinDivertGetChar(stream) != '\0')
+    if (CyDivertGetChar(stream) != '\0')
     {
         return FALSE;
     }
@@ -2985,7 +2985,7 @@ static BOOL WinDivertDeserializeFilter(PWINDIVERT_STREAM stream,
 /*
  * Decompile a test into an expression.
  */
-static PEXPR WinDivertDecompileTest(HANDLE pool, PWINDIVERT_FILTER test)
+static PEXPR CyDivertDecompileTest(HANDLE pool, PCYDIVERT_FILTER test)
 {
     KIND kind;
     PEXPR var, val, expr;
@@ -2994,177 +2994,177 @@ static PEXPR WinDivertDecompileTest(HANDLE pool, PWINDIVERT_FILTER test)
 
     switch (test->field)
     {
-        case WINDIVERT_FILTER_FIELD_ZERO:
+        case CYDIVERT_FILTER_FIELD_ZERO:
             kind = TOKEN_ZERO; break;
-        case WINDIVERT_FILTER_FIELD_EVENT:
+        case CYDIVERT_FILTER_FIELD_EVENT:
             kind = TOKEN_EVENT; break;
-        case WINDIVERT_FILTER_FIELD_RANDOM8:
+        case CYDIVERT_FILTER_FIELD_RANDOM8:
             kind = TOKEN_RANDOM8; break;
-        case WINDIVERT_FILTER_FIELD_RANDOM16:
+        case CYDIVERT_FILTER_FIELD_RANDOM16:
             kind = TOKEN_RANDOM16; break;
-        case WINDIVERT_FILTER_FIELD_RANDOM32:
+        case CYDIVERT_FILTER_FIELD_RANDOM32:
             kind = TOKEN_RANDOM32; break;
-        case WINDIVERT_FILTER_FIELD_PACKET:
+        case CYDIVERT_FILTER_FIELD_PACKET:
             kind = TOKEN_PACKET; break;
-        case WINDIVERT_FILTER_FIELD_PACKET16:
+        case CYDIVERT_FILTER_FIELD_PACKET16:
             kind = TOKEN_PACKET16; break;
-        case WINDIVERT_FILTER_FIELD_PACKET32:
+        case CYDIVERT_FILTER_FIELD_PACKET32:
             kind = TOKEN_PACKET32; break;
-        case WINDIVERT_FILTER_FIELD_LENGTH:
+        case CYDIVERT_FILTER_FIELD_LENGTH:
             kind = TOKEN_LENGTH; break;
-        case WINDIVERT_FILTER_FIELD_TIMESTAMP:
+        case CYDIVERT_FILTER_FIELD_TIMESTAMP:
             kind = TOKEN_TIMESTAMP; break;
-        case WINDIVERT_FILTER_FIELD_TCP_PAYLOAD:
+        case CYDIVERT_FILTER_FIELD_TCP_PAYLOAD:
             kind = TOKEN_TCP_PAYLOAD; break;
-        case WINDIVERT_FILTER_FIELD_TCP_PAYLOAD16:
+        case CYDIVERT_FILTER_FIELD_TCP_PAYLOAD16:
             kind = TOKEN_TCP_PAYLOAD16; break;
-        case WINDIVERT_FILTER_FIELD_TCP_PAYLOAD32:
+        case CYDIVERT_FILTER_FIELD_TCP_PAYLOAD32:
             kind = TOKEN_TCP_PAYLOAD32; break;
-        case WINDIVERT_FILTER_FIELD_UDP_PAYLOAD:
+        case CYDIVERT_FILTER_FIELD_UDP_PAYLOAD:
             kind = TOKEN_UDP_PAYLOAD; break;
-        case WINDIVERT_FILTER_FIELD_UDP_PAYLOAD16:
+        case CYDIVERT_FILTER_FIELD_UDP_PAYLOAD16:
             kind = TOKEN_UDP_PAYLOAD16; break;
-        case WINDIVERT_FILTER_FIELD_UDP_PAYLOAD32:
+        case CYDIVERT_FILTER_FIELD_UDP_PAYLOAD32:
             kind = TOKEN_UDP_PAYLOAD32; break;
-        case WINDIVERT_FILTER_FIELD_INBOUND:
+        case CYDIVERT_FILTER_FIELD_INBOUND:
             kind = TOKEN_INBOUND; break;
-        case WINDIVERT_FILTER_FIELD_OUTBOUND:
+        case CYDIVERT_FILTER_FIELD_OUTBOUND:
             kind = TOKEN_OUTBOUND; break;
-        case WINDIVERT_FILTER_FIELD_FRAGMENT:
+        case CYDIVERT_FILTER_FIELD_FRAGMENT:
             kind = TOKEN_FRAGMENT; break;
-        case WINDIVERT_FILTER_FIELD_IFIDX:
+        case CYDIVERT_FILTER_FIELD_IFIDX:
             kind = TOKEN_IF_IDX; break;
-        case WINDIVERT_FILTER_FIELD_SUBIFIDX:
+        case CYDIVERT_FILTER_FIELD_SUBIFIDX:
             kind = TOKEN_SUB_IF_IDX; break;
-        case WINDIVERT_FILTER_FIELD_IP:
+        case CYDIVERT_FILTER_FIELD_IP:
             kind = TOKEN_IP; break;
-        case WINDIVERT_FILTER_FIELD_IPV6:
+        case CYDIVERT_FILTER_FIELD_IPV6:
             kind = TOKEN_IPV6; break;
-        case WINDIVERT_FILTER_FIELD_ICMP:
+        case CYDIVERT_FILTER_FIELD_ICMP:
             kind = TOKEN_ICMP; break;
-        case WINDIVERT_FILTER_FIELD_TCP:
+        case CYDIVERT_FILTER_FIELD_TCP:
             kind = TOKEN_TCP; break;
-        case WINDIVERT_FILTER_FIELD_UDP:
+        case CYDIVERT_FILTER_FIELD_UDP:
             kind = TOKEN_UDP; break;
-        case WINDIVERT_FILTER_FIELD_ICMPV6:
+        case CYDIVERT_FILTER_FIELD_ICMPV6:
             kind = TOKEN_ICMPV6; break;
-        case WINDIVERT_FILTER_FIELD_IP_HDRLENGTH:
+        case CYDIVERT_FILTER_FIELD_IP_HDRLENGTH:
             kind = TOKEN_IP_HDR_LENGTH; break;
-        case WINDIVERT_FILTER_FIELD_IP_TOS:
+        case CYDIVERT_FILTER_FIELD_IP_TOS:
             kind = TOKEN_IP_TOS; break;
-        case WINDIVERT_FILTER_FIELD_IP_LENGTH:
+        case CYDIVERT_FILTER_FIELD_IP_LENGTH:
             kind = TOKEN_IP_LENGTH; break;
-        case WINDIVERT_FILTER_FIELD_IP_ID:
+        case CYDIVERT_FILTER_FIELD_IP_ID:
             kind = TOKEN_IP_ID; break;
-        case WINDIVERT_FILTER_FIELD_IP_DF:
+        case CYDIVERT_FILTER_FIELD_IP_DF:
             kind = TOKEN_IP_DF; break;
-        case WINDIVERT_FILTER_FIELD_IP_MF:
+        case CYDIVERT_FILTER_FIELD_IP_MF:
             kind = TOKEN_IP_MF; break;
-        case WINDIVERT_FILTER_FIELD_IP_FRAGOFF:
+        case CYDIVERT_FILTER_FIELD_IP_FRAGOFF:
             kind = TOKEN_IP_FRAG_OFF; break;
-        case WINDIVERT_FILTER_FIELD_IP_TTL:
+        case CYDIVERT_FILTER_FIELD_IP_TTL:
             kind = TOKEN_IP_TTL; break;
-        case WINDIVERT_FILTER_FIELD_IP_PROTOCOL:
+        case CYDIVERT_FILTER_FIELD_IP_PROTOCOL:
             kind = TOKEN_IP_PROTOCOL; break;
-        case WINDIVERT_FILTER_FIELD_IP_CHECKSUM:
+        case CYDIVERT_FILTER_FIELD_IP_CHECKSUM:
             kind = TOKEN_IP_CHECKSUM; break;
-        case WINDIVERT_FILTER_FIELD_IP_SRCADDR:
+        case CYDIVERT_FILTER_FIELD_IP_SRCADDR:
             kind = TOKEN_IP_SRC_ADDR; break;
-        case WINDIVERT_FILTER_FIELD_IP_DSTADDR:
+        case CYDIVERT_FILTER_FIELD_IP_DSTADDR:
             kind = TOKEN_IP_DST_ADDR; break;
-        case WINDIVERT_FILTER_FIELD_IPV6_TRAFFICCLASS:
+        case CYDIVERT_FILTER_FIELD_IPV6_TRAFFICCLASS:
             kind = TOKEN_IPV6_TRAFFIC_CLASS; break;
-        case WINDIVERT_FILTER_FIELD_IPV6_FLOWLABEL:
+        case CYDIVERT_FILTER_FIELD_IPV6_FLOWLABEL:
             kind = TOKEN_IPV6_FLOW_LABEL; break;
-        case WINDIVERT_FILTER_FIELD_IPV6_LENGTH:
+        case CYDIVERT_FILTER_FIELD_IPV6_LENGTH:
             kind = TOKEN_IPV6_LENGTH; break;
-        case WINDIVERT_FILTER_FIELD_IPV6_NEXTHDR:
+        case CYDIVERT_FILTER_FIELD_IPV6_NEXTHDR:
             kind = TOKEN_IPV6_NEXT_HDR; break;
-        case WINDIVERT_FILTER_FIELD_IPV6_HOPLIMIT:
+        case CYDIVERT_FILTER_FIELD_IPV6_HOPLIMIT:
             kind = TOKEN_IPV6_HOP_LIMIT; break;
-        case WINDIVERT_FILTER_FIELD_IPV6_SRCADDR:
+        case CYDIVERT_FILTER_FIELD_IPV6_SRCADDR:
             kind = TOKEN_IPV6_SRC_ADDR; break;
-        case WINDIVERT_FILTER_FIELD_IPV6_DSTADDR:
+        case CYDIVERT_FILTER_FIELD_IPV6_DSTADDR:
             kind = TOKEN_IPV6_DST_ADDR; break;
-        case WINDIVERT_FILTER_FIELD_ICMP_TYPE:
+        case CYDIVERT_FILTER_FIELD_ICMP_TYPE:
             kind = TOKEN_ICMP_TYPE; break;
-        case WINDIVERT_FILTER_FIELD_ICMP_CODE:
+        case CYDIVERT_FILTER_FIELD_ICMP_CODE:
             kind = TOKEN_ICMP_CODE; break;
-        case WINDIVERT_FILTER_FIELD_ICMP_CHECKSUM:
+        case CYDIVERT_FILTER_FIELD_ICMP_CHECKSUM:
             kind = TOKEN_ICMP_CHECKSUM; break;
-        case WINDIVERT_FILTER_FIELD_ICMP_BODY:
+        case CYDIVERT_FILTER_FIELD_ICMP_BODY:
             kind = TOKEN_ICMP_BODY; break;
-        case WINDIVERT_FILTER_FIELD_ICMPV6_TYPE:
+        case CYDIVERT_FILTER_FIELD_ICMPV6_TYPE:
             kind = TOKEN_ICMPV6_TYPE; break;
-        case WINDIVERT_FILTER_FIELD_ICMPV6_CODE:
+        case CYDIVERT_FILTER_FIELD_ICMPV6_CODE:
             kind = TOKEN_ICMPV6_CODE; break;
-        case WINDIVERT_FILTER_FIELD_ICMPV6_CHECKSUM:
+        case CYDIVERT_FILTER_FIELD_ICMPV6_CHECKSUM:
             kind = TOKEN_ICMPV6_CHECKSUM; break;
-        case WINDIVERT_FILTER_FIELD_ICMPV6_BODY:
+        case CYDIVERT_FILTER_FIELD_ICMPV6_BODY:
             kind = TOKEN_ICMPV6_BODY; break;
-        case WINDIVERT_FILTER_FIELD_TCP_SRCPORT:
+        case CYDIVERT_FILTER_FIELD_TCP_SRCPORT:
             kind = TOKEN_TCP_SRC_PORT; break;
-        case WINDIVERT_FILTER_FIELD_TCP_DSTPORT:
+        case CYDIVERT_FILTER_FIELD_TCP_DSTPORT:
             kind = TOKEN_TCP_DST_PORT; break;
-        case WINDIVERT_FILTER_FIELD_TCP_SEQNUM:
+        case CYDIVERT_FILTER_FIELD_TCP_SEQNUM:
             kind = TOKEN_TCP_SEQ_NUM; break;
-        case WINDIVERT_FILTER_FIELD_TCP_ACKNUM:
+        case CYDIVERT_FILTER_FIELD_TCP_ACKNUM:
             kind = TOKEN_TCP_ACK_NUM; break;
-        case WINDIVERT_FILTER_FIELD_TCP_HDRLENGTH:
+        case CYDIVERT_FILTER_FIELD_TCP_HDRLENGTH:
             kind = TOKEN_TCP_HDR_LENGTH; break;
-        case WINDIVERT_FILTER_FIELD_TCP_URG:
+        case CYDIVERT_FILTER_FIELD_TCP_URG:
             kind = TOKEN_TCP_URG; break;
-        case WINDIVERT_FILTER_FIELD_TCP_ACK:
+        case CYDIVERT_FILTER_FIELD_TCP_ACK:
             kind = TOKEN_TCP_ACK; break;
-        case WINDIVERT_FILTER_FIELD_TCP_PSH:
+        case CYDIVERT_FILTER_FIELD_TCP_PSH:
             kind = TOKEN_TCP_PSH; break;
-        case WINDIVERT_FILTER_FIELD_TCP_RST:
+        case CYDIVERT_FILTER_FIELD_TCP_RST:
             kind = TOKEN_TCP_RST; break;
-        case WINDIVERT_FILTER_FIELD_TCP_SYN:
+        case CYDIVERT_FILTER_FIELD_TCP_SYN:
             kind = TOKEN_TCP_SYN; break;
-        case WINDIVERT_FILTER_FIELD_TCP_FIN:
+        case CYDIVERT_FILTER_FIELD_TCP_FIN:
             kind = TOKEN_TCP_FIN; break;
-        case WINDIVERT_FILTER_FIELD_TCP_WINDOW:
+        case CYDIVERT_FILTER_FIELD_TCP_WINDOW:
             kind = TOKEN_TCP_WINDOW; break;
-        case WINDIVERT_FILTER_FIELD_TCP_CHECKSUM:
+        case CYDIVERT_FILTER_FIELD_TCP_CHECKSUM:
             kind = TOKEN_TCP_CHECKSUM; break;
-        case WINDIVERT_FILTER_FIELD_TCP_URGPTR:
+        case CYDIVERT_FILTER_FIELD_TCP_URGPTR:
             kind = TOKEN_TCP_URG_PTR; break;
-        case WINDIVERT_FILTER_FIELD_TCP_PAYLOADLENGTH:
+        case CYDIVERT_FILTER_FIELD_TCP_PAYLOADLENGTH:
             kind = TOKEN_TCP_PAYLOAD_LENGTH; break;
-        case WINDIVERT_FILTER_FIELD_UDP_SRCPORT:
+        case CYDIVERT_FILTER_FIELD_UDP_SRCPORT:
             kind = TOKEN_UDP_SRC_PORT; break;
-        case WINDIVERT_FILTER_FIELD_UDP_DSTPORT:
+        case CYDIVERT_FILTER_FIELD_UDP_DSTPORT:
             kind = TOKEN_UDP_DST_PORT; break;
-        case WINDIVERT_FILTER_FIELD_UDP_LENGTH:
+        case CYDIVERT_FILTER_FIELD_UDP_LENGTH:
             kind = TOKEN_UDP_LENGTH; break;
-        case WINDIVERT_FILTER_FIELD_UDP_CHECKSUM:
+        case CYDIVERT_FILTER_FIELD_UDP_CHECKSUM:
             kind = TOKEN_UDP_CHECKSUM; break;
-        case WINDIVERT_FILTER_FIELD_UDP_PAYLOADLENGTH:
+        case CYDIVERT_FILTER_FIELD_UDP_PAYLOADLENGTH:
             kind = TOKEN_UDP_PAYLOAD_LENGTH; break;
-        case WINDIVERT_FILTER_FIELD_LOOPBACK:
+        case CYDIVERT_FILTER_FIELD_LOOPBACK:
             kind = TOKEN_LOOPBACK; break;
-        case WINDIVERT_FILTER_FIELD_IMPOSTOR:
+        case CYDIVERT_FILTER_FIELD_IMPOSTOR:
             kind = TOKEN_IMPOSTOR; break;
-        case WINDIVERT_FILTER_FIELD_PROCESSID:
+        case CYDIVERT_FILTER_FIELD_PROCESSID:
             kind = TOKEN_PROCESS_ID; break;
-        case WINDIVERT_FILTER_FIELD_LOCALADDR:
+        case CYDIVERT_FILTER_FIELD_LOCALADDR:
             kind = TOKEN_LOCAL_ADDR; break;
-        case WINDIVERT_FILTER_FIELD_REMOTEADDR:
+        case CYDIVERT_FILTER_FIELD_REMOTEADDR:
             kind = TOKEN_REMOTE_ADDR; break;
-        case WINDIVERT_FILTER_FIELD_LOCALPORT:
+        case CYDIVERT_FILTER_FIELD_LOCALPORT:
             kind = TOKEN_LOCAL_PORT; break;
-        case WINDIVERT_FILTER_FIELD_REMOTEPORT:
+        case CYDIVERT_FILTER_FIELD_REMOTEPORT:
             kind = TOKEN_REMOTE_PORT; break;
-        case WINDIVERT_FILTER_FIELD_PROTOCOL:
+        case CYDIVERT_FILTER_FIELD_PROTOCOL:
             kind = TOKEN_PROTOCOL; break;
-        case WINDIVERT_FILTER_FIELD_ENDPOINTID:
+        case CYDIVERT_FILTER_FIELD_ENDPOINTID:
             kind = TOKEN_ENDPOINT_ID; break;
-        case WINDIVERT_FILTER_FIELD_PARENTENDPOINTID:
+        case CYDIVERT_FILTER_FIELD_PARENTENDPOINTID:
             kind = TOKEN_PARENT_ENDPOINT_ID; break;
-        case WINDIVERT_FILTER_FIELD_LAYER:
+        case CYDIVERT_FILTER_FIELD_LAYER:
             kind = TOKEN_LAYER; break;
-        case WINDIVERT_FILTER_FIELD_PRIORITY:
+        case CYDIVERT_FILTER_FIELD_PRIORITY:
             kind = TOKEN_PRIORITY; break;
         default:
             return NULL;
@@ -3181,26 +3181,26 @@ static PEXPR WinDivertDecompileTest(HANDLE pool, PWINDIVERT_FILTER test)
         case TOKEN_UDP_PAYLOAD:
         case TOKEN_UDP_PAYLOAD16:
         case TOKEN_UDP_PAYLOAD32:
-            var = WinDivertMakeArrayVar(pool, kind, test->arg[1], &error);
+            var = CyDivertMakeArrayVar(pool, kind, test->arg[1], &error);
             if (var == NULL)
             {
                 return NULL;
             }
             tmp[0] = test->arg[0];
             tmp[1] = tmp[2] = tmp[3] = 0;
-            val = WinDivertMakeNumber(pool, tmp, &error);
+            val = CyDivertMakeNumber(pool, tmp, &error);
             if (val == NULL)
             {
                 return NULL;
             }
             break;
         default:
-            var = WinDivertMakeVar(kind, &error);
+            var = CyDivertMakeVar(kind, &error);
             if (var == NULL)
             {
                 return NULL;
             }
-            val = WinDivertMakeNumber(pool, test->arg, &error);
+            val = CyDivertMakeNumber(pool, test->arg, &error);
             if (val == NULL)
             {
                 return NULL;
@@ -3214,23 +3214,23 @@ static PEXPR WinDivertDecompileTest(HANDLE pool, PWINDIVERT_FILTER test)
 
     switch (test->test)
     {
-        case WINDIVERT_FILTER_TEST_EQ:
+        case CYDIVERT_FILTER_TEST_EQ:
             kind = TOKEN_EQ; break;
-        case WINDIVERT_FILTER_TEST_NEQ:
+        case CYDIVERT_FILTER_TEST_NEQ:
             kind = TOKEN_NEQ; break;
-        case WINDIVERT_FILTER_TEST_LT:
+        case CYDIVERT_FILTER_TEST_LT:
             kind = TOKEN_LT; break;
-        case WINDIVERT_FILTER_TEST_LEQ:
+        case CYDIVERT_FILTER_TEST_LEQ:
             kind = TOKEN_LEQ; break;
-        case WINDIVERT_FILTER_TEST_GT:
+        case CYDIVERT_FILTER_TEST_GT:
             kind = TOKEN_GT; break;
-        case WINDIVERT_FILTER_TEST_GEQ:
+        case CYDIVERT_FILTER_TEST_GEQ:
             kind = TOKEN_GEQ; break;
         default:
             return NULL;
     }
 
-    expr = WinDivertMakeBinOp(pool, kind, var, val, &error);
+    expr = CyDivertMakeBinOp(pool, kind, var, val, &error);
     if (expr == NULL)
     {
         return NULL;
@@ -3243,12 +3243,12 @@ static PEXPR WinDivertDecompileTest(HANDLE pool, PWINDIVERT_FILTER test)
 /*
  * Dereference an expression.
  */
-static void WinDivertDerefExpr(PEXPR *exprs, UINT16 i)
+static void CyDivertDerefExpr(PEXPR *exprs, UINT16 i)
 {
     switch (i)
     {
-        case WINDIVERT_FILTER_RESULT_ACCEPT:
-        case WINDIVERT_FILTER_RESULT_REJECT:
+        case CYDIVERT_FILTER_RESULT_ACCEPT:
+        case CYDIVERT_FILTER_RESULT_REJECT:
             return;
         default:
             exprs[i]->count--;
@@ -3261,15 +3261,15 @@ static void WinDivertDerefExpr(PEXPR *exprs, UINT16 i)
 }
 
 /*
- * Apply an and/or simplification for WinDivertCoalesceAndOr().
+ * Apply an and/or simplification for CyDivertCoalesceAndOr().
  */
-static PEXPR WinDivertSimplifyAndOr(HANDLE pool, PEXPR *exprs, PEXPR expr,
+static PEXPR CyDivertSimplifyAndOr(HANDLE pool, PEXPR *exprs, PEXPR expr,
     BOOL and, UINT16 next, UINT16 other)
 {
     PEXPR next_expr = exprs[next], new_expr;
     ERROR error;
 
-    new_expr = WinDivertMakeBinOp(pool, (and? TOKEN_AND: TOKEN_OR), expr,
+    new_expr = CyDivertMakeBinOp(pool, (and? TOKEN_AND: TOKEN_OR), expr,
         next_expr, &error);
     if (new_expr == NULL)
     {
@@ -3278,15 +3278,15 @@ static PEXPR WinDivertSimplifyAndOr(HANDLE pool, PEXPR *exprs, PEXPR expr,
     new_expr->succ   = next_expr->succ;
     new_expr->fail   = next_expr->fail;
     new_expr->count  = expr->count;
-    WinDivertDerefExpr(exprs, next);
-    WinDivertDerefExpr(exprs, other);
+    CyDivertDerefExpr(exprs, next);
+    CyDivertDerefExpr(exprs, other);
     return new_expr;
 }
 
 /*
  * Detect and coalesce and/or (& (?:)) expression patterns.
  */
-static PEXPR WinDivertCoalesceAndOr(HANDLE pool, PEXPR *exprs, UINT16 i,
+static PEXPR CyDivertCoalesceAndOr(HANDLE pool, PEXPR *exprs, UINT16 i,
     ERROR *error)
 {
     PEXPR expr, next_expr, new_expr;
@@ -3305,8 +3305,8 @@ static PEXPR WinDivertCoalesceAndOr(HANDLE pool, PEXPR *exprs, UINT16 i,
         singleton = FALSE;
         switch (expr->succ)
         {
-            case WINDIVERT_FILTER_RESULT_ACCEPT:
-            case WINDIVERT_FILTER_RESULT_REJECT:
+            case CYDIVERT_FILTER_RESULT_ACCEPT:
+            case CYDIVERT_FILTER_RESULT_REJECT:
                 break;
             default:
                 next_expr = exprs[expr->succ];
@@ -3317,7 +3317,7 @@ static PEXPR WinDivertCoalesceAndOr(HANDLE pool, PEXPR *exprs, UINT16 i,
                 singleton = TRUE;
                 if (next_expr->fail == expr->fail)
                 {
-                    expr = WinDivertSimplifyAndOr(pool, exprs, expr,
+                    expr = CyDivertSimplifyAndOr(pool, exprs, expr,
                         /*and=*/TRUE, expr->succ, expr->fail);
                     continue;
                 }
@@ -3336,8 +3336,8 @@ static PEXPR WinDivertCoalesceAndOr(HANDLE pool, PEXPR *exprs, UINT16 i,
                     new_expr->succ   = next_expr->succ;
                     new_expr->fail   = next_expr->fail;
                     new_expr->count  = expr->count;
-                    WinDivertDerefExpr(exprs, expr->succ);
-                    WinDivertDerefExpr(exprs, expr->fail);
+                    CyDivertDerefExpr(exprs, expr->succ);
+                    CyDivertDerefExpr(exprs, expr->fail);
                     expr = new_expr;
                     continue;
                 }
@@ -3345,8 +3345,8 @@ static PEXPR WinDivertCoalesceAndOr(HANDLE pool, PEXPR *exprs, UINT16 i,
         }
         switch (expr->fail)
         {
-            case WINDIVERT_FILTER_RESULT_ACCEPT:
-            case WINDIVERT_FILTER_RESULT_REJECT:
+            case CYDIVERT_FILTER_RESULT_ACCEPT:
+            case CYDIVERT_FILTER_RESULT_REJECT:
                 singleton = FALSE;
                 break;
             default:
@@ -3358,7 +3358,7 @@ static PEXPR WinDivertCoalesceAndOr(HANDLE pool, PEXPR *exprs, UINT16 i,
                 }
                 if (next_expr->succ == expr->succ)
                 {
-                    expr = WinDivertSimplifyAndOr(pool, exprs, expr,
+                    expr = CyDivertSimplifyAndOr(pool, exprs, expr,
                         /*and=*/FALSE, expr->fail, expr->succ);
                     continue;
                 }
@@ -3377,8 +3377,8 @@ static PEXPR WinDivertCoalesceAndOr(HANDLE pool, PEXPR *exprs, UINT16 i,
                     new_expr->succ   = next_expr->succ;
                     new_expr->fail   = next_expr->fail;
                     new_expr->count  = expr->count;
-                    WinDivertDerefExpr(exprs, expr->succ);
-                    WinDivertDerefExpr(exprs, expr->fail);
+                    CyDivertDerefExpr(exprs, expr->succ);
+                    CyDivertDerefExpr(exprs, expr->fail);
                     expr = new_expr;
                     continue;
                 }
@@ -3408,10 +3408,10 @@ static PEXPR WinDivertCoalesceAndOr(HANDLE pool, PEXPR *exprs, UINT16 i,
             new_expr->succ   = succ_expr->succ;
             new_expr->fail   = fail_expr->fail;
             new_expr->count  = expr->count;
-            WinDivertDerefExpr(exprs, expr->succ);
-            WinDivertDerefExpr(exprs, expr->fail);
-            WinDivertDerefExpr(exprs, new_expr->succ);
-            WinDivertDerefExpr(exprs, new_expr->fail);
+            CyDivertDerefExpr(exprs, expr->succ);
+            CyDivertDerefExpr(exprs, expr->fail);
+            CyDivertDerefExpr(exprs, new_expr->succ);
+            CyDivertDerefExpr(exprs, new_expr->fail);
             expr = new_expr;
             continue;
         }
@@ -3427,7 +3427,7 @@ static PEXPR WinDivertCoalesceAndOr(HANDLE pool, PEXPR *exprs, UINT16 i,
 /*
  * Coalesce all remaining expressions.
  */
-static PEXPR WinDivertCoalesceExpr(HANDLE pool, PEXPR *exprs, UINT16 i)
+static PEXPR CyDivertCoalesceExpr(HANDLE pool, PEXPR *exprs, UINT16 i)
 {
     PEXPR expr, succ_expr, fail_expr, new_expr;
     static const EXPR true_expr  = {{{0}}, TOKEN_TRUE};
@@ -3435,9 +3435,9 @@ static PEXPR WinDivertCoalesceExpr(HANDLE pool, PEXPR *exprs, UINT16 i)
 
     switch (i)
     {
-        case WINDIVERT_FILTER_RESULT_ACCEPT:
+        case CYDIVERT_FILTER_RESULT_ACCEPT:
             return (PEXPR)&true_expr;
-        case WINDIVERT_FILTER_RESULT_REJECT:
+        case CYDIVERT_FILTER_RESULT_REJECT:
             return (PEXPR)&false_expr;
         default:
             break;
@@ -3451,11 +3451,11 @@ static PEXPR WinDivertCoalesceExpr(HANDLE pool, PEXPR *exprs, UINT16 i)
 
     if (expr->succ == expr->fail)
     {
-        return WinDivertCoalesceExpr(pool, exprs, expr->succ);
+        return CyDivertCoalesceExpr(pool, exprs, expr->succ);
     }
 
-    succ_expr = WinDivertCoalesceExpr(pool, exprs, expr->succ);
-    fail_expr = WinDivertCoalesceExpr(pool, exprs, expr->fail);
+    succ_expr = CyDivertCoalesceExpr(pool, exprs, expr->succ);
+    fail_expr = CyDivertCoalesceExpr(pool, exprs, expr->fail);
     if (succ_expr == NULL || fail_expr == NULL)
     {
         return NULL;
@@ -3481,7 +3481,7 @@ static PEXPR WinDivertCoalesceExpr(HANDLE pool, PEXPR *exprs, UINT16 i)
 /*
  * Format a 32bit decimal number.
  */
-static void WinDivertFormatDecNumber32(PWINDIVERT_STREAM stream, UINT32 val)
+static void CyDivertFormatDecNumber32(PCYDIVERT_STREAM stream, UINT32 val)
 {
     UINT32 r = 1000000000ul, dig;
     BOOL zeroes = FALSE;
@@ -3495,7 +3495,7 @@ static void WinDivertFormatDecNumber32(PWINDIVERT_STREAM stream, UINT32 val)
         {
             continue;
         }
-        WinDivertPutChar(stream, '0' + dig);
+        CyDivertPutChar(stream, '0' + dig);
         zeroes = TRUE;
     }
 }
@@ -3503,7 +3503,7 @@ static void WinDivertFormatDecNumber32(PWINDIVERT_STREAM stream, UINT32 val)
 /*
  * Format a 128bit decimal number.
  */
-static void WinDivertFormatDecNumber(PWINDIVERT_STREAM stream,
+static void CyDivertFormatDecNumber(PCYDIVERT_STREAM stream,
     const UINT32 *val0)
 {
     UINT32 val[4];
@@ -3512,7 +3512,7 @@ static void WinDivertFormatDecNumber(PWINDIVERT_STREAM stream,
 
     if (val0[0] == 0 && val0[1] == 0 && val0[2] == 0 && val0[3] == 0)
     {
-        WinDivertPutChar(stream, '0');
+        CyDivertPutChar(stream, '0');
         return;
     }
     val[0] = val0[0];
@@ -3522,18 +3522,18 @@ static void WinDivertFormatDecNumber(PWINDIVERT_STREAM stream,
     for (i = 0; i < sizeof(buf) &&
             (val[0] != 0 || val[1] != 0 || val[2] != 0 || val[3] != 0); i++)
     {
-        buf[i] = '0' + WinDivertDivTen128(val);
+        buf[i] = '0' + CyDivertDivTen128(val);
     }
     for (j = 0; j < i; j++)
     {
-        WinDivertPutChar(stream, buf[i - j - 1]);
+        CyDivertPutChar(stream, buf[i - j - 1]);
     }
 }
 
 /*
  * Format a 128bit hexidecimal number.
  */
-static void WinDivertFormatHexNumber(PWINDIVERT_STREAM stream,
+static void CyDivertFormatHexNumber(PCYDIVERT_STREAM stream,
     const UINT32 *val)
 {
     INT i, s;
@@ -3553,34 +3553,34 @@ static void WinDivertFormatHexNumber(PWINDIVERT_STREAM stream,
             {
                 continue;
             }
-            WinDivertPutChar(stream, (dig <= 9? '0' + dig: 'a' + (dig - 10)));
+            CyDivertPutChar(stream, (dig <= 9? '0' + dig: 'a' + (dig - 10)));
             zeroes = TRUE;
         }
     }
     if (!zeroes)
     {
-        WinDivertPutChar(stream, '0');
+        CyDivertPutChar(stream, '0');
     }
 }
 
 /*
  * Format an IPv4 address.
  */
-static void WinDivertFormatIPv4Addr(PWINDIVERT_STREAM stream, UINT32 addr)
+static void CyDivertFormatIPv4Addr(PCYDIVERT_STREAM stream, UINT32 addr)
 {
-    WinDivertFormatDecNumber32(stream, (addr & 0xFF000000) >> 24);
-    WinDivertPutChar(stream, '.');
-    WinDivertFormatDecNumber32(stream, (addr & 0x00FF0000) >> 16);
-    WinDivertPutChar(stream, '.');
-    WinDivertFormatDecNumber32(stream, (addr & 0x0000FF00) >> 8);
-    WinDivertPutChar(stream, '.');
-    WinDivertFormatDecNumber32(stream, (addr & 0x000000FF) >> 0);
+    CyDivertFormatDecNumber32(stream, (addr & 0xFF000000) >> 24);
+    CyDivertPutChar(stream, '.');
+    CyDivertFormatDecNumber32(stream, (addr & 0x00FF0000) >> 16);
+    CyDivertPutChar(stream, '.');
+    CyDivertFormatDecNumber32(stream, (addr & 0x0000FF00) >> 8);
+    CyDivertPutChar(stream, '.');
+    CyDivertFormatDecNumber32(stream, (addr & 0x000000FF) >> 0);
 }
 
 /*
  * Format an IPv6 address.
  */
-static void WinDivertFormatIPv6Addr(PWINDIVERT_STREAM stream,
+static void CyDivertFormatIPv6Addr(PCYDIVERT_STREAM stream,
     const UINT32 *addr32)
 {
     INT i, z_curr, z_count, z_start, z_max;
@@ -3590,7 +3590,7 @@ static void WinDivertFormatIPv6Addr(PWINDIVERT_STREAM stream,
     // IPv4 special case:
     if (addr32[3] == 0 && addr32[2] == 0 && addr32[1] == 0x0000FFFF)
     {
-        WinDivertFormatIPv4Addr(stream, addr32[0]);
+        CyDivertFormatIPv4Addr(stream, addr32[0]);
         return;
     }
 
@@ -3619,28 +3619,28 @@ static void WinDivertFormatIPv6Addr(PWINDIVERT_STREAM stream,
     {
         if (i == z_start)
         {
-            WinDivertPutString(stream, (i == 7? "::": ":"));
+            CyDivertPutString(stream, (i == 7? "::": ":"));
             i -= (z_max-1);
             continue;
         }
         part[0] = (UINT32)addr[i];
-        WinDivertFormatHexNumber(stream, part);
-        WinDivertPutString(stream, (i != 0? ":": ""));
+        CyDivertFormatHexNumber(stream, part);
+        CyDivertPutString(stream, (i != 0? ":": ""));
     }
 }
 
 /*
  * Format an IPv4 address.
  */
-BOOL WinDivertHelperFormatIPv4Address(UINT32 addr, char *buffer, UINT bufLen)
+BOOL CyDivertHelperFormatIPv4Address(UINT32 addr, char *buffer, UINT bufLen)
 {
-    WINDIVERT_STREAM stream;
+    CYDIVERT_STREAM stream;
     stream.data     = buffer;
     stream.pos      = 0;
     stream.max      = bufLen;
     stream.overflow = FALSE;
-    WinDivertFormatIPv4Addr(&stream, addr);
-    WinDivertPutNul(&stream);
+    CyDivertFormatIPv4Addr(&stream, addr);
+    CyDivertPutNul(&stream);
     if (stream.overflow)
     {
         SetLastError(ERROR_INSUFFICIENT_BUFFER);
@@ -3652,16 +3652,16 @@ BOOL WinDivertHelperFormatIPv4Address(UINT32 addr, char *buffer, UINT bufLen)
 /*
  * Format an IPv6 address.
  */
-BOOL WinDivertHelperFormatIPv6Address(const UINT32 *addr, char *buffer,
+BOOL CyDivertHelperFormatIPv6Address(const UINT32 *addr, char *buffer,
     UINT bufLen)
 {
-    WINDIVERT_STREAM stream;
+    CYDIVERT_STREAM stream;
     stream.data     = buffer;
     stream.pos      = 0;
     stream.max      = bufLen;
     stream.overflow = FALSE;
-    WinDivertFormatIPv6Addr(&stream, addr);
-    WinDivertPutNul(&stream);
+    CyDivertFormatIPv6Addr(&stream, addr);
+    CyDivertPutNul(&stream);
     if (stream.overflow)
     {
         SetLastError(ERROR_INSUFFICIENT_BUFFER);
@@ -3673,8 +3673,8 @@ BOOL WinDivertHelperFormatIPv6Address(const UINT32 *addr, char *buffer,
 /*
  * Format a test expression.
  */
-static void WinDivertFormatTestExpr(PWINDIVERT_STREAM stream, PEXPR expr,
-    WINDIVERT_LAYER layer)
+static void CyDivertFormatTestExpr(PCYDIVERT_STREAM stream, PEXPR expr,
+    CYDIVERT_LAYER layer)
 {
     PEXPR field = expr->arg[0], val = expr->arg[1];
     BOOL is_ipv4_addr = FALSE, is_ipv6_addr = FALSE, is_layer = FALSE,
@@ -3710,13 +3710,13 @@ static void WinDivertFormatTestExpr(PWINDIVERT_STREAM stream, PEXPR expr,
             switch (expr->kind)
             {
                 case TOKEN_EQ:
-                    WinDivertPutString(stream, (val->val[0] == 0? "not ": ""));
-                    WinDivertFormatExpr(stream, field, layer,
+                    CyDivertPutString(stream, (val->val[0] == 0? "not ": ""));
+                    CyDivertFormatExpr(stream, field, layer,
                         /*top_level=*/FALSE, /*and=*/FALSE);
                     return;
                 case TOKEN_NEQ:
-                    WinDivertPutString(stream, (val->val[0] != 0? "not ": ""));
-                    WinDivertFormatExpr(stream, field, layer,
+                    CyDivertPutString(stream, (val->val[0] != 0? "not ": ""));
+                    CyDivertFormatExpr(stream, field, layer,
                         /*top_level=*/FALSE, /*and=*/FALSE);
                     return;
                 default:
@@ -3760,127 +3760,127 @@ static void WinDivertFormatTestExpr(PWINDIVERT_STREAM stream, PEXPR expr,
             break;
     }
 
-    WinDivertFormatExpr(stream, field, layer, /*top_level=*/FALSE,
+    CyDivertFormatExpr(stream, field, layer, /*top_level=*/FALSE,
         /*and=*/FALSE);
     switch (expr->kind)
     {
         case TOKEN_EQ:
-            WinDivertPutString(stream, " = "); break;
+            CyDivertPutString(stream, " = "); break;
         case TOKEN_NEQ:
-            WinDivertPutString(stream, " != "); break;
+            CyDivertPutString(stream, " != "); break;
         case TOKEN_LT:
-            WinDivertPutString(stream, " < "); break;
+            CyDivertPutString(stream, " < "); break;
         case TOKEN_LEQ:
-            WinDivertPutString(stream, " <= "); break;
+            CyDivertPutString(stream, " <= "); break;
         case TOKEN_GT:
-            WinDivertPutString(stream, " > "); break;
+            CyDivertPutString(stream, " > "); break;
         case TOKEN_GEQ:
-            WinDivertPutString(stream, " >= "); break;
+            CyDivertPutString(stream, " >= "); break;
     }
     if (val->neg)
     {
-        WinDivertPutChar(stream, '-');
+        CyDivertPutChar(stream, '-');
     }
     if (is_ipv4_addr)
     {
-        WinDivertFormatIPv4Addr(stream, val->val[0]);
+        CyDivertFormatIPv4Addr(stream, val->val[0]);
     }
     else if (is_ipv6_addr)
     {
-        WinDivertFormatIPv6Addr(stream, val->val);
+        CyDivertFormatIPv6Addr(stream, val->val);
     }
     else if (is_layer)
     {
         switch (val->val[0])
         {
-            case WINDIVERT_LAYER_NETWORK:
-                WinDivertPutString(stream, "NETWORK"); break;
-            case WINDIVERT_LAYER_NETWORK_FORWARD:
-                WinDivertPutString(stream, "NETWORK_FORWARD"); break;
-            case WINDIVERT_LAYER_FLOW:
-                WinDivertPutString(stream, "FLOW"); break;
-            case WINDIVERT_LAYER_SOCKET:
-                WinDivertPutString(stream, "SOCKET"); break;
-            case WINDIVERT_LAYER_REFLECT:
-                WinDivertPutString(stream, "REFLECT"); break;
+            case CYDIVERT_LAYER_NETWORK:
+                CyDivertPutString(stream, "NETWORK"); break;
+            case CYDIVERT_LAYER_NETWORK_FORWARD:
+                CyDivertPutString(stream, "NETWORK_FORWARD"); break;
+            case CYDIVERT_LAYER_FLOW:
+                CyDivertPutString(stream, "FLOW"); break;
+            case CYDIVERT_LAYER_SOCKET:
+                CyDivertPutString(stream, "SOCKET"); break;
+            case CYDIVERT_LAYER_REFLECT:
+                CyDivertPutString(stream, "REFLECT"); break;
             default:
-                WinDivertFormatDecNumber32(stream, val->val[0]); break;
+                CyDivertFormatDecNumber32(stream, val->val[0]); break;
         }
     }
     else if (is_event)
     {
         switch (layer)
         {
-            case WINDIVERT_LAYER_NETWORK:
-            case WINDIVERT_LAYER_NETWORK_FORWARD:
-                if (val->val[0] == WINDIVERT_EVENT_NETWORK_PACKET)
+            case CYDIVERT_LAYER_NETWORK:
+            case CYDIVERT_LAYER_NETWORK_FORWARD:
+                if (val->val[0] == CYDIVERT_EVENT_NETWORK_PACKET)
                 {
-                    WinDivertPutString(stream, "PACKET");
+                    CyDivertPutString(stream, "PACKET");
                 }
                 else
                 {
-                    WinDivertFormatDecNumber32(stream, val->val[0]);
+                    CyDivertFormatDecNumber32(stream, val->val[0]);
                 }
                 break;
-            case WINDIVERT_LAYER_FLOW:
+            case CYDIVERT_LAYER_FLOW:
                 switch (val->val[0])
                 {
-                    case WINDIVERT_EVENT_FLOW_ESTABLISHED:
-                        WinDivertPutString(stream, "ESTABLISHED"); break;
-                    case WINDIVERT_EVENT_FLOW_DELETED:
-                        WinDivertPutString(stream, "DELETED"); break;
+                    case CYDIVERT_EVENT_FLOW_ESTABLISHED:
+                        CyDivertPutString(stream, "ESTABLISHED"); break;
+                    case CYDIVERT_EVENT_FLOW_DELETED:
+                        CyDivertPutString(stream, "DELETED"); break;
                     default:
-                        WinDivertFormatDecNumber32(stream, val->val[0]); break;
+                        CyDivertFormatDecNumber32(stream, val->val[0]); break;
                 }
                 break;
-            case WINDIVERT_LAYER_SOCKET:
+            case CYDIVERT_LAYER_SOCKET:
                 switch (val->val[0])
                 {
-                    case WINDIVERT_EVENT_SOCKET_BIND:
-                        WinDivertPutString(stream, "BIND"); break;
-                    case WINDIVERT_EVENT_SOCKET_CONNECT:
-                        WinDivertPutString(stream, "CONNECT"); break;
-                    case WINDIVERT_EVENT_SOCKET_LISTEN:
-                        WinDivertPutString(stream, "LISTEN"); break;
-                    case WINDIVERT_EVENT_SOCKET_ACCEPT:
-                        WinDivertPutString(stream, "ACCEPT"); break;
-                    case WINDIVERT_EVENT_SOCKET_CLOSE:
-                        WinDivertPutString(stream, "CLOSE"); break;
+                    case CYDIVERT_EVENT_SOCKET_BIND:
+                        CyDivertPutString(stream, "BIND"); break;
+                    case CYDIVERT_EVENT_SOCKET_CONNECT:
+                        CyDivertPutString(stream, "CONNECT"); break;
+                    case CYDIVERT_EVENT_SOCKET_LISTEN:
+                        CyDivertPutString(stream, "LISTEN"); break;
+                    case CYDIVERT_EVENT_SOCKET_ACCEPT:
+                        CyDivertPutString(stream, "ACCEPT"); break;
+                    case CYDIVERT_EVENT_SOCKET_CLOSE:
+                        CyDivertPutString(stream, "CLOSE"); break;
                     default:
-                        WinDivertFormatDecNumber32(stream, val->val[0]); break;
+                        CyDivertFormatDecNumber32(stream, val->val[0]); break;
                 }
                 break;
-            case WINDIVERT_LAYER_REFLECT:
+            case CYDIVERT_LAYER_REFLECT:
                 switch (val->val[0])
                 {
-                    case WINDIVERT_EVENT_REFLECT_OPEN:
-                        WinDivertPutString(stream, "OPEN"); break;
-                    case WINDIVERT_EVENT_REFLECT_CLOSE:
-                        WinDivertPutString(stream, "CLOSE"); break;
+                    case CYDIVERT_EVENT_REFLECT_OPEN:
+                        CyDivertPutString(stream, "OPEN"); break;
+                    case CYDIVERT_EVENT_REFLECT_CLOSE:
+                        CyDivertPutString(stream, "CLOSE"); break;
                     default:
-                        WinDivertFormatDecNumber32(stream, val->val[0]); break;
+                        CyDivertFormatDecNumber32(stream, val->val[0]); break;
                 }
                 break;
             default:
-                WinDivertFormatDecNumber32(stream, val->val[0]); break;
+                CyDivertFormatDecNumber32(stream, val->val[0]); break;
         }
     }
     else if (is_hex)
     {
-        WinDivertPutString(stream, "0x");
-        WinDivertFormatHexNumber(stream, val->val);
+        CyDivertPutString(stream, "0x");
+        CyDivertFormatHexNumber(stream, val->val);
     }
     else
     {
-        WinDivertFormatDecNumber(stream, val->val);
+        CyDivertFormatDecNumber(stream, val->val);
     }
 }
 
 /*
  * Format an expression.
  */
-static void WinDivertFormatExpr(PWINDIVERT_STREAM stream, PEXPR expr,
-    WINDIVERT_LAYER layer, BOOL top_level, BOOL and)
+static void CyDivertFormatExpr(PCYDIVERT_STREAM stream, PEXPR expr,
+    CYDIVERT_LAYER layer, BOOL top_level, BOOL and)
 {
     INT idx;
 
@@ -3894,50 +3894,50 @@ static void WinDivertFormatExpr(PWINDIVERT_STREAM stream, PEXPR expr,
         case TOKEN_AND:
             if (!top_level && !and)
             {
-                WinDivertPutChar(stream, '(');
+                CyDivertPutChar(stream, '(');
             }
-            WinDivertFormatExpr(stream, expr->arg[0], layer,
+            CyDivertFormatExpr(stream, expr->arg[0], layer,
                 /*top_level=*/FALSE, /*and=*/TRUE);
-            WinDivertPutString(stream, " and ");
-            WinDivertFormatExpr(stream, expr->arg[1], layer,
+            CyDivertPutString(stream, " and ");
+            CyDivertFormatExpr(stream, expr->arg[1], layer,
                 /*top_level=*/FALSE, /*and=*/TRUE);
             if (!top_level && !and)
             {
-                WinDivertPutChar(stream, ')');
+                CyDivertPutChar(stream, ')');
             }
             return;
         case TOKEN_OR:
             if (!top_level && and)
             {
-                WinDivertPutChar(stream, '(');
+                CyDivertPutChar(stream, '(');
             }
-            WinDivertFormatExpr(stream, expr->arg[0], layer,
+            CyDivertFormatExpr(stream, expr->arg[0], layer,
                 /*top_level=*/FALSE, /*and=*/FALSE);
-            WinDivertPutString(stream, " or ");
-            WinDivertFormatExpr(stream, expr->arg[1], layer,
+            CyDivertPutString(stream, " or ");
+            CyDivertFormatExpr(stream, expr->arg[1], layer,
                 /*top_level=*/FALSE, /*and=*/FALSE);
             if (!top_level && and)
             {
-                WinDivertPutChar(stream, ')');
+                CyDivertPutChar(stream, ')');
             }
             return;
         case TOKEN_QUESTION:
-            WinDivertPutChar(stream, '(');
-            WinDivertFormatExpr(stream, expr->arg[0], layer,
+            CyDivertPutChar(stream, '(');
+            CyDivertFormatExpr(stream, expr->arg[0], layer,
                 /*top_level=*/TRUE, /*and=*/FALSE);
-            WinDivertPutString(stream, "? ");
-            WinDivertFormatExpr(stream, expr->arg[1], layer,
+            CyDivertPutString(stream, "? ");
+            CyDivertFormatExpr(stream, expr->arg[1], layer,
                 /*top_level=*/TRUE, /*and=*/FALSE);
-            WinDivertPutString(stream, ": ");
-            WinDivertFormatExpr(stream, expr->arg[2], layer,
+            CyDivertPutString(stream, ": ");
+            CyDivertFormatExpr(stream, expr->arg[2], layer,
                 /*top_level=*/TRUE, /*and=*/FALSE);
-            WinDivertPutChar(stream, ')');
+            CyDivertPutChar(stream, ')');
             return;
         case TOKEN_TRUE:
-            WinDivertPutString(stream, "true");
+            CyDivertPutString(stream, "true");
             return;
         case TOKEN_FALSE:
-            WinDivertPutString(stream, "false");
+            CyDivertPutString(stream, "false");
             return;
         case TOKEN_EQ:
         case TOKEN_NEQ:
@@ -3945,209 +3945,209 @@ static void WinDivertFormatExpr(PWINDIVERT_STREAM stream, PEXPR expr,
         case TOKEN_LEQ:
         case TOKEN_GT:
         case TOKEN_GEQ:
-            WinDivertFormatTestExpr(stream, expr, layer);
+            CyDivertFormatTestExpr(stream, expr, layer);
             return;
         case TOKEN_ZERO:
-            WinDivertPutString(stream, "zero"); return;
+            CyDivertPutString(stream, "zero"); return;
         case TOKEN_EVENT:
-            WinDivertPutString(stream, "event"); return;
+            CyDivertPutString(stream, "event"); return;
         case TOKEN_RANDOM8:
-            WinDivertPutString(stream, "random8"); return;
+            CyDivertPutString(stream, "random8"); return;
         case TOKEN_RANDOM16:
-            WinDivertPutString(stream, "random16"); return;
+            CyDivertPutString(stream, "random16"); return;
         case TOKEN_RANDOM32:
-            WinDivertPutString(stream, "random32"); return;
+            CyDivertPutString(stream, "random32"); return;
         case TOKEN_PACKET:
-            WinDivertPutString(stream, "packet"); break;
+            CyDivertPutString(stream, "packet"); break;
         case TOKEN_PACKET16:
-            WinDivertPutString(stream, "packet16"); break;
+            CyDivertPutString(stream, "packet16"); break;
         case TOKEN_PACKET32:
-            WinDivertPutString(stream, "packet32"); break;
+            CyDivertPutString(stream, "packet32"); break;
         case TOKEN_LENGTH:
-            WinDivertPutString(stream, "length"); return;
+            CyDivertPutString(stream, "length"); return;
         case TOKEN_TIMESTAMP:
-            WinDivertPutString(stream, "timestamp"); return;
+            CyDivertPutString(stream, "timestamp"); return;
         case TOKEN_TCP_PAYLOAD:
-            WinDivertPutString(stream, "tcp.Payload"); break;
+            CyDivertPutString(stream, "tcp.Payload"); break;
         case TOKEN_TCP_PAYLOAD16:
-            WinDivertPutString(stream, "tcp.Payload16"); break;
+            CyDivertPutString(stream, "tcp.Payload16"); break;
         case TOKEN_TCP_PAYLOAD32:
-            WinDivertPutString(stream, "tcp.Payload32"); break;
+            CyDivertPutString(stream, "tcp.Payload32"); break;
         case TOKEN_UDP_PAYLOAD:
-            WinDivertPutString(stream, "udp.Payload"); break;
+            CyDivertPutString(stream, "udp.Payload"); break;
         case TOKEN_UDP_PAYLOAD16:
-            WinDivertPutString(stream, "udp.Payload16"); break;
+            CyDivertPutString(stream, "udp.Payload16"); break;
         case TOKEN_UDP_PAYLOAD32:
-            WinDivertPutString(stream, "udp.Payload32"); break;
+            CyDivertPutString(stream, "udp.Payload32"); break;
         case TOKEN_INBOUND:
-            WinDivertPutString(stream, "inbound"); return;
+            CyDivertPutString(stream, "inbound"); return;
         case TOKEN_OUTBOUND:
-            WinDivertPutString(stream, "outbound"); return;
+            CyDivertPutString(stream, "outbound"); return;
         case TOKEN_FRAGMENT:
-            WinDivertPutString(stream, "fragment"); return;
+            CyDivertPutString(stream, "fragment"); return;
         case TOKEN_IF_IDX:
-            WinDivertPutString(stream, "ifIdx"); return;
+            CyDivertPutString(stream, "ifIdx"); return;
         case TOKEN_SUB_IF_IDX:
-            WinDivertPutString(stream, "subIfIdx"); return;
+            CyDivertPutString(stream, "subIfIdx"); return;
         case TOKEN_IP:
-            WinDivertPutString(stream, "ip"); return;
+            CyDivertPutString(stream, "ip"); return;
         case TOKEN_IPV6:
-            WinDivertPutString(stream, "ipv6"); return;
+            CyDivertPutString(stream, "ipv6"); return;
         case TOKEN_ICMP:
-            WinDivertPutString(stream, "icmp"); return;
+            CyDivertPutString(stream, "icmp"); return;
         case TOKEN_TCP:
-            WinDivertPutString(stream, "tcp"); return;
+            CyDivertPutString(stream, "tcp"); return;
         case TOKEN_UDP:
-            WinDivertPutString(stream, "udp"); return;
+            CyDivertPutString(stream, "udp"); return;
         case TOKEN_ICMPV6:
-            WinDivertPutString(stream, "icmpv6"); return;
+            CyDivertPutString(stream, "icmpv6"); return;
         case TOKEN_IP_HDR_LENGTH:
-            WinDivertPutString(stream, "ip.HdrLength"); return;
+            CyDivertPutString(stream, "ip.HdrLength"); return;
         case TOKEN_IP_TOS:
-            WinDivertPutString(stream, "ip.TOS"); return;
+            CyDivertPutString(stream, "ip.TOS"); return;
         case TOKEN_IP_LENGTH:
-            WinDivertPutString(stream, "ip.Length"); return;
+            CyDivertPutString(stream, "ip.Length"); return;
         case TOKEN_IP_ID:
-            WinDivertPutString(stream, "ip.Id"); return;
+            CyDivertPutString(stream, "ip.Id"); return;
         case TOKEN_IP_DF:
-            WinDivertPutString(stream, "ip.DF"); return;
+            CyDivertPutString(stream, "ip.DF"); return;
         case TOKEN_IP_MF:
-            WinDivertPutString(stream, "ip.MF"); return;
+            CyDivertPutString(stream, "ip.MF"); return;
         case TOKEN_IP_FRAG_OFF:
-            WinDivertPutString(stream, "ip.FragOff"); return;
+            CyDivertPutString(stream, "ip.FragOff"); return;
         case TOKEN_IP_TTL:
-            WinDivertPutString(stream, "ip.TTL"); return;
+            CyDivertPutString(stream, "ip.TTL"); return;
         case TOKEN_IP_PROTOCOL:
-            WinDivertPutString(stream, "ip.Protocol"); return;
+            CyDivertPutString(stream, "ip.Protocol"); return;
         case TOKEN_IP_CHECKSUM:
-            WinDivertPutString(stream, "ip.Checksum"); return;
+            CyDivertPutString(stream, "ip.Checksum"); return;
         case TOKEN_IP_SRC_ADDR:
-            WinDivertPutString(stream, "ip.SrcAddr"); return;
+            CyDivertPutString(stream, "ip.SrcAddr"); return;
         case TOKEN_IP_DST_ADDR:
-            WinDivertPutString(stream, "ip.DstAddr"); return;
+            CyDivertPutString(stream, "ip.DstAddr"); return;
         case TOKEN_IPV6_TRAFFIC_CLASS:
-            WinDivertPutString(stream, "ipv6.TrafficClass"); return;
+            CyDivertPutString(stream, "ipv6.TrafficClass"); return;
         case TOKEN_IPV6_FLOW_LABEL:
-            WinDivertPutString(stream, "ipv6.FlowLabel"); return;
+            CyDivertPutString(stream, "ipv6.FlowLabel"); return;
         case TOKEN_IPV6_LENGTH:
-            WinDivertPutString(stream, "ipv6.Length"); return;
+            CyDivertPutString(stream, "ipv6.Length"); return;
         case TOKEN_IPV6_NEXT_HDR:
-            WinDivertPutString(stream, "ipv6.NextHdr"); return;
+            CyDivertPutString(stream, "ipv6.NextHdr"); return;
         case TOKEN_IPV6_HOP_LIMIT:
-            WinDivertPutString(stream, "ipv6.HopLimit"); return;
+            CyDivertPutString(stream, "ipv6.HopLimit"); return;
         case TOKEN_IPV6_SRC_ADDR:
-            WinDivertPutString(stream, "ipv6.SrcAddr"); return;
+            CyDivertPutString(stream, "ipv6.SrcAddr"); return;
         case TOKEN_IPV6_DST_ADDR:
-            WinDivertPutString(stream, "ipv6.DstAddr"); return;
+            CyDivertPutString(stream, "ipv6.DstAddr"); return;
         case TOKEN_ICMP_TYPE:
-            WinDivertPutString(stream, "icmp.Type"); return;
+            CyDivertPutString(stream, "icmp.Type"); return;
         case TOKEN_ICMP_CODE:
-            WinDivertPutString(stream, "icmp.Code"); return;
+            CyDivertPutString(stream, "icmp.Code"); return;
         case TOKEN_ICMP_CHECKSUM:
-            WinDivertPutString(stream, "icmp.Checksum"); return;
+            CyDivertPutString(stream, "icmp.Checksum"); return;
         case TOKEN_ICMP_BODY:
-            WinDivertPutString(stream, "icmp.Body"); return;
+            CyDivertPutString(stream, "icmp.Body"); return;
         case TOKEN_ICMPV6_TYPE:
-            WinDivertPutString(stream, "icmpv6.Type"); return;
+            CyDivertPutString(stream, "icmpv6.Type"); return;
         case TOKEN_ICMPV6_CODE:
-            WinDivertPutString(stream, "icmpv6.Code"); return;
+            CyDivertPutString(stream, "icmpv6.Code"); return;
         case TOKEN_ICMPV6_CHECKSUM:
-            WinDivertPutString(stream, "icmpv6.Checksum"); return;
+            CyDivertPutString(stream, "icmpv6.Checksum"); return;
         case TOKEN_ICMPV6_BODY:
-            WinDivertPutString(stream, "icmpv6.Body"); return;
+            CyDivertPutString(stream, "icmpv6.Body"); return;
         case TOKEN_TCP_SRC_PORT:
-            WinDivertPutString(stream, "tcp.SrcPort"); return;
+            CyDivertPutString(stream, "tcp.SrcPort"); return;
         case TOKEN_TCP_DST_PORT:
-            WinDivertPutString(stream, "tcp.DstPort"); return;
+            CyDivertPutString(stream, "tcp.DstPort"); return;
         case TOKEN_TCP_SEQ_NUM:
-            WinDivertPutString(stream, "tcp.SeqNum"); return;
+            CyDivertPutString(stream, "tcp.SeqNum"); return;
         case TOKEN_TCP_ACK_NUM:
-            WinDivertPutString(stream, "tcp.AckNum"); return;
+            CyDivertPutString(stream, "tcp.AckNum"); return;
         case TOKEN_TCP_HDR_LENGTH:
-            WinDivertPutString(stream, "tcp.HdrLength"); return;
+            CyDivertPutString(stream, "tcp.HdrLength"); return;
         case TOKEN_TCP_URG:
-            WinDivertPutString(stream, "tcp.Urg"); return;
+            CyDivertPutString(stream, "tcp.Urg"); return;
         case TOKEN_TCP_ACK:
-            WinDivertPutString(stream, "tcp.Ack"); return;
+            CyDivertPutString(stream, "tcp.Ack"); return;
         case TOKEN_TCP_PSH:
-            WinDivertPutString(stream, "tcp.Psh"); return;
+            CyDivertPutString(stream, "tcp.Psh"); return;
         case TOKEN_TCP_RST:
-            WinDivertPutString(stream, "tcp.Rst"); return;
+            CyDivertPutString(stream, "tcp.Rst"); return;
         case TOKEN_TCP_SYN:
-            WinDivertPutString(stream, "tcp.Syn"); return;
+            CyDivertPutString(stream, "tcp.Syn"); return;
         case TOKEN_TCP_FIN:
-            WinDivertPutString(stream, "tcp.Fin"); return;
+            CyDivertPutString(stream, "tcp.Fin"); return;
         case TOKEN_TCP_WINDOW:
-            WinDivertPutString(stream, "tcp.Window"); return;
+            CyDivertPutString(stream, "tcp.Window"); return;
         case TOKEN_TCP_CHECKSUM:
-            WinDivertPutString(stream, "tcp.Checksum"); return;
+            CyDivertPutString(stream, "tcp.Checksum"); return;
         case TOKEN_TCP_URG_PTR:
-            WinDivertPutString(stream, "tcp.UrgPtr"); return;
+            CyDivertPutString(stream, "tcp.UrgPtr"); return;
         case TOKEN_TCP_PAYLOAD_LENGTH:
-            WinDivertPutString(stream, "tcp.PayloadLength"); return;
+            CyDivertPutString(stream, "tcp.PayloadLength"); return;
         case TOKEN_UDP_SRC_PORT:
-            WinDivertPutString(stream, "udp.SrcPort"); return;
+            CyDivertPutString(stream, "udp.SrcPort"); return;
         case TOKEN_UDP_DST_PORT:
-            WinDivertPutString(stream, "udp.DstPort"); return;
+            CyDivertPutString(stream, "udp.DstPort"); return;
         case TOKEN_UDP_LENGTH:
-            WinDivertPutString(stream, "udp.Length"); return;
+            CyDivertPutString(stream, "udp.Length"); return;
         case TOKEN_UDP_CHECKSUM:
-            WinDivertPutString(stream, "udp.Checksum"); return;
+            CyDivertPutString(stream, "udp.Checksum"); return;
         case TOKEN_UDP_PAYLOAD_LENGTH:
-            WinDivertPutString(stream, "udp.PayloadLength"); return;
+            CyDivertPutString(stream, "udp.PayloadLength"); return;
         case TOKEN_LOOPBACK:
-            WinDivertPutString(stream, "loopback"); return;
+            CyDivertPutString(stream, "loopback"); return;
         case TOKEN_IMPOSTOR:
-            WinDivertPutString(stream, "impostor"); return;
+            CyDivertPutString(stream, "impostor"); return;
         case TOKEN_PROCESS_ID:
-            WinDivertPutString(stream, "processId"); return;
+            CyDivertPutString(stream, "processId"); return;
         case TOKEN_LOCAL_ADDR:
-            WinDivertPutString(stream, "localAddr"); return;
+            CyDivertPutString(stream, "localAddr"); return;
         case TOKEN_REMOTE_ADDR:
-            WinDivertPutString(stream, "remoteAddr"); return;
+            CyDivertPutString(stream, "remoteAddr"); return;
         case TOKEN_LOCAL_PORT:
-            WinDivertPutString(stream, "localPort"); return;
+            CyDivertPutString(stream, "localPort"); return;
         case TOKEN_REMOTE_PORT:
-            WinDivertPutString(stream, "remotePort"); return;
+            CyDivertPutString(stream, "remotePort"); return;
         case TOKEN_PROTOCOL:
-            WinDivertPutString(stream, "protocol"); return;
+            CyDivertPutString(stream, "protocol"); return;
         case TOKEN_ENDPOINT_ID:
-            WinDivertPutString(stream, "endpointId"); return;
+            CyDivertPutString(stream, "endpointId"); return;
         case TOKEN_PARENT_ENDPOINT_ID:
-            WinDivertPutString(stream, "parentEndpointId"); return;
+            CyDivertPutString(stream, "parentEndpointId"); return;
         case TOKEN_LAYER:
-            WinDivertPutString(stream, "layer"); return;
+            CyDivertPutString(stream, "layer"); return;
         case TOKEN_PRIORITY:
-            WinDivertPutString(stream, "priority"); return;
+            CyDivertPutString(stream, "priority"); return;
         case TOKEN_NUMBER:
-            WinDivertFormatDecNumber(stream, expr->val); return;
+            CyDivertFormatDecNumber(stream, expr->val); return;
     }
 
-    WinDivertPutChar(stream, '[');
+    CyDivertPutChar(stream, '[');
     idx = (INT)expr->val[0];
     if (idx < 0)
     {
-        WinDivertPutChar(stream, '-');
+        CyDivertPutChar(stream, '-');
         idx = -idx;
     }
-    WinDivertFormatDecNumber32(stream, (UINT32)idx);
-    WinDivertPutString(stream, "b]");
+    CyDivertFormatDecNumber32(stream, (UINT32)idx);
+    CyDivertPutString(stream, "b]");
 }
 
 /*
  * Format a filter string.
  */
-BOOL WinDivertHelperFormatFilter(const char *filter, WINDIVERT_LAYER layer,
+BOOL CyDivertHelperFormatFilter(const char *filter, CYDIVERT_LAYER layer,
     char *buffer, UINT buflen)
 {
-    PEXPR exprs[WINDIVERT_FILTER_MAXLEN], expr;
+    PEXPR exprs[CYDIVERT_FILTER_MAXLEN], expr;
     ERROR err;
     DWORD error;
-    WINDIVERT_FILTER *object;
+    CYDIVERT_FILTER *object;
     UINT obj_len;
     INT i;
     HANDLE pool;
-    WINDIVERT_STREAM stream;
+    CYDIVERT_STREAM stream;
 
     if (filter == NULL || buffer == NULL)
     {
@@ -4155,39 +4155,39 @@ BOOL WinDivertHelperFormatFilter(const char *filter, WINDIVERT_LAYER layer,
         return FALSE;
     }
 
-    pool = HeapCreate(HEAP_NO_SERIALIZE, WINDIVERT_MIN_POOL_SIZE,
-        WINDIVERT_MAX_POOL_SIZE);
+    pool = HeapCreate(HEAP_NO_SERIALIZE, CYDIVERT_MIN_POOL_SIZE,
+        CYDIVERT_MAX_POOL_SIZE);
     if (pool == NULL)
     {
         return FALSE;
     }
     object = HeapAlloc(pool, 0,
-        WINDIVERT_FILTER_MAXLEN * sizeof(WINDIVERT_FILTER));
+        CYDIVERT_FILTER_MAXLEN * sizeof(CYDIVERT_FILTER));
     if (object == NULL)
     {
-        goto WinDivertHelperFormatFilterError;
+        goto CyDivertHelperFormatFilterError;
     }
-    err = WinDivertCompileFilter(filter, pool, layer, object, &obj_len);
+    err = CyDivertCompileFilter(filter, pool, layer, object, &obj_len);
     if (IS_ERROR(err))
     {
         SetLastError(ERROR_INVALID_PARAMETER);
-        goto WinDivertHelperFormatFilterError;
+        goto CyDivertHelperFormatFilterError;
     }
 
     // Decompile all tests:
     for (i = (INT)obj_len-1; i >= 0; i--)
     {
-        expr = WinDivertDecompileTest(pool, object + i);
+        expr = CyDivertDecompileTest(pool, object + i);
         if (expr == NULL)
         {
             SetLastError(ERROR_INVALID_PARAMETER);
-            goto WinDivertHelperFormatFilterError;
+            goto CyDivertHelperFormatFilterError;
         }
         exprs[i] = expr;
         switch (expr->succ)
         {
-            case WINDIVERT_FILTER_RESULT_ACCEPT:
-            case WINDIVERT_FILTER_RESULT_REJECT:
+            case CYDIVERT_FILTER_RESULT_ACCEPT:
+            case CYDIVERT_FILTER_RESULT_REJECT:
                 break;
             default:
                 exprs[expr->succ]->count++;
@@ -4195,8 +4195,8 @@ BOOL WinDivertHelperFormatFilter(const char *filter, WINDIVERT_LAYER layer,
         }
         switch (expr->fail)
         {
-            case WINDIVERT_FILTER_RESULT_ACCEPT:
-            case WINDIVERT_FILTER_RESULT_REJECT:
+            case CYDIVERT_FILTER_RESULT_ACCEPT:
+            case CYDIVERT_FILTER_RESULT_REJECT:
                 break;
             default:
                 exprs[expr->fail]->count++;
@@ -4208,19 +4208,19 @@ BOOL WinDivertHelperFormatFilter(const char *filter, WINDIVERT_LAYER layer,
     // Coalesce (unflatten) tests into and/or expressions:
     for (i = (INT)obj_len-1; i >= 0; i--)
     {
-        err = MAKE_ERROR(WINDIVERT_ERROR_NONE, 0);
-        (PVOID)WinDivertCoalesceAndOr(pool, exprs, i, &err);
+        err = MAKE_ERROR(CYDIVERT_ERROR_NONE, 0);
+        (PVOID)CyDivertCoalesceAndOr(pool, exprs, i, &err);
         if (IS_ERROR(err))
         {
-            goto WinDivertHelperFormatFilterError;
+            goto CyDivertHelperFormatFilterError;
         }
     }
 
     // Coalesce remaining expressions:
-    expr = WinDivertCoalesceExpr(pool, exprs, 0);
+    expr = CyDivertCoalesceExpr(pool, exprs, 0);
     if (expr == NULL)
     {
-        goto WinDivertHelperFormatFilterError;
+        goto CyDivertHelperFormatFilterError;
     }
 
     // Format the final expression:
@@ -4228,9 +4228,9 @@ BOOL WinDivertHelperFormatFilter(const char *filter, WINDIVERT_LAYER layer,
     stream.pos      = 0;
     stream.max      = buflen;
     stream.overflow = FALSE;
-    WinDivertFormatExpr(&stream, expr, layer, /*top_level=*/TRUE,
+    CyDivertFormatExpr(&stream, expr, layer, /*top_level=*/TRUE,
         /*and=*/FALSE);
-    WinDivertPutNul(&stream);
+    CyDivertPutNul(&stream);
 
     // Clean-up:
     HeapDestroy(pool);
@@ -4241,7 +4241,7 @@ BOOL WinDivertHelperFormatFilter(const char *filter, WINDIVERT_LAYER layer,
     SetLastError(ERROR_INSUFFICIENT_BUFFER);
     return FALSE;
 
-WinDivertHelperFormatFilterError:
+CyDivertHelperFormatFilterError:
     error = GetLastError();
     HeapDestroy(pool);
     SetLastError(error);
@@ -4249,56 +4249,56 @@ WinDivertHelperFormatFilterError:
 }
 
 /*
- * WinDivert packet hash function.
+ * CyDivert packet hash function.
  */
-UINT64 WinDivertHelperHashPacket(const VOID *pPacket, UINT packetLen,
+UINT64 CyDivertHelperHashPacket(const VOID *pPacket, UINT packetLen,
     UINT64 seed)
 {
-    PWINDIVERT_IPHDR ip_header = NULL;
-    PWINDIVERT_IPV6HDR ipv6_header = NULL;
-    PWINDIVERT_ICMPHDR icmp_header = NULL;
-    PWINDIVERT_ICMPV6HDR icmpv6_header = NULL;
-    PWINDIVERT_TCPHDR tcp_header = NULL;
-    PWINDIVERT_UDPHDR udp_header = NULL;
+    PCYDIVERT_IPHDR ip_header = NULL;
+    PCYDIVERT_IPV6HDR ipv6_header = NULL;
+    PCYDIVERT_ICMPHDR icmp_header = NULL;
+    PCYDIVERT_ICMPV6HDR icmpv6_header = NULL;
+    PCYDIVERT_TCPHDR tcp_header = NULL;
+    PCYDIVERT_UDPHDR udp_header = NULL;
 
-    if (!WinDivertHelperParsePacket((PVOID)pPacket, packetLen, &ip_header,
+    if (!CyDivertHelperParsePacket((PVOID)pPacket, packetLen, &ip_header,
             &ipv6_header, NULL, &icmp_header, &icmpv6_header, &tcp_header,
             &udp_header, NULL, NULL, NULL, NULL))
     {
         return 0;
     }
-    return WinDivertHashPacket(seed, ip_header, ipv6_header, icmp_header,
+    return CyDivertHashPacket(seed, ip_header, ipv6_header, icmp_header,
         icmpv6_header, tcp_header, udp_header);
 }
 
 /*
  * Byte ordering.
  */
-UINT16 WinDivertHelperNtohs(UINT16 x)
+UINT16 CyDivertHelperNtohs(UINT16 x)
 {
     return BYTESWAP16(x);
 }
-UINT16 WinDivertHelperHtons(UINT16 x)
+UINT16 CyDivertHelperHtons(UINT16 x)
 {
     return BYTESWAP16(x);
 }
-UINT32 WinDivertHelperNtohl(UINT32 x)
+UINT32 CyDivertHelperNtohl(UINT32 x)
 {
     return BYTESWAP32(x);
 }
-UINT32 WinDivertHelperHtonl(UINT32 x)
+UINT32 CyDivertHelperHtonl(UINT32 x)
 {
     return BYTESWAP32(x);
 }
-UINT64 WinDivertHelperNtohll(UINT64 x)
+UINT64 CyDivertHelperNtohll(UINT64 x)
 {
     return BYTESWAP64(x);
 }
-UINT64 WinDivertHelperHtonll(UINT64 x)
+UINT64 CyDivertHelperHtonll(UINT64 x)
 {
     return BYTESWAP64(x);
 }
-static void WinDivertByteSwap128(const UINT *inAddr, UINT *outAddr)
+static void CyDivertByteSwap128(const UINT *inAddr, UINT *outAddr)
 {
     UINT32 tmp[4], i;   // tmp[] allows overlapping inAddr/outAddr
     for (i = 0; i < 4; i++)
@@ -4310,21 +4310,21 @@ static void WinDivertByteSwap128(const UINT *inAddr, UINT *outAddr)
         outAddr[i] = tmp[i];
     }
 }
-void WinDivertHelperNtohIPv6Address(const UINT *inAddr, UINT *outAddr)
+void CyDivertHelperNtohIPv6Address(const UINT *inAddr, UINT *outAddr)
 {
-    WinDivertByteSwap128(inAddr, outAddr);
+    CyDivertByteSwap128(inAddr, outAddr);
 }
-void WinDivertHelperHtonIPv6Address(const UINT *inAddr, UINT *outAddr)
+void CyDivertHelperHtonIPv6Address(const UINT *inAddr, UINT *outAddr)
 {
-    WinDivertByteSwap128(inAddr, outAddr);
+    CyDivertByteSwap128(inAddr, outAddr);
 }
 
 // Old names to be removed in next version
-void WinDivertHelperNtohIpv6Address(const UINT *inAddr, UINT *outAddr)
+void CyDivertHelperNtohIpv6Address(const UINT *inAddr, UINT *outAddr)
 {
-    WinDivertByteSwap128(inAddr, outAddr);
+    CyDivertByteSwap128(inAddr, outAddr);
 }
-void WinDivertHelperHtonIpv6Address(const UINT *inAddr, UINT *outAddr)
+void CyDivertHelperHtonIpv6Address(const UINT *inAddr, UINT *outAddr)
 {
-    WinDivertByteSwap128(inAddr, outAddr);
+    CyDivertByteSwap128(inAddr, outAddr);
 }

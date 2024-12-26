@@ -1,10 +1,10 @@
 /*
- * windivertctl.c
+ * cydivertctl.c
  * (C) 2019, all rights reserved,
  *
- * This file is part of WinDivert.
+ * This file is part of CyDivert.
  *
- * WinDivert is free software: you can redistribute it and/or modify it under
+ * CyDivert is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
  * option) any later version.
@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * WinDivert is free software; you can redistribute it and/or modify it under
+ * CyDivert is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
@@ -35,7 +35,7 @@
 /*
  * DESCRIPTION:
  *
- * usage: windivertctl.exe list
+ * usage: cydivertctl.exe list
  */
 
 #include <winsock2.h>
@@ -45,7 +45,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "windivert.h"
+#include "cydivert.h"
 
 #define MAX_PACKET          0xFFFF
 #define MAX_FILTER_LEN      30000
@@ -74,7 +74,7 @@ int __cdecl main(int argc, char **argv)
     static char filter_str[MAX_FILTER_LEN];
     DWORD path_len;
     BOOL or;
-    WINDIVERT_ADDRESS addr;
+    CYDIVERT_ADDRESS addr;
     ULONGLONG freq, start_count;
     LARGE_INTEGER li;
     MODE mode;
@@ -125,42 +125,42 @@ usage:
     QueryPerformanceCounter(&li);
     start_count = li.QuadPart;
 
-    // Open WinDivert REFLECT handle:
-    handle = WinDivertOpen(filter, WINDIVERT_LAYER_REFLECT, priority, 
-        WINDIVERT_FLAG_SNIFF | WINDIVERT_FLAG_RECV_ONLY |
-            (mode == WATCH? 0: WINDIVERT_FLAG_NO_INSTALL));
+    // Open CyDivert REFLECT handle:
+    handle = CyDivertOpen(filter, CYDIVERT_LAYER_REFLECT, priority, 
+        CYDIVERT_FLAG_SNIFF | CYDIVERT_FLAG_RECV_ONLY |
+            (mode == WATCH? 0: CYDIVERT_FLAG_NO_INSTALL));
     if (handle == INVALID_HANDLE_VALUE)
     {
         if (mode != WATCH && GetLastError() == ERROR_SERVICE_DOES_NOT_EXIST)
         {
-            // WinDivert driver is not running, so no open handles.
+            // CyDivert driver is not running, so no open handles.
             return 0;
         }
         if (GetLastError() == ERROR_INVALID_PARAMETER &&
-            !WinDivertHelperCompileFilter(filter, WINDIVERT_LAYER_REFLECT,
+            !CyDivertHelperCompileFilter(filter, CYDIVERT_LAYER_REFLECT,
                 NULL, 0, &err_str, NULL))
         {
             fprintf(stderr, "error: invalid filter \"%s\"\n", err_str);
             exit(EXIT_FAILURE);
         }
-        fprintf(stderr, "error: failed to open the WinDivert device (%d)\n",
+        fprintf(stderr, "error: failed to open the CyDivert device (%d)\n",
             GetLastError());
         return EXIT_FAILURE;
     }
-    if (mode != WATCH && !WinDivertShutdown(handle, WINDIVERT_SHUTDOWN_BOTH))
+    if (mode != WATCH && !CyDivertShutdown(handle, CYDIVERT_SHUTDOWN_BOTH))
     {
-        fprintf(stderr, "error: failed to shutdown WinDivert handle (%d)\n",
+        fprintf(stderr, "error: failed to shutdown CyDivert handle (%d)\n",
             GetLastError());
         return EXIT_FAILURE;
     }
-    if (!WinDivertSetParam(handle, WINDIVERT_PARAM_QUEUE_LENGTH,
-            WINDIVERT_PARAM_QUEUE_LENGTH_MAX) ||
-        !WinDivertSetParam(handle, WINDIVERT_PARAM_QUEUE_SIZE,
-            WINDIVERT_PARAM_QUEUE_SIZE_MAX) ||
-        !WinDivertSetParam(handle, WINDIVERT_PARAM_QUEUE_TIME,
-            WINDIVERT_PARAM_QUEUE_TIME_MAX))
+    if (!CyDivertSetParam(handle, CYDIVERT_PARAM_QUEUE_LENGTH,
+            CYDIVERT_PARAM_QUEUE_LENGTH_MAX) ||
+        !CyDivertSetParam(handle, CYDIVERT_PARAM_QUEUE_SIZE,
+            CYDIVERT_PARAM_QUEUE_SIZE_MAX) ||
+        !CyDivertSetParam(handle, CYDIVERT_PARAM_QUEUE_TIME,
+            CYDIVERT_PARAM_QUEUE_TIME_MAX))
     {
-        fprintf(stderr, "error: failed to set WinDivert handle params (%d)\n",
+        fprintf(stderr, "error: failed to set CyDivert handle params (%d)\n",
             GetLastError());
         return EXIT_FAILURE;
     }
@@ -169,7 +169,7 @@ usage:
     console = GetStdHandle(STD_OUTPUT_HANDLE);
     while (TRUE)
     {
-        if (!WinDivertRecv(handle, packet, sizeof(packet), &packet_len, &addr))
+        if (!CyDivertRecv(handle, packet, sizeof(packet), &packet_len, &addr))
         {
             if (mode != WATCH && GetLastError() == ERROR_NO_DATA)
             {
@@ -181,7 +181,7 @@ usage:
 
         switch (addr.Event)
         {
-            case WINDIVERT_EVENT_REFLECT_OPEN:
+            case CYDIVERT_EVENT_REFLECT_OPEN:
                 // Open handle:
                 if (mode == KILL || mode == UNINSTALL)
                 {
@@ -195,7 +195,7 @@ usage:
                 }
                 break;
 
-            case WINDIVERT_EVENT_REFLECT_CLOSE:
+            case CYDIVERT_EVENT_REFLECT_CLOSE:
                 // Close handle:
                 if (mode != WATCH)
                 {
@@ -244,19 +244,19 @@ usage:
         SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
         switch (addr.Reflect.Layer)
         {
-            case WINDIVERT_LAYER_NETWORK:
+            case CYDIVERT_LAYER_NETWORK:
                 fputs("NETWORK", stdout);
                 break;
-            case WINDIVERT_LAYER_NETWORK_FORWARD:
+            case CYDIVERT_LAYER_NETWORK_FORWARD:
                 fputs("NETWORK_FORWARD", stdout);
                 break;
-            case WINDIVERT_LAYER_FLOW:
+            case CYDIVERT_LAYER_FLOW:
                 fputs("FLOW", stdout);
                 break;
-            case WINDIVERT_LAYER_SOCKET:
+            case CYDIVERT_LAYER_SOCKET:
                 fputs("SOCKET", stdout);
                 break;
-            case WINDIVERT_LAYER_REFLECT:
+            case CYDIVERT_LAYER_REFLECT:
                 fputs("REFLECT", stdout);
                 break;
             default:
@@ -274,27 +274,27 @@ usage:
         else
         {
             or = FALSE;
-            if ((addr.Reflect.Flags & WINDIVERT_FLAG_SNIFF) != 0)
+            if ((addr.Reflect.Flags & CYDIVERT_FLAG_SNIFF) != 0)
             {
                 fputs("SNIFF", stdout);
                 or = TRUE;
             }
-            if ((addr.Reflect.Flags & WINDIVERT_FLAG_DROP) != 0)
+            if ((addr.Reflect.Flags & CYDIVERT_FLAG_DROP) != 0)
             {
                 printf("%sDROP", (or? "|": ""));
                 or = TRUE;
             }
-            if ((addr.Reflect.Flags & WINDIVERT_FLAG_RECV_ONLY) != 0)
+            if ((addr.Reflect.Flags & CYDIVERT_FLAG_RECV_ONLY) != 0)
             {
                 printf("%sRECV_ONLY", (or? "|": ""));
                 or = TRUE;
             }
-            if ((addr.Reflect.Flags & WINDIVERT_FLAG_SEND_ONLY) != 0)
+            if ((addr.Reflect.Flags & CYDIVERT_FLAG_SEND_ONLY) != 0)
             {
                 printf("%sSEND_ONLY", (or? "|": ""));
                 or = TRUE;
             }
-            if ((addr.Reflect.Flags & WINDIVERT_FLAG_NO_INSTALL) != 0)
+            if ((addr.Reflect.Flags & CYDIVERT_FLAG_NO_INSTALL) != 0)
             {
                 printf("%sNO_INSTALL", (or? "|": ""));
                 or = TRUE;
@@ -309,7 +309,7 @@ usage:
             FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
         fputs(" filter=", stdout);
         SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN);
-        if (WinDivertHelperFormatFilter((char *)packet, addr.Reflect.Layer,
+        if (CyDivertHelperFormatFilter((char *)packet, addr.Reflect.Layer,
             filter_str, sizeof(filter_str)))
         {
             printf("\"%s\"", filter_str);
@@ -323,20 +323,20 @@ usage:
         putchar('\n');
     }
 
-    if (!WinDivertClose(handle))
+    if (!CyDivertClose(handle))
     {
-        fprintf(stderr, "error: failed to close WinDivert handle (%d)\n",
+        fprintf(stderr, "error: failed to close CyDivert handle (%d)\n",
             GetLastError());
         return EXIT_FAILURE;
     }
 
     if (mode == UNINSTALL)
     {
-        // Stop & delete the WinDivert service:
-        mutex = CreateMutex(NULL, FALSE, "WinDivertDriverInstallMutex");
+        // Stop & delete the CyDivert service:
+        mutex = CreateMutex(NULL, FALSE, "CyDivertDriverInstallMutex");
         if (mutex == NULL)
         {
-            fprintf(stderr, "error: failed to create WinDivert driver "
+            fprintf(stderr, "error: failed to create CyDivert driver "
                 "install mutex (%d)\n", GetLastError());
             return EXIT_FAILURE;
         }
@@ -345,7 +345,7 @@ usage:
             case WAIT_OBJECT_0: case WAIT_ABANDONED:
                 break;
             default:
-                fprintf(stderr, "error: failed to acquire WinDivert driver "
+                fprintf(stderr, "error: failed to acquire CyDivert driver "
                     "install mutex (%d)\n", GetLastError());
                 return EXIT_FAILURE;
         }
@@ -356,22 +356,22 @@ usage:
                 GetLastError());
             return EXIT_FAILURE;
         }
-        service = OpenService(manager, "WinDivert", SERVICE_ALL_ACCESS);
+        service = OpenService(manager, "CyDivert", SERVICE_ALL_ACCESS);
         if (service == NULL)
         {
-            fprintf(stderr, "error: failed to open WinDivert service (%d)\n",
+            fprintf(stderr, "error: failed to open CyDivert service (%d)\n",
                 GetLastError());
             return EXIT_FAILURE;
         }
         if (!ControlService(service, SERVICE_CONTROL_STOP, &status))
         {
-            fprintf(stderr, "error: failed to stop WinDivert service (%d)\n",
+            fprintf(stderr, "error: failed to stop CyDivert service (%d)\n",
                 GetLastError());
             return EXIT_FAILURE;
         }
         if (status.dwCurrentState != SERVICE_STOPPED)
         {
-            fprintf(stderr, "error: failed to stop WinDivert service");
+            fprintf(stderr, "error: failed to stop CyDivert service");
             return EXIT_FAILURE;
         }
         CloseServiceHandle(service);
@@ -381,7 +381,7 @@ usage:
         fputs("UNINSTALL", stdout);
         SetConsoleTextAttribute(console,
             FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
-        puts(" WinDivert");
+        puts(" CyDivert");
 
         ReleaseMutex(mutex);
         CloseHandle(mutex);

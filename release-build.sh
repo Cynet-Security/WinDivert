@@ -3,9 +3,9 @@
 # release-build.sh
 # (C) 2019, all rights reserved,
 #
-# This file is part of WinDivert.
+# This file is part of CyDivert.
 #
-# WinDivert is free software: you can redistribute it and/or modify it under
+# CyDivert is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by the
 # Free Software Foundation, either version 3 of the License, or (at your
 # option) any later version.
@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# WinDivert is free software; you can redistribute it and/or modify it under
+# CyDivert is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free
 # Software Foundation; either version 2 of the License, or (at your option)
 # any later version.
@@ -32,7 +32,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc., 51
 # Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
-# Script for building WinDivert binary packages.  This script assumes the
+# Script for building CyDivert binary packages.  This script assumes the
 # binaries are already built and are in the install/ subdirectory.
 
 set -e
@@ -45,20 +45,20 @@ fi
 
 TARGET=MINGW
 
-WINDIVERT32_SYS=install/$TARGET/i386/WinDivert32.sys
+CYDIVERT32_SYS=install/$TARGET/i386/CyDivert32.sys
 if [ $# -ge 2 ]
 then
-    WINDIVERT32_SYS=$2
+    CYDIVERT32_SYS=$2
 fi
 
-WINDIVERT64_SYS=install/$TARGET/amd64/WinDivert64.sys
+CYDIVERT64_SYS=install/$TARGET/amd64/CyDivert64.sys
 if [ $# -ge 3 ]
 then
-    WINDIVERT64_SYS=$3
+    CYDIVERT64_SYS=$3
 fi
 
 VERSION=`cat ./VERSION`
-NAME=WinDivert-$VERSION
+NAME=CyDivert-$VERSION
 
 echo "BUILD $NAME$LABEL"
 INSTALL=install/$NAME$LABEL
@@ -75,30 +75,30 @@ echo "\tcopy $INSTALL/VERSION..."
 cp VERSION $INSTALL
 echo "\tmake $INSTALL/include..."
 mkdir -p $INSTALL/include
-echo "\tcopy $INSTALL/include/windivert.h..."
-cp include/windivert.h $INSTALL/include
+echo "\tcopy $INSTALL/include/cydivert.h..."
+cp include/cydivert.h $INSTALL/include
 echo "\tmake $INSTALL/doc..."
 mkdir -p $INSTALL/doc
-echo "\tcopy $INSTALL/doc/WinDivert.html..."
-cp doc/windivert.html $INSTALL/doc/WinDivert.html
+echo "\tcopy $INSTALL/doc/CyDivert.html..."
+cp doc/cydivert.html $INSTALL/doc/CyDivert.html
 echo "\tmake $INSTALL/x86..."
 mkdir -p $INSTALL/x86
-echo "\tcopy $INSTALL/x86/WinDivert32.sys..."
-cp "$WINDIVERT32_SYS" $INSTALL/x86
-if ! grep "DigiCert High Assurance EV Root" $INSTALL/x86/WinDivert32.sys \
+echo "\tcopy $INSTALL/x86/CyDivert32.sys..."
+cp "$CYDIVERT32_SYS" $INSTALL/x86
+if ! grep "DigiCert High Assurance EV Root" $INSTALL/x86/CyDivert32.sys \
     2>&1 >/dev/null
 then
-    echo "\t\033[33mWARNING\033[0m: unsigned WinDivert32.sys..."
+    echo "\t\033[33mWARNING\033[0m: unsigned CyDivert32.sys..."
 fi
-if [ -e "$WINDIVERT64_SYS" ]
+if [ -e "$CYDIVERT64_SYS" ]
 then
-    echo "\tcopy $INSTALL/x64/WinDivert64.sys..."
-    cp "$WINDIVERT64_SYS" $INSTALL/x86
+    echo "\tcopy $INSTALL/x64/CyDivert64.sys..."
+    cp "$CYDIVERT64_SYS" $INSTALL/x86
 fi
-echo "\tcopy $INSTALL/x86/WinDivert.lib..."
-cp install/$TARGET/i386/WinDivert.lib $INSTALL/x86
-echo "\tcopy $INSTALL/x86/WinDivert.dll..."
-cp install/$TARGET/i386/WinDivert.dll $INSTALL/x86
+echo "\tcopy $INSTALL/x86/CyDivert.lib..."
+cp install/$TARGET/i386/CyDivert.lib $INSTALL/x86
+echo "\tcopy $INSTALL/x86/CyDivert.dll..."
+cp install/$TARGET/i386/CyDivert.dll $INSTALL/x86
 echo "\tcopy $INSTALL/x86/netdump.exe..."
 cp install/$TARGET/i386/netdump.exe $INSTALL/x86
 echo "\tcopy $INSTALL/x86/netfilter.exe..."
@@ -113,25 +113,25 @@ echo "\tcopy $INSTALL/x86/flowtrack.exe..."
 cp install/$TARGET/i386/flowtrack.exe $INSTALL/x86
 echo "\tcopy $INSTALL/x86/socketdump.exe..."
 cp install/$TARGET/i386/socketdump.exe $INSTALL/x86
-echo "\tcopy $INSTALL/x86/windivertctl.exe..."
-cp install/$TARGET/i386/windivertctl.exe $INSTALL/x86
+echo "\tcopy $INSTALL/x86/cydivertctl.exe..."
+cp install/$TARGET/i386/cydivertctl.exe $INSTALL/x86
 echo "\tcopy $INSTALL/x86/test.exe..."
 cp install/$TARGET/i386/test.exe $INSTALL/x86
 if [ -d "install/$TARGET/amd64" ]
 then
     echo "\tmake $INSTALL/amd64..."
     mkdir -p $INSTALL/x64
-    echo "\tcopy $INSTALL/amd64/WinDivert64.sys..."
-    cp "$WINDIVERT64_SYS" $INSTALL/x64
+    echo "\tcopy $INSTALL/amd64/CyDivert64.sys..."
+    cp "$CYDIVERT64_SYS" $INSTALL/x64
     if ! grep "DigiCert High Assurance EV Root" \
-        $INSTALL/x64/WinDivert64.sys 2>&1 >/dev/null
+        $INSTALL/x64/CyDivert64.sys 2>&1 >/dev/null
     then
-        echo "\t\033[33mWARNING\033[0m: unsigned WinDivert64.sys..."
+        echo "\t\033[33mWARNING\033[0m: unsigned CyDivert64.sys..."
     fi
-    echo "\tcopy $INSTALL/x64/WinDivert.lib..."
-    cp install/$TARGET/amd64/WinDivert.lib $INSTALL/x64
-    echo "\tcopy $INSTALL/x64/WinDivert.dll..."
-    cp install/$TARGET/amd64/WinDivert.dll $INSTALL/x64
+    echo "\tcopy $INSTALL/x64/CyDivert.lib..."
+    cp install/$TARGET/amd64/CyDivert.lib $INSTALL/x64
+    echo "\tcopy $INSTALL/x64/CyDivert.dll..."
+    cp install/$TARGET/amd64/CyDivert.dll $INSTALL/x64
     echo "\tcopy $INSTALL/x64/netdump.exe..."
     cp install/$TARGET/amd64/netdump.exe $INSTALL/x64
     echo "\tcopy $INSTALL/x64/netfilter.exe..."
@@ -146,8 +146,8 @@ then
     cp install/$TARGET/amd64/flowtrack.exe $INSTALL/x64
     echo "\tcopy $INSTALL/x64/socketdump.exe..."
     cp install/$TARGET/amd64/socketdump.exe $INSTALL/x64
-    echo "\tcopy $INSTALL/x64/windivertctl.exe..."
-    cp install/$TARGET/amd64/windivertctl.exe $INSTALL/x64
+    echo "\tcopy $INSTALL/x64/cydivertctl.exe..."
+    cp install/$TARGET/amd64/cydivertctl.exe $INSTALL/x64
     echo "\tcopy $INSTALL/x64/test.exe..."
     cp install/$TARGET/amd64/test.exe $INSTALL/x64
 else

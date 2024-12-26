@@ -1,6 +1,6 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
-// Used by WinDivert.rc
+// Used by CyDivert.rc
 
 // Next default values for new objects
 // 

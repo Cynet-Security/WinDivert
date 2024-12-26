@@ -2,9 +2,9 @@
  * flowtrack.c
  * (C) 2019, all rights reserved,
  *
- * This file is part of WinDivert.
+ * This file is part of CyDivert.
  *
- * WinDivert is free software: you can redistribute it and/or modify it under
+ * CyDivert is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
  * option) any later version.
@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * WinDivert is free software; you can redistribute it and/or modify it under
+ * CyDivert is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
@@ -45,7 +45,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "windivert.h"
+#include "cydivert.h"
 
 #define MAX_FLOWS           256
 #define INET6_ADDRSTRLEN    45
@@ -55,7 +55,7 @@
  */
 typedef struct FLOW
 {
-    WINDIVERT_ADDRESS addr;
+    CYDIVERT_ADDRESS addr;
     struct FLOW *next;
 } FLOW, *PFLOW;
 
@@ -78,7 +78,7 @@ static DWORD draw(LPVOID arg)
     const char header[] = "PID        PROGRAM              PROT   FLOW";
     DWORD rows, columns, written, fill_len, path_len, i;
     PFLOW flow;
-    WINDIVERT_ADDRESS addrs[MAX_FLOWS], *addr;
+    CYDIVERT_ADDRESS addrs[MAX_FLOWS], *addr;
     UINT num_addrs;
 
     while (TRUE)
@@ -185,11 +185,11 @@ static DWORD draw(LPVOID arg)
             }
             SetConsoleTextAttribute(console,
                 FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
-            WinDivertHelperFormatIPv6Address(addr->Flow.LocalAddr, addr_str,
+            CyDivertHelperFormatIPv6Address(addr->Flow.LocalAddr, addr_str,
                 sizeof(addr_str));
             printf("%s:%u %s ", addr_str, addr->Flow.LocalPort,
                 (addr->Outbound? "---->": "<----"));
-            WinDivertHelperFormatIPv6Address(addr->Flow.RemoteAddr, addr_str,
+            CyDivertHelperFormatIPv6Address(addr->Flow.RemoteAddr, addr_str,
                 sizeof(addr_str));
             printf("%s:%u", addr_str, addr->Flow.RemotePort);
             fflush(stdout);
@@ -216,7 +216,7 @@ int __cdecl main(int argc, char **argv)
     INT16 priority = 776;       // Arbitrary.
     const char *filter = "true", *err_str;
     UINT packet_len;
-    WINDIVERT_ADDRESS addr;
+    CYDIVERT_ADDRESS addr;
     PFLOW flow, prev;
 
     switch (argc)
@@ -231,19 +231,19 @@ int __cdecl main(int argc, char **argv)
             exit(EXIT_FAILURE);
     }
 
-    // Open WinDivert FLOW handle:
-    handle = WinDivertOpen(filter, WINDIVERT_LAYER_FLOW, priority, 
-        WINDIVERT_FLAG_SNIFF | WINDIVERT_FLAG_RECV_ONLY);
+    // Open CyDivert FLOW handle:
+    handle = CyDivertOpen(filter, CYDIVERT_LAYER_FLOW, priority, 
+        CYDIVERT_FLAG_SNIFF | CYDIVERT_FLAG_RECV_ONLY);
     if (handle == INVALID_HANDLE_VALUE)
     {
         if (GetLastError() == ERROR_INVALID_PARAMETER &&
-            !WinDivertHelperCompileFilter(filter, WINDIVERT_LAYER_FLOW,
+            !CyDivertHelperCompileFilter(filter, CYDIVERT_LAYER_FLOW,
                 NULL, 0, &err_str, NULL))
         {
             fprintf(stderr, "error: invalid filter \"%s\"\n", err_str);
             exit(EXIT_FAILURE);
         }
-        fprintf(stderr, "error: failed to open the WinDivert device (%d)\n",
+        fprintf(stderr, "error: failed to open the CyDivert device (%d)\n",
             GetLastError());
         return EXIT_FAILURE;
     }
@@ -263,7 +263,7 @@ int __cdecl main(int argc, char **argv)
     // Main loop:
     while (TRUE)
     {
-        if (!WinDivertRecv(handle, NULL, 0, NULL, &addr))
+        if (!CyDivertRecv(handle, NULL, 0, NULL, &addr))
         {
             fprintf(stderr, "failed to read packet (%d)\n", GetLastError());
             continue;
@@ -271,7 +271,7 @@ int __cdecl main(int argc, char **argv)
 
         switch (addr.Event)
         {
-            case WINDIVERT_EVENT_FLOW_ESTABLISHED:
+            case CYDIVERT_EVENT_FLOW_ESTABLISHED:
 
                 // Flow established:
                 flow = (PFLOW)malloc(sizeof(FLOW));
@@ -287,7 +287,7 @@ int __cdecl main(int argc, char **argv)
                 ReleaseMutex(lock);
                 break;
 
-            case WINDIVERT_EVENT_FLOW_DELETED:
+            case CYDIVERT_EVENT_FLOW_DELETED:
 
                 // Flow deleted:
                 prev = NULL;

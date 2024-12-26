@@ -3,9 +3,9 @@
 # mingw-build.sh
 # (C) 2019, all rights reserved,
 #
-# This file is part of WinDivert.
+# This file is part of CyDivert.
 #
-# WinDivert is free software: you can redistribute it and/or modify it under
+# CyDivert is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Lesser General Public License as published by the
 # Free Software Foundation, either version 3 of the License, or (at your
 # option) any later version.
@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# WinDivert is free software; you can redistribute it and/or modify it under
+# CyDivert is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free
 # Software Foundation; either version 2 of the License, or (at your option)
 # any later version.
@@ -65,7 +65,7 @@ do
     echo "BUILD MINGW-$CPU"
     CC="$ENV-gcc"
     COPTS="-fno-ident -shared -Wall -Wno-pointer-to-int-cast -Os -Iinclude/ 
-        -Wl,--enable-stdcall-fixup -Wl,--entry=${MANGLE}WinDivertDllEntry"
+        -Wl,--enable-stdcall-fixup -Wl,--entry=${MANGLE}CyDivertDllEntry"
     CLIBS="-lkernel32 -ladvapi32 $EXTRA_OPTS"
     STRIP="$ENV-strip"
     DLLTOOL="$ENV-dlltool"
@@ -73,55 +73,55 @@ do
     then
         echo "\tmake install/MINGW/$CPU..."
         mkdir -p "install/MINGW/$CPU"
-        echo "\tbuild install/MINGW/$CPU/WinDivert.dll..."
-        $CC $COPTS -c dll/windivert.c -o dll/windivert.o
-        $CC $COPTS -o "install/MINGW/$CPU/WinDivert.dll" \
-            dll/windivert.o dll/windivert.def -nostdlib $CLIBS
-        $STRIP "install/MINGW/$CPU/WinDivert.dll"
-        echo "\tbuild install/MINGW/$CPU/WinDivert.lib..."
-        $DLLTOOL --dllname install/MINGW/$CPU/WinDivert.dll \
-            --def dll/windivert.def \
-            --output-lib install/MINGW/$CPU/WinDivert.lib 2>/dev/null
+        echo "\tbuild install/MINGW/$CPU/CyDivert.dll..."
+        $CC $COPTS -c dll/cydivert.c -o dll/cydivert.o
+        $CC $COPTS -o "install/MINGW/$CPU/CyDivert.dll" \
+            dll/cydivert.o dll/cydivert.def -nostdlib $CLIBS
+        $STRIP "install/MINGW/$CPU/CyDivert.dll"
+        echo "\tbuild install/MINGW/$CPU/CyDivert.lib..."
+        $DLLTOOL --dllname install/MINGW/$CPU/CyDivert.dll \
+            --def dll/cydivert.def \
+            --output-lib install/MINGW/$CPU/CyDivert.lib 2>/dev/null
         echo "\tbuild install/MINGW/$CPU/netdump.exe..."
         $CC -s -O2 -Iinclude/ examples/netdump/netdump.c \
-            -o "install/MINGW/$CPU/netdump.exe" -lWinDivert \
+            -o "install/MINGW/$CPU/netdump.exe" -lCyDivert \
             -L"install/MINGW/$CPU/"
         echo "\tbuild install/MINGW/$CPU/netfilter.exe..."
         $CC -s -O2 -Iinclude/ examples/netfilter/netfilter.c \
-            -o "install/MINGW/$CPU/netfilter.exe" -lWinDivert \
+            -o "install/MINGW/$CPU/netfilter.exe" -lCyDivert \
             -L"install/MINGW/$CPU/"
         echo "\tbuild install/MINGW/$CPU/passthru.exe..."
         $CC -s -O2 -Iinclude/ examples/passthru/passthru.c \
-            -o "install/MINGW/$CPU/passthru.exe" -lWinDivert \
+            -o "install/MINGW/$CPU/passthru.exe" -lCyDivert \
             -L"install/MINGW/$CPU/"
         echo "\tbuild install/MINGW/$CPU/webfilter.exe..."
         $CC -s -O2 -Iinclude/ examples/webfilter/webfilter.c \
-            -o "install/MINGW/$CPU/webfilter.exe" -lWinDivert \
+            -o "install/MINGW/$CPU/webfilter.exe" -lCyDivert \
             -L"install/MINGW/$CPU/"
         echo "\tbuild install/MINGW/$CPU/streamdump.exe..."
         $CC -s -O2 -Iinclude/ examples/streamdump/streamdump.c \
-            -o "install/MINGW/$CPU/streamdump.exe" -lWinDivert -lws2_32 \
+            -o "install/MINGW/$CPU/streamdump.exe" -lCyDivert -lws2_32 \
             -L"install/MINGW/$CPU/"
         echo "\tbuild install/MINGW/$CPU/flowtrack.exe..."
         $CC -s -O2 -Iinclude/ examples/flowtrack/flowtrack.c \
-            -o "install/MINGW/$CPU/flowtrack.exe" -lWinDivert -lpsapi \
+            -o "install/MINGW/$CPU/flowtrack.exe" -lCyDivert -lpsapi \
             -lshlwapi -L"install/MINGW/$CPU/"
-        echo "\tbuild install/MINGW/$CPU/windivertctl.exe..."
-        $CC -s -O2 -Iinclude/ examples/windivertctl/windivertctl.c \
-            -o "install/MINGW/$CPU/windivertctl.exe" -lWinDivert \
+        echo "\tbuild install/MINGW/$CPU/cydivertctl.exe..."
+        $CC -s -O2 -Iinclude/ examples/cydivertctl/cydivertctl.c \
+            -o "install/MINGW/$CPU/cydivertctl.exe" -lCyDivert \
             -lpsapi -lshlwapi -L"install/MINGW/$CPU/"
         echo "\tbuild install/MINGW/$CPU/socketdump.exe..."
         $CC -s -O2 -Iinclude/ examples/socketdump/socketdump.c \
-            -o "install/MINGW/$CPU/socketdump.exe" -lWinDivert \
+            -o "install/MINGW/$CPU/socketdump.exe" -lCyDivert \
             -lpsapi -lshlwapi -L"install/MINGW/$CPU/"
         echo "\tbuild install/MINGW/$CPU/test.exe..."
         $CC -s -O2 -Iinclude/ test/test.c \
-            -o "install/MINGW/$CPU/test.exe" -lWinDivert \
+            -o "install/MINGW/$CPU/test.exe" -lCyDivert \
             -L"install/MINGW/$CPU/"
         if [ $HAVE_SYS = yes ]
         then
-            echo "\tcopy install/MINGW/$CPU/WinDivert$BITS.sys..."
-            cp install/MSVC/$CPU/WinDivert$BITS.sys install/MINGW/$CPU
+            echo "\tcopy install/MINGW/$CPU/CyDivert$BITS.sys..."
+            cp install/MSVC/$CPU/CyDivert$BITS.sys install/MINGW/$CPU
         fi
     else
         echo "WARNING: $CC not found"

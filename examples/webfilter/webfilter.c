@@ -2,9 +2,9 @@
  * webfilter.c
  * (C) 2019, all rights reserved,
  *
- * This file is part of WinDivert.
+ * This file is part of CyDivert.
  *
- * WinDivert is free software: you can redistribute it and/or modify it under
+ * CyDivert is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
  * option) any later version.
@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * WinDivert is free software; you can redistribute it and/or modify it under
+ * CyDivert is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
@@ -34,7 +34,7 @@
 
 /*
  * DESCRIPTION:
- * This is a simple web (HTTP) filter using WinDivert.
+ * This is a simple web (HTTP) filter using CyDivert.
  *
  * It works by intercepting outbound HTTP GET/POST requests and matching
  * the URL against a blacklist.  If the URL is matched, we hijack the TCP
@@ -46,14 +46,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "windivert.h"
+#include "cydivert.h"
 
-#define ntohs(x)            WinDivertHelperNtohs(x)
-#define ntohl(x)            WinDivertHelperNtohl(x)
-#define htons(x)            WinDivertHelperHtons(x)
-#define htonl(x)            WinDivertHelperHtonl(x)
+#define ntohs(x)            CyDivertHelperNtohs(x)
+#define ntohl(x)            CyDivertHelperNtohl(x)
+#define htons(x)            CyDivertHelperHtons(x)
+#define htonl(x)            CyDivertHelperHtonl(x)
 
-#define MAXBUF              WINDIVERT_MTU_MAX
+#define MAXBUF              CYDIVERT_MTU_MAX
 #define MAXURL              4096
 
 /*
@@ -76,8 +76,8 @@ typedef struct
  */
 typedef struct
 {
-    WINDIVERT_IPHDR  ip;
-    WINDIVERT_TCPHDR tcp;
+    CYDIVERT_IPHDR  ip;
+    CYDIVERT_TCPHDR tcp;
 } PACKET, *PPACKET;
 typedef struct 
 {
@@ -125,11 +125,11 @@ static BOOL BlackListPayloadMatch(PBLACKLIST blacklist, char *data,
 int __cdecl main(int argc, char **argv)
 {
     HANDLE handle;
-    WINDIVERT_ADDRESS addr;
+    CYDIVERT_ADDRESS addr;
     UINT8 packet[MAXBUF];
     UINT packet_len;
-    PWINDIVERT_IPHDR ip_header;
-    PWINDIVERT_TCPHDR tcp_header;
+    PCYDIVERT_IPHDR ip_header;
+    PCYDIVERT_TCPHDR tcp_header;
     PVOID payload;
     UINT payload_len;
     PACKET reset0;
@@ -178,40 +178,40 @@ int __cdecl main(int argc, char **argv)
     finish->tcp.Ack = 1;
 
     // Open the Divert device:
-    handle = WinDivertOpen(
+    handle = CyDivertOpen(
             "outbound && "              // Outbound traffic only
             "!loopback && "             // No loopback traffic
             "ip && "                    // Only IPv4 supported
             "tcp.DstPort == 80 && "     // HTTP (port 80) only
             "tcp.PayloadLength > 0",    // TCP data packets only
-            WINDIVERT_LAYER_NETWORK, priority, 0
+            CYDIVERT_LAYER_NETWORK, priority, 0
         );
     if (handle == INVALID_HANDLE_VALUE)
     {
-        fprintf(stderr, "error: failed to open the WinDivert device (%d)\n",
+        fprintf(stderr, "error: failed to open the CyDivert device (%d)\n",
             GetLastError());
         exit(EXIT_FAILURE);
     }
-    printf("OPENED WinDivert\n");
+    printf("OPENED CyDivert\n");
 
     // Main loop:
     while (TRUE)
     {
-        if (!WinDivertRecv(handle, packet, sizeof(packet), &packet_len, &addr))
+        if (!CyDivertRecv(handle, packet, sizeof(packet), &packet_len, &addr))
         {
             fprintf(stderr, "warning: failed to read packet (%d)\n",
                 GetLastError());
             continue;
         }
 
-        WinDivertHelperParsePacket(packet, packet_len, &ip_header, NULL,
+        CyDivertHelperParsePacket(packet, packet_len, &ip_header, NULL,
             NULL, NULL, NULL, &tcp_header, NULL, &payload, &payload_len,
             NULL, NULL);
         if (ip_header == NULL || tcp_header == NULL || payload == NULL ||
             !BlackListPayloadMatch(blacklist, payload, (UINT16)payload_len))
         {
             // Packet does not match the blacklist; simply reinject it.
-            if (!WinDivertSend(handle, packet, packet_len, NULL, &addr))
+            if (!CyDivertSend(handle, packet, packet_len, NULL, &addr))
             {
                 fprintf(stderr, "warning: failed to reinject packet (%d)\n",
                     GetLastError());
@@ -230,8 +230,8 @@ int __cdecl main(int argc, char **argv)
         reset->tcp.DstPort      = htons(80);
         reset->tcp.SeqNum       = tcp_header->SeqNum;
         reset->tcp.AckNum       = tcp_header->AckNum;
-        WinDivertHelperCalcChecksums((PVOID)reset, sizeof(PACKET), &addr, 0);
-        if (!WinDivertSend(handle, (PVOID)reset, sizeof(PACKET), NULL, &addr))
+        CyDivertHelperCalcChecksums((PVOID)reset, sizeof(PACKET), &addr, 0);
+        if (!CyDivertSend(handle, (PVOID)reset, sizeof(PACKET), NULL, &addr))
         {
             fprintf(stderr, "warning: failed to send reset packet (%d)\n",
                 GetLastError());
@@ -245,8 +245,8 @@ int __cdecl main(int argc, char **argv)
         blockpage->header.tcp.AckNum       =
             htonl(ntohl(tcp_header->SeqNum) + payload_len);
         addr.Outbound = !addr.Outbound;     // Reverse direction.
-        WinDivertHelperCalcChecksums((PVOID)blockpage, blockpage_len, &addr, 0);
-        if (!WinDivertSend(handle, (PVOID)blockpage, blockpage_len, NULL,
+        CyDivertHelperCalcChecksums((PVOID)blockpage, blockpage_len, &addr, 0);
+        if (!CyDivertSend(handle, (PVOID)blockpage, blockpage_len, NULL,
                 &addr))
         {
             fprintf(stderr, "warning: failed to send block page packet (%d)\n",
@@ -263,8 +263,8 @@ int __cdecl main(int argc, char **argv)
             htonl(ntohl(tcp_header->AckNum) + sizeof(block_data) - 1); 
         finish->tcp.AckNum       =
             htonl(ntohl(tcp_header->SeqNum) + payload_len);
-        WinDivertHelperCalcChecksums((PVOID)finish, sizeof(PACKET), &addr, 0);
-        if (!WinDivertSend(handle, (PVOID)finish, sizeof(PACKET), NULL, &addr))
+        CyDivertHelperCalcChecksums((PVOID)finish, sizeof(PACKET), &addr, 0);
+        if (!CyDivertSend(handle, (PVOID)finish, sizeof(PACKET), NULL, &addr))
         {
             fprintf(stderr, "warning: failed to send finish packet (%d)\n",
                 GetLastError());
@@ -279,11 +279,11 @@ static void PacketInit(PPACKET packet)
 {
     memset(packet, 0, sizeof(PACKET));
     packet->ip.Version = 4;
-    packet->ip.HdrLength = sizeof(WINDIVERT_IPHDR) / sizeof(UINT32);
+    packet->ip.HdrLength = sizeof(CYDIVERT_IPHDR) / sizeof(UINT32);
     packet->ip.Length = htons(sizeof(PACKET));
     packet->ip.TTL = 64;
     packet->ip.Protocol = IPPROTO_TCP;
-    packet->tcp.HdrLength = sizeof(WINDIVERT_TCPHDR) / sizeof(UINT32);
+    packet->tcp.HdrLength = sizeof(CYDIVERT_TCPHDR) / sizeof(UINT32);
 }
 
 /*

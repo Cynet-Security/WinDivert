@@ -2,9 +2,9 @@
  * socketdump.c
  * (C) 2019, all rights reserved,
  *
- * This file is part of WinDivert.
+ * This file is part of CyDivert.
  *
- * WinDivert is free software: you can redistribute it and/or modify it under
+ * CyDivert is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
  * option) any later version.
@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * WinDivert is free software; you can redistribute it and/or modify it under
+ * CyDivert is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
@@ -46,7 +46,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "windivert.h"
+#include "cydivert.h"
 
 #define INET6_ADDRSTRLEN    45
 
@@ -62,7 +62,7 @@ int __cdecl main(int argc, char **argv)
     char local_str[INET6_ADDRSTRLEN+1], remote_str[INET6_ADDRSTRLEN+1];
     char *filename;
     DWORD path_len;
-    WINDIVERT_ADDRESS addr;
+    CYDIVERT_ADDRESS addr;
     BOOL block = FALSE;
 
     switch (argc)
@@ -93,19 +93,19 @@ int __cdecl main(int argc, char **argv)
             exit(EXIT_FAILURE);
     }
 
-    // Open WinDivert SOCKET handle:
-    handle = WinDivertOpen(filter, WINDIVERT_LAYER_SOCKET, priority, 
-        (block? 0: WINDIVERT_FLAG_SNIFF) | WINDIVERT_FLAG_RECV_ONLY);
+    // Open CyDivert SOCKET handle:
+    handle = CyDivertOpen(filter, CYDIVERT_LAYER_SOCKET, priority, 
+        (block? 0: CYDIVERT_FLAG_SNIFF) | CYDIVERT_FLAG_RECV_ONLY);
     if (handle == INVALID_HANDLE_VALUE)
     {
         if (GetLastError() == ERROR_INVALID_PARAMETER &&
-            !WinDivertHelperCompileFilter(filter, WINDIVERT_LAYER_SOCKET,
+            !CyDivertHelperCompileFilter(filter, CYDIVERT_LAYER_SOCKET,
                 NULL, 0, &err_str, NULL))
         {
             fprintf(stderr, "error: invalid filter \"%s\"\n", err_str);
             exit(EXIT_FAILURE);
         }
-        fprintf(stderr, "error: failed to open the WinDivert device (%d)\n",
+        fprintf(stderr, "error: failed to open the CyDivert device (%d)\n",
             GetLastError());
         return EXIT_FAILURE;
     }
@@ -114,7 +114,7 @@ int __cdecl main(int argc, char **argv)
     console = GetStdHandle(STD_OUTPUT_HANDLE);
     while (TRUE)
     {
-        if (!WinDivertRecv(handle, NULL, 0, NULL, &addr))
+        if (!CyDivertRecv(handle, NULL, 0, NULL, &addr))
         {
             fprintf(stderr, "failed to read packet (%d)\n", GetLastError());
             continue;
@@ -122,23 +122,23 @@ int __cdecl main(int argc, char **argv)
 
         switch (addr.Event)
         {
-            case WINDIVERT_EVENT_SOCKET_BIND:
+            case CYDIVERT_EVENT_SOCKET_BIND:
                 SetConsoleTextAttribute(console, FOREGROUND_GREEN);
                 printf("BIND");
                 break;
-            case WINDIVERT_EVENT_SOCKET_LISTEN:
+            case CYDIVERT_EVENT_SOCKET_LISTEN:
                 SetConsoleTextAttribute(console, FOREGROUND_GREEN);
                 printf("LISTEN");
                 break;
-            case WINDIVERT_EVENT_SOCKET_CONNECT:
+            case CYDIVERT_EVENT_SOCKET_CONNECT:
                 SetConsoleTextAttribute(console, FOREGROUND_GREEN);
                 printf("CONNECT");
                 break;
-            case WINDIVERT_EVENT_SOCKET_ACCEPT:
+            case CYDIVERT_EVENT_SOCKET_ACCEPT:
                 SetConsoleTextAttribute(console, FOREGROUND_GREEN);
                 printf("ACCEPT");
                 break;
-            case WINDIVERT_EVENT_SOCKET_CLOSE:
+            case CYDIVERT_EVENT_SOCKET_CLOSE:
                 SetConsoleTextAttribute(console, FOREGROUND_RED);
                 printf("CLOSE");
                 break;
@@ -217,7 +217,7 @@ int __cdecl main(int argc, char **argv)
         SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN |
             FOREGROUND_BLUE);
 
-        WinDivertHelperFormatIPv6Address(addr.Socket.LocalAddr, local_str,
+        CyDivertHelperFormatIPv6Address(addr.Socket.LocalAddr, local_str,
             sizeof(local_str));
         if (addr.Socket.LocalPort != 0 || strcmp(local_str, "::") != 0)
         {
@@ -228,7 +228,7 @@ int __cdecl main(int argc, char **argv)
                 FOREGROUND_BLUE);
         }
 
-        WinDivertHelperFormatIPv6Address(addr.Socket.RemoteAddr, remote_str,
+        CyDivertHelperFormatIPv6Address(addr.Socket.RemoteAddr, remote_str,
             sizeof(remote_str));
         if (addr.Socket.RemotePort != 0 || strcmp(remote_str, "::") != 0)
         {
