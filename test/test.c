@@ -2,9 +2,9 @@
  * test.c
  * (C) 2021, all rights reserved,
  *
- * This file is part of WinDivert.
+ * This file is part of CyDivert.
  *
- * WinDivert is free software: you can redistribute it and/or modify it under
+ * CyDivert is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
  * option) any later version.
@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * WinDivert is free software; you can redistribute it and/or modify it under
+ * CyDivert is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
@@ -33,14 +33,14 @@
  */
 
 /*
- * WinDivert testing framework.
+ * CyDivert testing framework.
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
 
-#include "windivert.h"
+#include "cydivert.h"
 
 #define MAX_PACKET  2048
 #define MIN(a, b)   ((a) < (b)? (a): (b))
@@ -964,14 +964,14 @@ int main(int argc, char **argv)
     // Open handles to:
     // (1) stop normal traffic from interacting with the tests; and
     // (2) stop test packets escaping to the Internet or TCP/IP stack.
-    upper_handle = WinDivertOpen("true", WINDIVERT_LAYER_NETWORK, 9999,
-        WINDIVERT_FLAG_DROP);
-    lower_handle = WinDivertOpen("true", WINDIVERT_LAYER_NETWORK, -9999,
-        WINDIVERT_FLAG_DROP);
+    upper_handle = CyDivertOpen("true", CYDIVERT_LAYER_NETWORK, 9999,
+        CYDIVERT_FLAG_DROP);
+    lower_handle = CyDivertOpen("true", CYDIVERT_LAYER_NETWORK, -9999,
+        CYDIVERT_FLAG_DROP);
     if (upper_handle == INVALID_HANDLE_VALUE ||
         lower_handle == INVALID_HANDLE_VALUE)
     {
-        fprintf(stderr, "error: failed to open WinDivert handle (err = %d)\n",
+        fprintf(stderr, "error: failed to open CyDivert handle (err = %d)\n",
             GetLastError());
         exit(EXIT_FAILURE);
     }
@@ -1033,8 +1033,8 @@ int main(int argc, char **argv)
         printf("]\n");
     }
 
-    WinDivertClose(upper_handle);
-    WinDivertClose(lower_handle);
+    CyDivertClose(upper_handle);
+    CyDivertClose(lower_handle);
 
     result = WaitForSingleObject(monitor, 1000);
     switch (result)
@@ -1104,11 +1104,11 @@ static BOOL run_test(HANDLE inject_handle, const char *filter,
     char buf[2][MAX_PACKET];
     UINT buf_len[2], i, idx;
     DWORD iolen;
-    WINDIVERT_ADDRESS addr[2], addr_send;
+    CYDIVERT_ADDRESS addr[2], addr_send;
     OVERLAPPED overlapped[2];
     const char *err_str;
     UINT err_pos;
-    PWINDIVERT_IPHDR iphdr = NULL;
+    PCYDIVERT_IPHDR iphdr = NULL;
     HANDLE handle[2] = {INVALID_HANDLE_VALUE, INVALID_HANDLE_VALUE};
     HANDLE event[2] = {NULL, NULL};
     BOOL random, result, ipv4;
@@ -1118,7 +1118,7 @@ static BOOL run_test(HANDLE inject_handle, const char *filter,
     *diff = 0;
 
     // (0) Verify the test data:
-    if (!WinDivertHelperCompileFilter(filter, WINDIVERT_LAYER_NETWORK,
+    if (!CyDivertHelperCompileFilter(filter, CYDIVERT_LAYER_NETWORK,
             object, sizeof(object), &err_str, &err_pos))
     {
         fprintf(stderr, "error: filter string \"%s\" is invalid with error "
@@ -1126,45 +1126,45 @@ static BOOL run_test(HANDLE inject_handle, const char *filter,
         goto failed;
     }
 
-    // (1) Open WinDivert handles:
-    handle[0] = WinDivertOpen(object, WINDIVERT_LAYER_NETWORK, 8888, 0);
+    // (1) Open CyDivert handles:
+    handle[0] = CyDivertOpen(object, CYDIVERT_LAYER_NETWORK, 8888, 0);
     if (handle[0] == INVALID_HANDLE_VALUE)
     {
-        fprintf(stderr, "error: failed to open WinDivert handle for filter "
+        fprintf(stderr, "error: failed to open CyDivert handle for filter "
             "\"%s\" (err = %d)\n", filter, GetLastError());
         goto failed;
     }
-    handle[1] = WinDivertOpen("true", WINDIVERT_LAYER_NETWORK, 7777, 0);
+    handle[1] = CyDivertOpen("true", CYDIVERT_LAYER_NETWORK, 7777, 0);
     if (handle[1] == INVALID_HANDLE_VALUE)
     {
-        fprintf(stderr, "error: failed to open WinDivert handle "
+        fprintf(stderr, "error: failed to open CyDivert handle "
             "(err = %d)\n", GetLastError());
         goto failed;
     }
-    if (!WinDivertSetParam(handle[0], WINDIVERT_PARAM_QUEUE_LENGTH,
-            WINDIVERT_PARAM_QUEUE_LENGTH_MAX) ||
-        !WinDivertGetParam(handle[0], WINDIVERT_PARAM_QUEUE_LENGTH, &val) ||
-        val != WINDIVERT_PARAM_QUEUE_LENGTH_MAX)
+    if (!CyDivertSetParam(handle[0], CYDIVERT_PARAM_QUEUE_LENGTH,
+            CYDIVERT_PARAM_QUEUE_LENGTH_MAX) ||
+        !CyDivertGetParam(handle[0], CYDIVERT_PARAM_QUEUE_LENGTH, &val) ||
+        val != CYDIVERT_PARAM_QUEUE_LENGTH_MAX)
     {
-        fprintf(stderr, "error: failed to set WINDIVERT_PARAM_QUEUE_LENGTH "
+        fprintf(stderr, "error: failed to set CYDIVERT_PARAM_QUEUE_LENGTH "
             "parameter (err = %d)\n", GetLastError());
         goto failed;
     }
-    if (!WinDivertSetParam(handle[0], WINDIVERT_PARAM_QUEUE_SIZE,
-            WINDIVERT_PARAM_QUEUE_SIZE_MAX) ||
-        !WinDivertGetParam(handle[0], WINDIVERT_PARAM_QUEUE_SIZE, &val) ||
-        val != WINDIVERT_PARAM_QUEUE_SIZE_MAX)
+    if (!CyDivertSetParam(handle[0], CYDIVERT_PARAM_QUEUE_SIZE,
+            CYDIVERT_PARAM_QUEUE_SIZE_MAX) ||
+        !CyDivertGetParam(handle[0], CYDIVERT_PARAM_QUEUE_SIZE, &val) ||
+        val != CYDIVERT_PARAM_QUEUE_SIZE_MAX)
     {
-        fprintf(stderr, "error: failed to set WINDIVERT_PARAM_QUEUE_SIZE "
+        fprintf(stderr, "error: failed to set CYDIVERT_PARAM_QUEUE_SIZE "
             "parameter (err = %d)\n", GetLastError());
         goto failed;
     }
-    if (!WinDivertSetParam(handle[0], WINDIVERT_PARAM_QUEUE_TIME,
-            WINDIVERT_PARAM_QUEUE_TIME_MAX) ||
-        !WinDivertGetParam(handle[0], WINDIVERT_PARAM_QUEUE_TIME, &val) ||
-        val != WINDIVERT_PARAM_QUEUE_TIME_MAX)
+    if (!CyDivertSetParam(handle[0], CYDIVERT_PARAM_QUEUE_TIME,
+            CYDIVERT_PARAM_QUEUE_TIME_MAX) ||
+        !CyDivertGetParam(handle[0], CYDIVERT_PARAM_QUEUE_TIME, &val) ||
+        val != CYDIVERT_PARAM_QUEUE_TIME_MAX)
     {
-        fprintf(stderr, "error: failed to set WINDIVERT_PARAM_QUEUE_TIME "
+        fprintf(stderr, "error: failed to set CYDIVERT_PARAM_QUEUE_TIME "
             "parameter (err = %d)\n", GetLastError());
         goto failed;
     }
@@ -1182,14 +1182,14 @@ static BOOL run_test(HANDLE inject_handle, const char *filter,
     memset(&overlapped[1], 0, sizeof(overlapped[1]));
     overlapped[0].hEvent = event[0];
     overlapped[1].hEvent = event[1];
-    if (WinDivertRecvEx(handle[0], buf[0], sizeof(buf[0]), &buf_len[0], 0,
+    if (CyDivertRecvEx(handle[0], buf[0], sizeof(buf[0]), &buf_len[0], 0,
                 &addr[0], NULL, &overlapped[0]) ||
             GetLastError() != ERROR_IO_PENDING ||
-        WinDivertRecvEx(handle[1], buf[1], sizeof(buf[1]), &buf_len[1], 0,
+        CyDivertRecvEx(handle[1], buf[1], sizeof(buf[1]), &buf_len[1], 0,
                 &addr[1], NULL, &overlapped[1]) ||
             GetLastError() != ERROR_IO_PENDING)
     {
-        fprintf(stderr, "error: failed to created pended recv from WinDivert "
+        fprintf(stderr, "error: failed to created pended recv from CyDivert "
                 "handle (err = %d)\n", GetLastError());
         goto failed;
     }
@@ -1200,7 +1200,7 @@ static BOOL run_test(HANDLE inject_handle, const char *filter,
     addr_send.IPChecksum  = FALSE;
     addr_send.TCPChecksum = FALSE;
     addr_send.UDPChecksum = FALSE;
-    if (!WinDivertSend(inject_handle, (PVOID)packet, packet_len, NULL,
+    if (!CyDivertSend(inject_handle, (PVOID)packet, packet_len, NULL,
             &addr_send))
     {
         fprintf(stderr, "error: failed to inject test packet (err = %d)\n",
@@ -1223,7 +1223,7 @@ static BOOL run_test(HANDLE inject_handle, const char *filter,
             idx = 1;
             break;
         case WAIT_TIMEOUT:
-            fprintf(stderr, "error: failed to read packet from WinDivert "
+            fprintf(stderr, "error: failed to read packet from CyDivert "
                 "handle (timeout)\n", GetLastError());
             goto failed;
         default:
@@ -1234,7 +1234,7 @@ static BOOL run_test(HANDLE inject_handle, const char *filter,
     if (!GetOverlappedResult(handle[idx], &overlapped[idx], &iolen, TRUE))
     {
         fprintf(stderr, "error: failed to get the overlapped result from "
-            "WinDivert handle (err = %d)\n", GetLastError());
+            "CyDivert handle (err = %d)\n", GetLastError());
         goto failed;
     }
     buf_len[idx] = (UINT)iolen;
@@ -1247,12 +1247,12 @@ static BOOL run_test(HANDLE inject_handle, const char *filter,
             "(%u)\n", (unsigned)packet_len, buf_len[idx]);
         goto failed;
     }
-    iphdr = (PWINDIVERT_IPHDR)buf[idx];
+    iphdr = (PCYDIVERT_IPHDR)buf[idx];
     ipv4 = (iphdr->Version == 4);
     for (i = 0; i < packet_len; i++)
     {
-        if (ipv4 && i >= offsetof(WINDIVERT_IPHDR, Checksum) &&
-                    i < offsetof(WINDIVERT_IPHDR, Checksum) + sizeof(UINT16))
+        if (ipv4 && i >= offsetof(CYDIVERT_IPHDR, Checksum) &&
+                    i < offsetof(CYDIVERT_IPHDR, Checksum) + sizeof(UINT16))
         {
             // The IPv4 checksum can change, so ignore it.
             continue;
@@ -1275,10 +1275,10 @@ static BOOL run_test(HANDLE inject_handle, const char *filter,
     // If (random && !result), then we cannot verify since the original
     // non-matching random values have been lost:
     if ((!random &&
-            WinDivertHelperEvalFilter(filter, buf[idx], buf_len[idx],
+            CyDivertHelperEvalFilter(filter, buf[idx], buf_len[idx],
                 &addr[idx]) != result) ||
         (random && result && 
-            !WinDivertHelperEvalFilter(filter, buf[idx], buf_len[idx],
+            !CyDivertHelperEvalFilter(filter, buf[idx], buf_len[idx],
                 &addr[idx])))
     {
         fprintf(stderr, "error: filter \"%s\" does not match the given "
@@ -1293,32 +1293,32 @@ static BOOL run_test(HANDLE inject_handle, const char *filter,
     }
 
     // (5) Clean-up:
-    if (!WinDivertShutdown(handle[0], WINDIVERT_SHUTDOWN_BOTH) ||
-        !WinDivertShutdown(handle[1], WINDIVERT_SHUTDOWN_BOTH))
+    if (!CyDivertShutdown(handle[0], CYDIVERT_SHUTDOWN_BOTH) ||
+        !CyDivertShutdown(handle[1], CYDIVERT_SHUTDOWN_BOTH))
     {
-        fprintf(stderr, "error: failed to shutdown WinDivert handle (err = "
+        fprintf(stderr, "error: failed to shutdown CyDivert handle (err = "
             "%d)\n", GetLastError());
         goto failed;
     }
-    for (i = 0; i < 1000 && WinDivertRecv(handle[0], NULL, 0, NULL, NULL); i++)
+    for (i = 0; i < 1000 && CyDivertRecv(handle[0], NULL, 0, NULL, NULL); i++)
         ;
     if (GetLastError() != ERROR_NO_DATA)
     {
         fprintf(stderr, "error: failed to recv NO_DATA from shutdown "
-            "WinDivert handle (err = %d)\n", GetLastError());
+            "CyDivert handle (err = %d)\n", GetLastError());
         goto failed;
     }
-    for (i = 0; i < 1000 && WinDivertRecv(handle[1], NULL, 0, NULL, NULL); i++)
+    for (i = 0; i < 1000 && CyDivertRecv(handle[1], NULL, 0, NULL, NULL); i++)
         ;
     if (GetLastError() != ERROR_NO_DATA)
     {
         fprintf(stderr, "error: failed to recv NO_DATA from shutdown "
-            "WinDivert handle (err = %d)\n", GetLastError());
+            "CyDivert handle (err = %d)\n", GetLastError());
         goto failed;
     }
-    if (!WinDivertClose(handle[0]) || !WinDivertClose(handle[1]))
+    if (!CyDivertClose(handle[0]) || !CyDivertClose(handle[1]))
     {
-        fprintf(stderr, "error: failed to close WinDivert handle (err = %d)\n",
+        fprintf(stderr, "error: failed to close CyDivert handle (err = %d)\n",
             GetLastError());
         goto failed;
     }
@@ -1332,7 +1332,7 @@ failed:
     {
         if (handle[i] != INVALID_HANDLE_VALUE)
         {
-            WinDivertClose(handle[i]);
+            CyDivertClose(handle[i]);
         }
         if (event[i] != NULL)
         {
@@ -1349,14 +1349,14 @@ static DWORD monitor_worker(LPVOID arg)
 {
     char filter[100], packet[4096], object_1[4096], *object_2, filter_2[8192];
     UINT packet_len;
-    WINDIVERT_ADDRESS addr;
-    PWINDIVERT_IPHDR iphdr;
+    CYDIVERT_ADDRESS addr;
+    PCYDIVERT_IPHDR iphdr;
     UINT i;
 
     snprintf(filter, sizeof(filter), "processId=%d and priority=8888 and "
         "event=OPEN", GetCurrentProcessId());
-    HANDLE handle = WinDivertOpen(filter, WINDIVERT_LAYER_REFLECT, 0,
-        WINDIVERT_FLAG_SNIFF | WINDIVERT_FLAG_RECV_ONLY);
+    HANDLE handle = CyDivertOpen(filter, CYDIVERT_LAYER_REFLECT, 0,
+        CYDIVERT_FLAG_SNIFF | CYDIVERT_FLAG_RECV_ONLY);
     if (handle == INVALID_HANDLE_VALUE)
     {
         fprintf(stderr, "error: failed to open reflect handle (err = %d)\n",
@@ -1368,9 +1368,9 @@ static DWORD monitor_worker(LPVOID arg)
     for (i = lo; i < num_tests && i <= hi; i++)
     {
         // (1) Read the reflected filter:
-        WinDivertHelperCompileFilter(tests[i].filter, WINDIVERT_LAYER_NETWORK,
+        CyDivertHelperCompileFilter(tests[i].filter, CYDIVERT_LAYER_NETWORK,
             object_1, sizeof(object_1), NULL, NULL);
-        if (!WinDivertRecv(handle, packet, sizeof(packet), &packet_len, &addr))
+        if (!CyDivertRecv(handle, packet, sizeof(packet), &packet_len, &addr))
         {
             fprintf(stderr, "error: failed to read OPEN event (err = %d)\n",
                 GetLastError());
@@ -1386,14 +1386,14 @@ static DWORD monitor_worker(LPVOID arg)
         }
 
         // (2) Test if formatted filter is equivalent:
-        if (!WinDivertHelperFormatFilter(object_1, WINDIVERT_LAYER_NETWORK,
+        if (!CyDivertHelperFormatFilter(object_1, CYDIVERT_LAYER_NETWORK,
                 filter_2, sizeof(filter_2)))
         {
             fprintf(stderr, "error: failed to format filter (err = %d)\n",
                 GetLastError());
             exit(EXIT_FAILURE);
         }
-        if (!WinDivertHelperCompileFilter(filter_2, WINDIVERT_LAYER_NETWORK,
+        if (!CyDivertHelperCompileFilter(filter_2, CYDIVERT_LAYER_NETWORK,
                 object_1, sizeof(object_1), NULL, NULL))
         {
             fprintf(stderr, "error: failed to recompile filter (err = %d)\n",
@@ -1410,13 +1410,13 @@ static DWORD monitor_worker(LPVOID arg)
             // Cannot verify random filters.
             continue;
         }
-        iphdr = (PWINDIVERT_IPHDR)tests[i].packet->packet;
+        iphdr = (PCYDIVERT_IPHDR)tests[i].packet->packet;
         memset(&addr, 0, sizeof(addr));
-        addr.Event    = WINDIVERT_EVENT_NETWORK_PACKET;
-        addr.Layer    = WINDIVERT_LAYER_NETWORK;
+        addr.Event    = CYDIVERT_EVENT_NETWORK_PACKET;
+        addr.Layer    = CYDIVERT_LAYER_NETWORK;
         addr.Outbound = TRUE;
         addr.IPv6     = (iphdr->Version == 4? FALSE: TRUE);
-        if (WinDivertHelperEvalFilter(object_1, tests[i].packet->packet,
+        if (CyDivertHelperEvalFilter(object_1, tests[i].packet->packet,
                 tests[i].packet->packet_len, &addr) != tests[i].match)
         {
             fprintf(stderr, "error: failed to match recompiled filter "
@@ -1426,7 +1426,7 @@ static DWORD monitor_worker(LPVOID arg)
         }
     }
 
-    WinDivertClose(handle);
+    CyDivertClose(handle);
     return 0;
 }
 

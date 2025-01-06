@@ -1,10 +1,10 @@
 /*
- * windivert.h
+ * cydivert.h
  * (C) 2019, all rights reserved,
  *
- * This file is part of WinDivert.
+ * This file is part of CyDivert.
  *
- * WinDivert is free software: you can redistribute it and/or modify it under
+ * CyDivert is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
  * option) any later version.
@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * WinDivert is free software; you can redistribute it and/or modify it under
+ * CyDivert is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
@@ -32,16 +32,16 @@
  * Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef __WINDIVERT_H
-#define __WINDIVERT_H
+#ifndef __CYDIVERT_H
+#define __CYDIVERT_H
 
-#ifndef WINDIVERT_KERNEL
+#ifndef CYDIVERT_KERNEL
 #include <windows.h>
-#endif      /* WINDIVERT_KERNEL */
+#endif      /* CYDIVERT_KERNEL */
 
-#ifndef WINDIVERTEXPORT
-#define WINDIVERTEXPORT     extern __declspec(dllimport)
-#endif      /* WINDIVERTEXPORT */
+#ifndef CYDIVERTEXPORT
+#define CYDIVERTEXPORT     extern __declspec(dllimport)
+#endif      /* CYDIVERTEXPORT */
 
 #ifdef __MINGW32__
 #define __in
@@ -66,32 +66,32 @@ extern "C" {
 #endif
 
 /****************************************************************************/
-/* WINDIVERT API                                                            */
+/* CYDIVERT API                                                            */
 /****************************************************************************/
 
 /*
- * WinDivert layers.
+ * CyDivert layers.
  */
 typedef enum
 {
-    WINDIVERT_LAYER_NETWORK = 0,        /* Network layer. */
-    WINDIVERT_LAYER_NETWORK_FORWARD = 1,/* Network layer (forwarded packets) */
-    WINDIVERT_LAYER_FLOW = 2,           /* Flow layer. */
-    WINDIVERT_LAYER_SOCKET = 3,         /* Socket layer. */
-    WINDIVERT_LAYER_REFLECT = 4,        /* Reflect layer. */
-} WINDIVERT_LAYER, *PWINDIVERT_LAYER;
+    CYDIVERT_LAYER_NETWORK = 0,        /* Network layer. */
+    CYDIVERT_LAYER_NETWORK_FORWARD = 1,/* Network layer (forwarded packets) */
+    CYDIVERT_LAYER_FLOW = 2,           /* Flow layer. */
+    CYDIVERT_LAYER_SOCKET = 3,         /* Socket layer. */
+    CYDIVERT_LAYER_REFLECT = 4,        /* Reflect layer. */
+} CYDIVERT_LAYER, *PCYDIVERT_LAYER;
 
 /*
- * WinDivert NETWORK and NETWORK_FORWARD layer data.
+ * CyDivert NETWORK and NETWORK_FORWARD layer data.
  */
 typedef struct
 {
     UINT32 IfIdx;                       /* Packet's interface index. */
     UINT32 SubIfIdx;                    /* Packet's sub-interface index. */
-} WINDIVERT_DATA_NETWORK, *PWINDIVERT_DATA_NETWORK;
+} CYDIVERT_DATA_NETWORK, *PCYDIVERT_DATA_NETWORK;
 
 /*
- * WinDivert FLOW layer data.
+ * CyDivert FLOW layer data.
  */
 typedef struct
 {
@@ -103,10 +103,10 @@ typedef struct
     UINT16 LocalPort;                   /* Local port. */
     UINT16 RemotePort;                  /* Remote port. */
     UINT8  Protocol;                    /* Protocol. */
-} WINDIVERT_DATA_FLOW, *PWINDIVERT_DATA_FLOW;
+} CYDIVERT_DATA_FLOW, *PCYDIVERT_DATA_FLOW;
 
 /*
- * WinDivert SOCKET layer data.
+ * CyDivert SOCKET layer data.
  */
 typedef struct
 {
@@ -118,22 +118,22 @@ typedef struct
     UINT16 LocalPort;                   /* Local port. */
     UINT16 RemotePort;                  /* Remote port. */
     UINT8  Protocol;                    /* Protocol. */
-} WINDIVERT_DATA_SOCKET, *PWINDIVERT_DATA_SOCKET;
+} CYDIVERT_DATA_SOCKET, *PCYDIVERT_DATA_SOCKET;
 
 /*
- * WinDivert REFLECTION layer data.
+ * CyDivert REFLECTION layer data.
  */
 typedef struct
 {
     INT64  Timestamp;                   /* Handle open time. */
     UINT32 ProcessId;                   /* Handle process ID. */
-    WINDIVERT_LAYER Layer;              /* Handle layer. */
+    CYDIVERT_LAYER Layer;              /* Handle layer. */
     UINT64 Flags;                       /* Handle flags. */
     INT16  Priority;                    /* Handle priority. */
-} WINDIVERT_DATA_REFLECT, *PWINDIVERT_DATA_REFLECT;
+} CYDIVERT_DATA_REFLECT, *PCYDIVERT_DATA_REFLECT;
 
 /*
- * WinDivert address.
+ * CyDivert address.
  */
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -156,178 +156,178 @@ typedef struct
     UINT32 Reserved2;
     union
     {
-        WINDIVERT_DATA_NETWORK Network; /* Network layer data. */
-        WINDIVERT_DATA_FLOW Flow;       /* Flow layer data. */
-        WINDIVERT_DATA_SOCKET Socket;   /* Socket layer data. */
-        WINDIVERT_DATA_REFLECT Reflect; /* Reflect layer data. */
+        CYDIVERT_DATA_NETWORK Network; /* Network layer data. */
+        CYDIVERT_DATA_FLOW Flow;       /* Flow layer data. */
+        CYDIVERT_DATA_SOCKET Socket;   /* Socket layer data. */
+        CYDIVERT_DATA_REFLECT Reflect; /* Reflect layer data. */
         UINT8 Reserved3[64];
     };
-} WINDIVERT_ADDRESS, *PWINDIVERT_ADDRESS;
+} CYDIVERT_ADDRESS, *PCYDIVERT_ADDRESS;
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
 
 /*
- * WinDivert events.
+ * CyDivert events.
  */
 typedef enum
 {
-    WINDIVERT_EVENT_NETWORK_PACKET = 0, /* Network packet. */
-    WINDIVERT_EVENT_FLOW_ESTABLISHED = 1,
+    CYDIVERT_EVENT_NETWORK_PACKET = 0, /* Network packet. */
+    CYDIVERT_EVENT_FLOW_ESTABLISHED = 1,
                                         /* Flow established. */
-    WINDIVERT_EVENT_FLOW_DELETED = 2,   /* Flow deleted. */
-    WINDIVERT_EVENT_SOCKET_BIND = 3,    /* Socket bind. */
-    WINDIVERT_EVENT_SOCKET_CONNECT = 4, /* Socket connect. */
-    WINDIVERT_EVENT_SOCKET_LISTEN = 5,  /* Socket listen. */
-    WINDIVERT_EVENT_SOCKET_ACCEPT = 6,  /* Socket accept. */
-    WINDIVERT_EVENT_SOCKET_CLOSE = 7,   /* Socket close. */
-    WINDIVERT_EVENT_REFLECT_OPEN = 8,   /* WinDivert handle opened. */
-    WINDIVERT_EVENT_REFLECT_CLOSE = 9,  /* WinDivert handle closed. */
-} WINDIVERT_EVENT, *PWINDIVERT_EVENT;
+    CYDIVERT_EVENT_FLOW_DELETED = 2,   /* Flow deleted. */
+    CYDIVERT_EVENT_SOCKET_BIND = 3,    /* Socket bind. */
+    CYDIVERT_EVENT_SOCKET_CONNECT = 4, /* Socket connect. */
+    CYDIVERT_EVENT_SOCKET_LISTEN = 5,  /* Socket listen. */
+    CYDIVERT_EVENT_SOCKET_ACCEPT = 6,  /* Socket accept. */
+    CYDIVERT_EVENT_SOCKET_CLOSE = 7,   /* Socket close. */
+    CYDIVERT_EVENT_REFLECT_OPEN = 8,   /* CyDivert handle opened. */
+    CYDIVERT_EVENT_REFLECT_CLOSE = 9,  /* CyDivert handle closed. */
+} CYDIVERT_EVENT, *PCYDIVERT_EVENT;
 
 /*
- * WinDivert flags.
+ * CyDivert flags.
  */
-#define WINDIVERT_FLAG_SNIFF            0x0001
-#define WINDIVERT_FLAG_DROP             0x0002
-#define WINDIVERT_FLAG_RECV_ONLY        0x0004
-#define WINDIVERT_FLAG_READ_ONLY        WINDIVERT_FLAG_RECV_ONLY
-#define WINDIVERT_FLAG_SEND_ONLY        0x0008
-#define WINDIVERT_FLAG_WRITE_ONLY       WINDIVERT_FLAG_SEND_ONLY
-#define WINDIVERT_FLAG_NO_INSTALL       0x0010
-#define WINDIVERT_FLAG_FRAGMENTS        0x0020
+#define CYDIVERT_FLAG_SNIFF            0x0001
+#define CYDIVERT_FLAG_DROP             0x0002
+#define CYDIVERT_FLAG_RECV_ONLY        0x0004
+#define CYDIVERT_FLAG_READ_ONLY        CYDIVERT_FLAG_RECV_ONLY
+#define CYDIVERT_FLAG_SEND_ONLY        0x0008
+#define CYDIVERT_FLAG_WRITE_ONLY       CYDIVERT_FLAG_SEND_ONLY
+#define CYDIVERT_FLAG_NO_INSTALL       0x0010
+#define CYDIVERT_FLAG_FRAGMENTS        0x0020
 
 /*
- * WinDivert parameters.
- */
-typedef enum
-{
-    WINDIVERT_PARAM_QUEUE_LENGTH = 0,   /* Packet queue length. */
-    WINDIVERT_PARAM_QUEUE_TIME = 1,     /* Packet queue time. */
-    WINDIVERT_PARAM_QUEUE_SIZE = 2,     /* Packet queue size. */
-    WINDIVERT_PARAM_VERSION_MAJOR = 3,  /* Driver version (major). */
-    WINDIVERT_PARAM_VERSION_MINOR = 4,  /* Driver version (minor). */
-} WINDIVERT_PARAM, *PWINDIVERT_PARAM;
-#define WINDIVERT_PARAM_MAX             WINDIVERT_PARAM_VERSION_MINOR
-
-/*
- * WinDivert shutdown parameter.
+ * CyDivert parameters.
  */
 typedef enum
 {
-    WINDIVERT_SHUTDOWN_RECV = 0x1,      /* Shutdown recv. */
-    WINDIVERT_SHUTDOWN_SEND = 0x2,      /* Shutdown send. */
-    WINDIVERT_SHUTDOWN_BOTH = 0x3,      /* Shutdown recv and send. */
-} WINDIVERT_SHUTDOWN, *PWINDIVERT_SHUTDOWN;
-#define WINDIVERT_SHUTDOWN_MAX          WINDIVERT_SHUTDOWN_BOTH
-
-#ifndef WINDIVERT_KERNEL
+    CYDIVERT_PARAM_QUEUE_LENGTH = 0,   /* Packet queue length. */
+    CYDIVERT_PARAM_QUEUE_TIME = 1,     /* Packet queue time. */
+    CYDIVERT_PARAM_QUEUE_SIZE = 2,     /* Packet queue size. */
+    CYDIVERT_PARAM_VERSION_MAJOR = 3,  /* Driver version (major). */
+    CYDIVERT_PARAM_VERSION_MINOR = 4,  /* Driver version (minor). */
+} CYDIVERT_PARAM, *PCYDIVERT_PARAM;
+#define CYDIVERT_PARAM_MAX             CYDIVERT_PARAM_VERSION_MINOR
 
 /*
- * Open a WinDivert handle.
+ * CyDivert shutdown parameter.
  */
-WINDIVERTEXPORT HANDLE WinDivertOpen(
+typedef enum
+{
+    CYDIVERT_SHUTDOWN_RECV = 0x1,      /* Shutdown recv. */
+    CYDIVERT_SHUTDOWN_SEND = 0x2,      /* Shutdown send. */
+    CYDIVERT_SHUTDOWN_BOTH = 0x3,      /* Shutdown recv and send. */
+} CYDIVERT_SHUTDOWN, *PCYDIVERT_SHUTDOWN;
+#define CYDIVERT_SHUTDOWN_MAX          CYDIVERT_SHUTDOWN_BOTH
+
+#ifndef CYDIVERT_KERNEL
+
+/*
+ * Open a CyDivert handle.
+ */
+CYDIVERTEXPORT HANDLE CyDivertOpen(
     __in        const char *filter,
-    __in        WINDIVERT_LAYER layer,
+    __in        CYDIVERT_LAYER layer,
     __in        INT16 priority,
     __in        UINT64 flags);
 
 /*
- * Receive (read) a packet from a WinDivert handle.
+ * Receive (read) a packet from a CyDivert handle.
  */
-WINDIVERTEXPORT BOOL WinDivertRecv(
+CYDIVERTEXPORT BOOL CyDivertRecv(
     __in        HANDLE handle,
     __out_opt   VOID *pPacket,
     __in        UINT packetLen,
     __out_opt   UINT *pRecvLen,
-    __out_opt   WINDIVERT_ADDRESS *pAddr);
+    __out_opt   CYDIVERT_ADDRESS *pAddr);
 
 /*
- * Receive (read) a packet from a WinDivert handle.
+ * Receive (read) a packet from a CyDivert handle.
  */
-WINDIVERTEXPORT BOOL WinDivertRecvEx(
+CYDIVERTEXPORT BOOL CyDivertRecvEx(
     __in        HANDLE handle,
     __out_opt   VOID *pPacket,
     __in        UINT packetLen,
     __out_opt   UINT *pRecvLen,
     __in        UINT64 flags,
-    __out       WINDIVERT_ADDRESS *pAddr,
+    __out       CYDIVERT_ADDRESS *pAddr,
     __inout_opt UINT *pAddrLen,
     __inout_opt LPOVERLAPPED lpOverlapped);
 
 /*
- * Send (write/inject) a packet to a WinDivert handle.
+ * Send (write/inject) a packet to a CyDivert handle.
  */
-WINDIVERTEXPORT BOOL WinDivertSend(
+CYDIVERTEXPORT BOOL CyDivertSend(
     __in        HANDLE handle,
     __in        const VOID *pPacket,
     __in        UINT packetLen,
     __out_opt   UINT *pSendLen,
-    __in        const WINDIVERT_ADDRESS *pAddr);
+    __in        const CYDIVERT_ADDRESS *pAddr);
 
 /*
- * Send (write/inject) a packet to a WinDivert handle.
+ * Send (write/inject) a packet to a CyDivert handle.
  */
-WINDIVERTEXPORT BOOL WinDivertSendEx(
+CYDIVERTEXPORT BOOL CyDivertSendEx(
     __in        HANDLE handle,
     __in        const VOID *pPacket,
     __in        UINT packetLen,
     __out_opt   UINT *pSendLen,
     __in        UINT64 flags,
-    __in        const WINDIVERT_ADDRESS *pAddr,
+    __in        const CYDIVERT_ADDRESS *pAddr,
     __in        UINT addrLen,
     __inout_opt LPOVERLAPPED lpOverlapped);
 
 /*
- * Shutdown a WinDivert handle.
+ * Shutdown a CyDivert handle.
  */
-WINDIVERTEXPORT BOOL WinDivertShutdown(
+CYDIVERTEXPORT BOOL CyDivertShutdown(
     __in        HANDLE handle,
-    __in        WINDIVERT_SHUTDOWN how);
+    __in        CYDIVERT_SHUTDOWN how);
 
 /*
- * Close a WinDivert handle.
+ * Close a CyDivert handle.
  */
-WINDIVERTEXPORT BOOL WinDivertClose(
+CYDIVERTEXPORT BOOL CyDivertClose(
     __in        HANDLE handle);
 
 /*
- * Set a WinDivert handle parameter.
+ * Set a CyDivert handle parameter.
  */
-WINDIVERTEXPORT BOOL WinDivertSetParam(
+CYDIVERTEXPORT BOOL CyDivertSetParam(
     __in        HANDLE handle,
-    __in        WINDIVERT_PARAM param,
+    __in        CYDIVERT_PARAM param,
     __in        UINT64 value);
 
 /*
- * Get a WinDivert handle parameter.
+ * Get a CyDivert handle parameter.
  */
-WINDIVERTEXPORT BOOL WinDivertGetParam(
+CYDIVERTEXPORT BOOL CyDivertGetParam(
     __in        HANDLE handle,
-    __in        WINDIVERT_PARAM param,
+    __in        CYDIVERT_PARAM param,
     __out       UINT64 *pValue);
 
-#endif      /* WINDIVERT_KERNEL */
+#endif      /* CYDIVERT_KERNEL */
 
 /*
- * WinDivert constants.
+ * CyDivert constants.
  */
-#define WINDIVERT_PRIORITY_HIGHEST              30000
-#define WINDIVERT_PRIORITY_LOWEST               (-WINDIVERT_PRIORITY_HIGHEST)
-#define WINDIVERT_PARAM_QUEUE_LENGTH_DEFAULT    4096
-#define WINDIVERT_PARAM_QUEUE_LENGTH_MIN        32
-#define WINDIVERT_PARAM_QUEUE_LENGTH_MAX        16384
-#define WINDIVERT_PARAM_QUEUE_TIME_DEFAULT      2000        /* 2s */
-#define WINDIVERT_PARAM_QUEUE_TIME_MIN          100         /* 100ms */
-#define WINDIVERT_PARAM_QUEUE_TIME_MAX          16000       /* 16s */
-#define WINDIVERT_PARAM_QUEUE_SIZE_DEFAULT      4194304     /* 4MB */
-#define WINDIVERT_PARAM_QUEUE_SIZE_MIN          65535       /* 64KB */
-#define WINDIVERT_PARAM_QUEUE_SIZE_MAX          33554432    /* 32MB */
-#define WINDIVERT_BATCH_MAX                     0xFF        /* 255 */
-#define WINDIVERT_MTU_MAX                       (40 + 0xFFFF)
+#define CYDIVERT_PRIORITY_HIGHEST              30000
+#define CYDIVERT_PRIORITY_LOWEST               (-CYDIVERT_PRIORITY_HIGHEST)
+#define CYDIVERT_PARAM_QUEUE_LENGTH_DEFAULT    4096
+#define CYDIVERT_PARAM_QUEUE_LENGTH_MIN        32
+#define CYDIVERT_PARAM_QUEUE_LENGTH_MAX        16384
+#define CYDIVERT_PARAM_QUEUE_TIME_DEFAULT      2000        /* 2s */
+#define CYDIVERT_PARAM_QUEUE_TIME_MIN          100         /* 100ms */
+#define CYDIVERT_PARAM_QUEUE_TIME_MAX          16000       /* 16s */
+#define CYDIVERT_PARAM_QUEUE_SIZE_DEFAULT      4194304     /* 4MB */
+#define CYDIVERT_PARAM_QUEUE_SIZE_MIN          65535       /* 64KB */
+#define CYDIVERT_PARAM_QUEUE_SIZE_MAX          33554432    /* 32MB */
+#define CYDIVERT_BATCH_MAX                     0xFF        /* 255 */
+#define CYDIVERT_MTU_MAX                       (40 + 0xFFFF)
 
 /****************************************************************************/
-/* WINDIVERT HELPER API                                                     */
+/* CYDIVERT HELPER API                                                     */
 /****************************************************************************/
 
 #ifdef _MSC_VER
@@ -351,39 +351,39 @@ typedef struct
     UINT16 Checksum;
     UINT32 SrcAddr;
     UINT32 DstAddr;
-} WINDIVERT_IPHDR, *PWINDIVERT_IPHDR;
+} CYDIVERT_IPHDR, *PCYDIVERT_IPHDR;
 
-#define WINDIVERT_IPHDR_GET_FRAGOFF(hdr)                    \
+#define CYDIVERT_IPHDR_GET_FRAGOFF(hdr)                    \
     (((hdr)->FragOff0) & 0xFF1F)
-#define WINDIVERT_IPHDR_GET_MF(hdr)                         \
+#define CYDIVERT_IPHDR_GET_MF(hdr)                         \
     ((((hdr)->FragOff0) & 0x0020) != 0)
-#define WINDIVERT_IPHDR_GET_DF(hdr)                         \
+#define CYDIVERT_IPHDR_GET_DF(hdr)                         \
     ((((hdr)->FragOff0) & 0x0040) != 0)
-#define WINDIVERT_IPHDR_GET_RESERVED(hdr)                   \
+#define CYDIVERT_IPHDR_GET_RESERVED(hdr)                   \
     ((((hdr)->FragOff0) & 0x0080) != 0)
 
-#define WINDIVERT_IPHDR_SET_FRAGOFF(hdr, val)               \
+#define CYDIVERT_IPHDR_SET_FRAGOFF(hdr, val)               \
     do                                                      \
     {                                                       \
         (hdr)->FragOff0 = (((hdr)->FragOff0) & 0x00E0) |    \
             ((val) & 0xFF1F);                               \
     }                                                       \
     while (FALSE)
-#define WINDIVERT_IPHDR_SET_MF(hdr, val)                    \
+#define CYDIVERT_IPHDR_SET_MF(hdr, val)                    \
     do                                                      \
     {                                                       \
         (hdr)->FragOff0 = (((hdr)->FragOff0) & 0xFFDF) |    \
             (((val) & 0x0001) << 5);                        \
     }                                                       \
     while (FALSE)
-#define WINDIVERT_IPHDR_SET_DF(hdr, val)                    \
+#define CYDIVERT_IPHDR_SET_DF(hdr, val)                    \
     do                                                      \
     {                                                       \
         (hdr)->FragOff0 = (((hdr)->FragOff0) & 0xFFBF) |    \
             (((val) & 0x0001) << 6);                        \
     }                                                       \
     while (FALSE)
-#define WINDIVERT_IPHDR_SET_RESERVED(hdr, val)              \
+#define CYDIVERT_IPHDR_SET_RESERVED(hdr, val)              \
     do                                                      \
     {                                                       \
         (hdr)->FragOff0 = (((hdr)->FragOff0) & 0xFF7F) |    \
@@ -403,21 +403,21 @@ typedef struct
     UINT8  HopLimit;
     UINT32 SrcAddr[4];
     UINT32 DstAddr[4];
-} WINDIVERT_IPV6HDR, *PWINDIVERT_IPV6HDR;
+} CYDIVERT_IPV6HDR, *PCYDIVERT_IPV6HDR;
 
-#define WINDIVERT_IPV6HDR_GET_TRAFFICCLASS(hdr)             \
+#define CYDIVERT_IPV6HDR_GET_TRAFFICCLASS(hdr)             \
     ((((hdr)->TrafficClass0) << 4) | ((hdr)->TrafficClass1))
-#define WINDIVERT_IPV6HDR_GET_FLOWLABEL(hdr)                \
+#define CYDIVERT_IPV6HDR_GET_FLOWLABEL(hdr)                \
     ((((UINT32)(hdr)->FlowLabel0) << 16) | ((UINT32)(hdr)->FlowLabel1))
 
-#define WINDIVERT_IPV6HDR_SET_TRAFFICCLASS(hdr, val)        \
+#define CYDIVERT_IPV6HDR_SET_TRAFFICCLASS(hdr, val)        \
     do                                                      \
     {                                                       \
         (hdr)->TrafficClass0 = ((UINT8)(val) >> 4);         \
         (hdr)->TrafficClass1 = (UINT8)(val);                \
     }                                                       \
     while (FALSE)
-#define WINDIVERT_IPV6HDR_SET_FLOWLABEL(hdr, val)           \
+#define CYDIVERT_IPV6HDR_SET_FLOWLABEL(hdr, val)           \
     do                                                      \
     {                                                       \
         (hdr)->FlowLabel0 = (UINT8)((val) >> 16);           \
@@ -431,7 +431,7 @@ typedef struct
     UINT8  Code;
     UINT16 Checksum;
     UINT32 Body;
-} WINDIVERT_ICMPHDR, *PWINDIVERT_ICMPHDR;
+} CYDIVERT_ICMPHDR, *PCYDIVERT_ICMPHDR;
 
 typedef struct
 {
@@ -439,7 +439,7 @@ typedef struct
     UINT8  Code;
     UINT16 Checksum;
     UINT32 Body;
-} WINDIVERT_ICMPV6HDR, *PWINDIVERT_ICMPV6HDR;
+} CYDIVERT_ICMPV6HDR, *PCYDIVERT_ICMPV6HDR;
 
 typedef struct
 {
@@ -459,7 +459,7 @@ typedef struct
     UINT16 Window;
     UINT16 Checksum;
     UINT16 UrgPtr;
-} WINDIVERT_TCPHDR, *PWINDIVERT_TCPHDR;
+} CYDIVERT_TCPHDR, *PCYDIVERT_TCPHDR;
 
 typedef struct
 {
@@ -467,27 +467,27 @@ typedef struct
     UINT16 DstPort;
     UINT16 Length;
     UINT16 Checksum;
-} WINDIVERT_UDPHDR, *PWINDIVERT_UDPHDR;
+} CYDIVERT_UDPHDR, *PCYDIVERT_UDPHDR;
 
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
 
 /*
- * Flags for WinDivertHelperCalcChecksums()
+ * Flags for CyDivertHelperCalcChecksums()
  */
-#define WINDIVERT_HELPER_NO_IP_CHECKSUM                     1
-#define WINDIVERT_HELPER_NO_ICMP_CHECKSUM                   2
-#define WINDIVERT_HELPER_NO_ICMPV6_CHECKSUM                 4
-#define WINDIVERT_HELPER_NO_TCP_CHECKSUM                    8
-#define WINDIVERT_HELPER_NO_UDP_CHECKSUM                    16
+#define CYDIVERT_HELPER_NO_IP_CHECKSUM                     1
+#define CYDIVERT_HELPER_NO_ICMP_CHECKSUM                   2
+#define CYDIVERT_HELPER_NO_ICMPV6_CHECKSUM                 4
+#define CYDIVERT_HELPER_NO_TCP_CHECKSUM                    8
+#define CYDIVERT_HELPER_NO_UDP_CHECKSUM                    16
 
-#ifndef WINDIVERT_KERNEL
+#ifndef CYDIVERT_KERNEL
 
 /*
  * Hash a packet.
  */
-WINDIVERTEXPORT UINT64 WinDivertHelperHashPacket(
+CYDIVERTEXPORT UINT64 CyDivertHelperHashPacket(
     __in        const VOID *pPacket,
     __in        UINT packetLen,
     __in        UINT64 seed
@@ -499,16 +499,16 @@ WINDIVERTEXPORT UINT64 WinDivertHelperHashPacket(
 /*
  * Parse IPv4/IPv6/ICMP/ICMPv6/TCP/UDP headers from a raw packet.
  */
-WINDIVERTEXPORT BOOL WinDivertHelperParsePacket(
+CYDIVERTEXPORT BOOL CyDivertHelperParsePacket(
     __in        const VOID *pPacket,
     __in        UINT packetLen,
-    __out_opt   PWINDIVERT_IPHDR *ppIpHdr,
-    __out_opt   PWINDIVERT_IPV6HDR *ppIpv6Hdr,
+    __out_opt   PCYDIVERT_IPHDR *ppIpHdr,
+    __out_opt   PCYDIVERT_IPV6HDR *ppIpv6Hdr,
     __out_opt   UINT8 *pProtocol,
-    __out_opt   PWINDIVERT_ICMPHDR *ppIcmpHdr,
-    __out_opt   PWINDIVERT_ICMPV6HDR *ppIcmpv6Hdr,
-    __out_opt   PWINDIVERT_TCPHDR *ppTcpHdr,
-    __out_opt   PWINDIVERT_UDPHDR *ppUdpHdr,
+    __out_opt   PCYDIVERT_ICMPHDR *ppIcmpHdr,
+    __out_opt   PCYDIVERT_ICMPV6HDR *ppIcmpv6Hdr,
+    __out_opt   PCYDIVERT_TCPHDR *ppTcpHdr,
+    __out_opt   PCYDIVERT_UDPHDR *ppUdpHdr,
     __out_opt   PVOID *ppData,
     __out_opt   UINT *pDataLen,
     __out_opt   PVOID *ppNext,
@@ -517,21 +517,21 @@ WINDIVERTEXPORT BOOL WinDivertHelperParsePacket(
 /*
  * Parse an IPv4 address.
  */
-WINDIVERTEXPORT BOOL WinDivertHelperParseIPv4Address(
+CYDIVERTEXPORT BOOL CyDivertHelperParseIPv4Address(
     __in        const char *addrStr,
     __out_opt   UINT32 *pAddr);
 
 /*
  * Parse an IPv6 address.
  */
-WINDIVERTEXPORT BOOL WinDivertHelperParseIPv6Address(
+CYDIVERTEXPORT BOOL CyDivertHelperParseIPv6Address(
     __in        const char *addrStr,
     __out_opt   UINT32 *pAddr);
 
 /*
  * Format an IPv4 address.
  */
-WINDIVERTEXPORT BOOL WinDivertHelperFormatIPv4Address(
+CYDIVERTEXPORT BOOL CyDivertHelperFormatIPv4Address(
     __in        UINT32 addr,
     __out       char *buffer,
     __in        UINT bufLen);
@@ -539,7 +539,7 @@ WINDIVERTEXPORT BOOL WinDivertHelperFormatIPv4Address(
 /*
  * Format an IPv6 address.
  */
-WINDIVERTEXPORT BOOL WinDivertHelperFormatIPv6Address(
+CYDIVERTEXPORT BOOL CyDivertHelperFormatIPv6Address(
     __in        const UINT32 *pAddr,
     __out       char *buffer,
     __in        UINT bufLen);
@@ -547,25 +547,25 @@ WINDIVERTEXPORT BOOL WinDivertHelperFormatIPv6Address(
 /*
  * Calculate IPv4/IPv6/ICMP/ICMPv6/TCP/UDP checksums.
  */
-WINDIVERTEXPORT BOOL WinDivertHelperCalcChecksums(
+CYDIVERTEXPORT BOOL CyDivertHelperCalcChecksums(
     __inout     VOID *pPacket, 
     __in        UINT packetLen,
-    __out_opt   WINDIVERT_ADDRESS *pAddr,
+    __out_opt   CYDIVERT_ADDRESS *pAddr,
     __in        UINT64 flags);
 
 /*
  * Decrement the TTL/HopLimit.
  */
-WINDIVERTEXPORT BOOL WinDivertHelperDecrementTTL(
+CYDIVERTEXPORT BOOL CyDivertHelperDecrementTTL(
     __inout     VOID *pPacket,
     __in        UINT packetLen);
 
 /*
  * Compile the given filter string.
  */
-WINDIVERTEXPORT BOOL WinDivertHelperCompileFilter(
+CYDIVERTEXPORT BOOL CyDivertHelperCompileFilter(
     __in        const char *filter,
-    __in        WINDIVERT_LAYER layer,
+    __in        CYDIVERT_LAYER layer,
     __out_opt   char *object,
     __in        UINT objLen,
     __out_opt   const char **errorStr,
@@ -574,57 +574,57 @@ WINDIVERTEXPORT BOOL WinDivertHelperCompileFilter(
 /*
  * Evaluate the given filter string.
  */
-WINDIVERTEXPORT BOOL WinDivertHelperEvalFilter(
+CYDIVERTEXPORT BOOL CyDivertHelperEvalFilter(
     __in        const char *filter,
     __in        const VOID *pPacket,
     __in        UINT packetLen,
-    __in        const WINDIVERT_ADDRESS *pAddr);
+    __in        const CYDIVERT_ADDRESS *pAddr);
 
 /*
  * Format the given filter string.
  */
-WINDIVERTEXPORT BOOL WinDivertHelperFormatFilter(
+CYDIVERTEXPORT BOOL CyDivertHelperFormatFilter(
     __in        const char *filter,
-    __in        WINDIVERT_LAYER layer,
+    __in        CYDIVERT_LAYER layer,
     __out       char *buffer,
     __in        UINT bufLen);
 
 /*
  * Byte ordering.
  */
-WINDIVERTEXPORT UINT16 WinDivertHelperNtohs(
+CYDIVERTEXPORT UINT16 CyDivertHelperNtohs(
     __in        UINT16 x);
-WINDIVERTEXPORT UINT16 WinDivertHelperHtons(
+CYDIVERTEXPORT UINT16 CyDivertHelperHtons(
     __in        UINT16 x);
-WINDIVERTEXPORT UINT32 WinDivertHelperNtohl(
+CYDIVERTEXPORT UINT32 CyDivertHelperNtohl(
     __in        UINT32 x);
-WINDIVERTEXPORT UINT32 WinDivertHelperHtonl(
+CYDIVERTEXPORT UINT32 CyDivertHelperHtonl(
     __in        UINT32 x);
-WINDIVERTEXPORT UINT64 WinDivertHelperNtohll(
+CYDIVERTEXPORT UINT64 CyDivertHelperNtohll(
     __in        UINT64 x);
-WINDIVERTEXPORT UINT64 WinDivertHelperHtonll(
+CYDIVERTEXPORT UINT64 CyDivertHelperHtonll(
     __in        UINT64 x);
-WINDIVERTEXPORT void WinDivertHelperNtohIPv6Address(
+CYDIVERTEXPORT void CyDivertHelperNtohIPv6Address(
     __in        const UINT *inAddr,
     __out       UINT *outAddr);
-WINDIVERTEXPORT void WinDivertHelperHtonIPv6Address(
+CYDIVERTEXPORT void CyDivertHelperHtonIPv6Address(
     __in        const UINT *inAddr,
     __out       UINT *outAddr);
 
 /*
  * Old names to be removed in the next version.
  */
-WINDIVERTEXPORT void WinDivertHelperNtohIpv6Address(
+CYDIVERTEXPORT void CyDivertHelperNtohIpv6Address(
     __in        const UINT *inAddr,
     __out       UINT *outAddr);
-WINDIVERTEXPORT void WinDivertHelperHtonIpv6Address(
+CYDIVERTEXPORT void CyDivertHelperHtonIpv6Address(
     __in        const UINT *inAddr,
     __out       UINT *outAddr);
 
-#endif      /* WINDIVERT_KERNEL */
+#endif      /* CYDIVERT_KERNEL */
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif      /* __WINDIVERT_H */
+#endif      /* __CYDIVERT_H */

@@ -1,10 +1,10 @@
 /*
- * windivert.rc
+ * cydivert.rc
  * (C) 2019, all rights reserved,
  *
- * This file is part of WinDivert.
+ * This file is part of CyDivert.
  *
- * WinDivert is free software: you can redistribute it and/or modify it under
+ * CyDivert is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
  * option) any later version.
@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * WinDivert is free software; you can redistribute it and/or modify it under
+ * CyDivert is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
@@ -35,25 +35,22 @@
 #include <windows.h>
 #include <ntverp.h>
 
-#include "windivert_log.rc"
+#include "cydivert_log.rc"
 
 #define VER_FILETYPE                VFT_DRV
 #define VER_FILESUBTYPE             VFT2_DRV_NETWORK
-#define VER_FILEDESCRIPTION_STR     \
-    "The WinDivert 2.2 driver " \
-    "[URL: https://reqrypt.org/windivert.html] " \
-    "[Bitcoin: 1C5vZVSbizPeZ8ydTYhUfm4LA2cNwBfcYh]"
-#define VER_INTERNALNAME_STR        "WinDivert.sys"
-#define VER_ORIGINALFILENAME_STR    "WinDivert.sys"
-#define VER_PRODUCTVERSION          2.2
-#define VER_PRODUCTVERSION_STR      "2.2"
-#define VER_COMPANYNAME_STR         "Basil"
-#define VER_LEGALCOPYRIGHT_YEARS    "2011-2019"
+#define VER_FILEDESCRIPTION_STR    "The CyDivert 1.0 driver" 
+#define VER_INTERNALNAME_STR        "CyDivert.sys"
+#define VER_ORIGINALFILENAME_STR    "CyDivert.sys"
+#define VER_PRODUCTVERSION           1.0
+#define VER_PRODUCTVERSION_STR      "1.0"
+#define VER_COMPANYNAME_STR         "Cynet Security LTD"
+#define VER_LEGALCOPYRIGHT_YEARS    "2014-2024"
 #define VER_LEGALCOPYRIGHT_STR      \
     "Copyright \251 " VER_COMPANYNAME_STR " " VER_LEGALCOPYRIGHT_YEARS 
 #define VER_FILEVERSION             VER_PRODUCTVERSION
 #define VER_FILEVERSION_STR         VER_PRODUCTVERSION_STR
-#define VER_PRODUCTNAME_STR         "WinDivert 2.2 driver"
+#define VER_PRODUCTNAME_STR         "CyDivert 1.0 driver"
 
 #include "common.ver"
 

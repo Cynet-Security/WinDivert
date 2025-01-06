@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <title>WinDivert 2.2 Documentation</title>
+    <title>CyDivert 2.2 Documentation</title>
     <meta charset="UTF-8"/>
 </head>
 <body>
-<h1>WinDivert 2.2: Windows Packet Divert</h1>
+<h1>CyDivert 2.2: Windows Packet Divert</h1>
 <h2>Table of Contents</h2>
 <ul>
 <li><a href="#introduction">1. Introduction</a></li>
@@ -18,41 +18,41 @@
 <li><a href="#uninstalling">4. Uninstalling</a></li>
 <li><a href="#programming_api">5. Programming API</a>
 <ul>
-<li><a href="#divert_layers">5.1 WINDIVERT_LAYER</a></li>
-<li><a href="#divert_events">5.2 WINDIVERT_EVENT</a></li>
-<li><a href="#divert_address">5.3 WINDIVERT_ADDRESS</a></li>
-<li><a href="#divert_open">5.4 WinDivertOpen</a></li>
-<li><a href="#divert_recv">5.5 WinDivertRecv</a></li>
-<li><a href="#divert_recv_ex">5.6 WinDivertRecvEx</a></li>
-<li><a href="#divert_send">5.7 WinDivertSend</a></li>
-<li><a href="#divert_send_ex">5.8 WinDivertSendEx</a></li>
-<li><a href="#divert_shutdown">5.9 WinDivertShutdown</a></li>
-<li><a href="#divert_close">5.19 WinDivertClose</a></li>
-<li><a href="#divert_set_param">5.11 WinDivertSetParam</a></li>
-<li><a href="#divert_get_param">5.12 WinDivertGetParam</a></li>
+<li><a href="#divert_layers">5.1 CYDIVERT_LAYER</a></li>
+<li><a href="#divert_events">5.2 CYDIVERT_EVENT</a></li>
+<li><a href="#divert_address">5.3 CYDIVERT_ADDRESS</a></li>
+<li><a href="#divert_open">5.4 CyDivertOpen</a></li>
+<li><a href="#divert_recv">5.5 CyDivertRecv</a></li>
+<li><a href="#divert_recv_ex">5.6 CyDivertRecvEx</a></li>
+<li><a href="#divert_send">5.7 CyDivertSend</a></li>
+<li><a href="#divert_send_ex">5.8 CyDivertSendEx</a></li>
+<li><a href="#divert_shutdown">5.9 CyDivertShutdown</a></li>
+<li><a href="#divert_close">5.19 CyDivertClose</a></li>
+<li><a href="#divert_set_param">5.11 CyDivertSetParam</a></li>
+<li><a href="#divert_get_param">5.12 CyDivertGetParam</a></li>
 </ul>
 </li>
 <li><a href="#helper_programming_api">6. Helper Programming API</a>
 <ul>
-<li><a href="#divert_iphdr">6.1 WINDIVERT_IPHDR</a></li>
-<li><a href="#divert_ipv6hdr">6.2 WINDIVERT_IPV6HDR</a></li>
-<li><a href="#divert_icmphdr">6.3 WINDIVERT_ICMPHDR</a></li>
-<li><a href="#divert_icmpv6hdr">6.4 WINDIVERT_ICMPV6HDR</a></li>
-<li><a href="#divert_tcphdr">6.5 WINDIVERT_TCPHDR</a></li>
-<li><a href="#divert_udphdr">6.6 WINDIVERT_UDPHDR</a></li>
-<li><a href="#divert_helper_parse_packet">6.7 WinDivertHelperParsePacket</a></li>
-<li><a href="#divert_helper_hash_packet">6.8 WinDivertHelperHashPacket</a></li>
-<li><a href="#divert_helper_parse_ipv4_address">6.9 WinDivertHelperParseIPv4Address</a></li>
-<li><a href="#divert_helper_parse_ipv6_address">6.10 WinDivertHelperParseIPv6Address</a></li>
-<li><a href="#divert_helper_format_ipv4_address">6.11 WinDivertHelperFormatIPv4Address</a></li>
-<li><a href="#divert_helper_format_ipv6_address">6.12 WinDivertHelperFormatIPv6Address</a></li>
-<li><a href="#divert_helper_calc_checksums">6.13 WinDivertHelperCalcChecksums</a></li>
-<li><a href="#divert_helper_dec_ttl">6.14 WinDivertHelperDecrementTTL</a></li>
-<li><a href="#divert_helper_compile_filter">6.15 WinDivertHelperCompileFilter</a></li>
-<li><a href="#divert_helper_eval_filter">6.16 WinDivertHelperEvalFilter</a></li>
-<li><a href="#divert_helper_format_filter">6.17 WinDivertHelperFormatFilter</a></li>
-<li><a href="#divert_helper_ntoh">6.18 WinDivertHelperNtoh*</a></li>
-<li><a href="#divert_helper_hton">6.19 WinDivertHelperHton*</a></li>
+<li><a href="#divert_iphdr">6.1 CYDIVERT_IPHDR</a></li>
+<li><a href="#divert_ipv6hdr">6.2 CYDIVERT_IPV6HDR</a></li>
+<li><a href="#divert_icmphdr">6.3 CYDIVERT_ICMPHDR</a></li>
+<li><a href="#divert_icmpv6hdr">6.4 CYDIVERT_ICMPV6HDR</a></li>
+<li><a href="#divert_tcphdr">6.5 CYDIVERT_TCPHDR</a></li>
+<li><a href="#divert_udphdr">6.6 CYDIVERT_UDPHDR</a></li>
+<li><a href="#divert_helper_parse_packet">6.7 CyDivertHelperParsePacket</a></li>
+<li><a href="#divert_helper_hash_packet">6.8 CyDivertHelperHashPacket</a></li>
+<li><a href="#divert_helper_parse_ipv4_address">6.9 CyDivertHelperParseIPv4Address</a></li>
+<li><a href="#divert_helper_parse_ipv6_address">6.10 CyDivertHelperParseIPv6Address</a></li>
+<li><a href="#divert_helper_format_ipv4_address">6.11 CyDivertHelperFormatIPv4Address</a></li>
+<li><a href="#divert_helper_format_ipv6_address">6.12 CyDivertHelperFormatIPv6Address</a></li>
+<li><a href="#divert_helper_calc_checksums">6.13 CyDivertHelperCalcChecksums</a></li>
+<li><a href="#divert_helper_dec_ttl">6.14 CyDivertHelperDecrementTTL</a></li>
+<li><a href="#divert_helper_compile_filter">6.15 CyDivertHelperCompileFilter</a></li>
+<li><a href="#divert_helper_eval_filter">6.16 CyDivertHelperEvalFilter</a></li>
+<li><a href="#divert_helper_format_filter">6.17 CyDivertHelperFormatFilter</a></li>
+<li><a href="#divert_helper_ntoh">6.18 CyDivertHelperNtoh*</a></li>
+<li><a href="#divert_helper_hton">6.19 CyDivertHelperHton*</a></li>
 </ul>
 </li>
 <li><a href="#filter_language">7. Filter Language</a>
@@ -70,15 +70,15 @@
 <hr>
 <a name="introduction"><h2>1. Introduction</h2></a>
 <p>
-WinDivert is a powerful user-mode 
+CyDivert is a powerful user-mode 
 capture/sniffing/modification/blocking/re-injection package for
 Windows 7, Windows 8 and Windows 10.
-WinDivert can be used to implement user-mode packet filters, packet sniffers,
+CyDivert can be used to implement user-mode packet filters, packet sniffers,
 firewalls, NAT, VPNs, tunneling applications, etc., without the need to
 write kernel-mode code.
 </p>
 <p>
-The main features of the WinDivert are:
+The main features of the CyDivert are:
 </p>
 <ul>
 <li> User-mode packet capture, sniffing, dropping, filtering, modification,
@@ -93,7 +93,7 @@ The main features of the WinDivert are:
      See the <a href="#license">License</a> for more information.</li>
 </ul>
 <p>
-WinDivert provides similar functionality to
+CyDivert provides similar functionality to
 <code>divert</code> sockets from FreeBSD/MacOS, <code>NETLINK</code> sockets
 from Linux.
 </p>
@@ -101,42 +101,42 @@ from Linux.
 <hr>
 <a name="building"><h2>2. Building</h2></a>
 <p>
-Note that pre-built WinDivert binary distributions are available from the
-<a href="https://reqrypt.org/windivert.html">WinDivert website</a>.
-Most users do not need to build their own version of WinDivert from source.
+Note that pre-built CyDivert binary distributions are available from the
+<a href="https://reqrypt.org/cydivert.html">CyDivert website</a>.
+Most users do not need to build their own version of CyDivert from source.
 </p>
 <p>
-The source code for WinDivert is available for download at:
+The source code for CyDivert is available for download at:
 </p>
 <blockquote>
 <a href="https://github.com/basil00/Divert">
     https://github.com/basil00/Divert</a>
 </blockquote>
 <p>
-To build the WinDivert drivers from source:
+To build the CyDivert drivers from source:
 </p>
 <ol>
 <li> Download and install <a href="http://www.microsoft.com/whdc/devtools/wdk/default.mspx">
 Windows Driver Kit 7.1.0</a>.</li>
 <li> Open a <i>x86 Free Build Environment</i> console.</li>
-<li> In the WinDivert package root directory, run the command:
+<li> In the CyDivert package root directory, run the command:
 <pre>
 wddk-build.bat
 </pre>
-This will build the <code>install\WDDK\i386\WinDivert32.sys</code> driver.</li>
+This will build the <code>install\WDDK\i386\CyDivert32.sys</code> driver.</li>
 <li> Next, open a <i>x64 Free Build Environment</i> console.</li>
 <li> Re-run the <code>wddk-build.bat</code> command to build the
-<code>install\WDDK\amd64\WinDivert64.sys</code> driver.</li>
+<code>install\WDDK\amd64\CyDivert64.sys</code> driver.</li>
 </ol>
 <p>
-To build the WinDivert user-mode library (<code>WinDivert.dll</code>) and sample
+To build the CyDivert user-mode library (<code>CyDivert.dll</code>) and sample
 programs:
 </p>
 <ol>
-<li> First, build the WinDivert drivers by running the
+<li> First, build the CyDivert drivers by running the
 <code>wddk-build.bat</code> command described above.</li>
 <li> In Linux (with the MinGW cross-compilers installed) and in the
-WinDivert package root directory, run the command:
+CyDivert package root directory, run the command:
 <pre>
 sh mingw-build.sh
 </pre>
@@ -144,7 +144,7 @@ This will the user-mode library and sample programs which will be placed
 in the <code>install\MINGW</code> subdirectory.</li>
 </ol>
 <p>
-The generated <code>WinDivert.dll</code>/<code>WinDivert.lib</code> files
+The generated <code>CyDivert.dll</code>/<code>CyDivert.lib</code> files
 should be compatible with all major compilers, including both MinGW and
 Visual Studio.
 </p>
@@ -152,20 +152,20 @@ Visual Studio.
 <a name="driver_signing"><h3>2.1 Driver Signing</h3></a>
 <p>
 If you built your own 
-<code>WinDivert32.sys</code>/<code>WinDivert64.sys</code> drivers,
+<code>CyDivert32.sys</code>/<code>CyDivert64.sys</code> drivers,
 they must be digitally signed before they can be used.
 See <a href="http://msdn.microsoft.com/en-us/windows/hardware/gg487317.aspx">Driver Signing Requirements for Windows</a>
 for more information.
 </p>
 <p>
-Note that the pre-built <code>WinDivert32.sys</code>/<code>WinDivert64.sys</code>
-drivers from the official WinDivert distribution are already digitally signed.
+Note that the pre-built <code>CyDivert32.sys</code>/<code>CyDivert64.sys</code>
+drivers from the official CyDivert distribution are already digitally signed.
 </p>
 
 <hr>
 <a name="installing"><h2>3. Installing</h2></a>
 <p>
-WinDivert does not require any special installation.
+CyDivert does not require any special installation.
 Depending on your target configuration, simply place the following files in
 your application's home directory:
 </p>
@@ -190,7 +190,7 @@ Files Required
 32-bit Windows only
 </td>
 <td>
-<code>WinDivert.dll</code> (32-bit version) and <code>WinDivert32.sys</code>
+<code>CyDivert.dll</code> (32-bit version) and <code>CyDivert32.sys</code>
 </td>
 </tr>
 <tr>
@@ -201,7 +201,7 @@ Files Required
 64-bit Windows only
 </td>
 <td>
-<code>WinDivert.dll</code> (64-bit version) and <code>WinDivert64.sys</code>
+<code>CyDivert.dll</code> (64-bit version) and <code>CyDivert64.sys</code>
 </td>
 </tr>
 <tr>
@@ -212,77 +212,77 @@ Files Required
 Both 32-bit and 64-bit Windows
 </td>
 <td>
-<code>WinDivert.dll</code> (32-bit version), <code>WinDivert32.sys</code>,
-    and <code>WinDivert64.sys</code>
+<code>CyDivert.dll</code> (32-bit version), <code>CyDivert32.sys</code>,
+    and <code>CyDivert64.sys</code>
 </td>
 </tr>
 </table>
 </center>
 <p>
-The WinDivert driver is automatically (and silently) installed on demand
+The CyDivert driver is automatically (and silently) installed on demand
 whenever your application calls
-<a href="#divert_open"><code>WinDivertOpen()</code></a>.
+<a href="#divert_open"><code>CyDivertOpen()</code></a>.
 The calling application must have Administrator privileges.
 </p>
 
 <hr>
 <a name="uninstalling"><h2>4. Uninstalling</h2></a>
 <p>
-To uninstall, simply delete the <code>WinDivert.dll</code>,
-<code>WinDivert32.sys</code>, and <code>WinDivert64.sys</code> files.
-If already running, the WinDivert driver will be automatically
+To uninstall, simply delete the <code>CyDivert.dll</code>,
+<code>CyDivert32.sys</code>, and <code>CyDivert64.sys</code> files.
+If already running, the CyDivert driver will be automatically
 uninstalled during the next machine reboot.
-The WinDivert driver can also be manually removed by (1) terminating
-all processes that are using WinDivert, and (2) issuing the following
+The CyDivert driver can also be manually removed by (1) terminating
+all processes that are using CyDivert, and (2) issuing the following
 commands at the command prompt
 </p>
 <pre>
-    sc stop WinDivert
-    sc delete WinDivert
+    sc stop CyDivert
+    sc delete CyDivert
 </pre>
 <p>
-Alternatively, the WinDivert driver can be removed by using the
-<code>windivertctl.exe</code> <a href="#samples">sample program</a> by
+Alternatively, the CyDivert driver can be removed by using the
+<code>cydivertctl.exe</code> <a href="#samples">sample program</a> by
 issuing the following command:
 </p>
 <pre>
-    windivertctl uninstall
+    cydivertctl uninstall
 </pre>
 
 <hr>
 <a name="programming_api"><h2>5. Programming API</h2></a>
 <p>
-To use the WinDivert package, a program/application must:
+To use the CyDivert package, a program/application must:
 <ol>
-<li> Include the <code>windivert.h</code> header file
+<li> Include the <code>cydivert.h</code> header file
 <pre>
-#include "windivert.h"
+#include "cydivert.h"
 </pre></li>
-<li> Link against or dynamically load the <code>WinDivert.dll</code> dynamic link
+<li> Link against or dynamically load the <code>CyDivert.dll</code> dynamic link
 library.</li>
 </ol>
 
-<a name="divert_layers"><h3>5.1 WINDIVERT_LAYER</h3></a>
+<a name="divert_layers"><h3>5.1 CYDIVERT_LAYER</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
 typedef enum
 {
-    WINDIVERT_LAYER_NETWORK = 0,
-    WINDIVERT_LAYER_NETWORK_FORWARD,
-    WINDIVERT_LAYER_FLOW,
-    WINDIVERT_LAYER_SOCKET,
-    WINDIVERT_LAYER_REFLECT,
-} <b>WINDIVERT_LAYER</b>, *<b>PWINDIVERT_LAYER</b>;
+    CYDIVERT_LAYER_NETWORK = 0,
+    CYDIVERT_LAYER_NETWORK_FORWARD,
+    CYDIVERT_LAYER_FLOW,
+    CYDIVERT_LAYER_SOCKET,
+    CYDIVERT_LAYER_REFLECT,
+} <b>CYDIVERT_LAYER</b>, *<b>PCYDIVERT_LAYER</b>;
 </pre>
 </td></tr></table>
 <dl><dd>
 <b>Remarks</b><br>
 <p>
-WinDivert supports several <i>layers</i> for diverting or capturing
+CyDivert supports several <i>layers</i> for diverting or capturing
 network packets/events.
 Each layer has its own capabilities, such as the ability to block
 events or to inject new events, etc.
-The list of supported WinDivert layers is summarized below:
+The list of supported CyDivert layers is summarized below:
 </p>
 <center>
 <table border="1" cellpadding="5">
@@ -311,7 +311,7 @@ PID?
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_NETWORK</code>
+<code>CYDIVERT_LAYER_NETWORK</code>
 </td>
 <td>&#10004;</td><td>&#10004;</td><td>&#10004;</td><td></td>
 <td>
@@ -320,7 +320,7 @@ Network packets to/from the local machine.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_NETWORK_FORWARD</code>
+<code>CYDIVERT_LAYER_NETWORK_FORWARD</code>
 </td>
 <td>&#10004;</td><td>&#10004;</td><td>&#10004;</td><td></td>
 <td>
@@ -329,7 +329,7 @@ Network packets passing through the local machine.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_FLOW</code>
+<code>CYDIVERT_LAYER_FLOW</code>
 </td>
 <td></td><td></td><td></td><td>&#10004;</td>
 <td>
@@ -338,7 +338,7 @@ Network flow established/deleted events.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_SOCKET</code>
+<code>CYDIVERT_LAYER_SOCKET</code>
 </td>
 <td>&#10004;</td><td></td><td></td><td>&#10004;</td>
 <td>
@@ -347,11 +347,11 @@ Socket operation events.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_REFLECT</code>
+<code>CYDIVERT_LAYER_REFLECT</code>
 </td>
 <td></td><td></td><td>&#10004;</td><td>&#10004;</td>
 <td>
-WinDivert handle events.
+CyDivert handle events.
 </td>
 </tr>
 </table>
@@ -367,15 +367,15 @@ Here, the layer capabilities are:
      an event/packet is available at this layer, or not.
 </ul>
 <p>
-The <code>WINDIVERT_LAYER_NETWORK</code> and
-<code>WINDIVERT_LAYER_NETWORK_FORWARD</code>
+The <code>CYDIVERT_LAYER_NETWORK</code> and
+<code>CYDIVERT_LAYER_NETWORK_FORWARD</code>
 layers allow the user application to capture/block/inject network packets
 passing to/from (and through) the local machine.
 Due to technical limitations, process ID information is not available
 at these layers.
 </p>
 <p>
-The <code>WINDIVERT_LAYER_FLOW</code> layer captures information about
+The <code>CYDIVERT_LAYER_FLOW</code> layer captures information about
 network flow establishment/deletion events.
 Here, a <i>flow</i> represents either (1) a
 TCP connection, or (2) an implicit <q>flow</q> created by the first
@@ -385,11 +385,11 @@ or based on an activity timeout (non-TCP).
 Flow-related events can be captured, but not blocked nor injected.
 Process ID information is also available at this layer.
 Due to technical limitations, the
-<code>WINDIVERT_LAYER_FLOW</code> layer cannot capture flow events that
+<code>CYDIVERT_LAYER_FLOW</code> layer cannot capture flow events that
 occurred before the handle was opened.
 </p>
 <p>
-The <code>WINDIVERT_LAYER_SOCKET</code> layer can capture or block events
+The <code>CYDIVERT_LAYER_SOCKET</code> layer can capture or block events
 corresponding to socket operations, such as <code>bind()</code>,
 <code>connect()</code>, <code>listen()</code>, etc., or the termination
 of socket operations, such as a TCP socket disconnection.
@@ -401,40 +401,40 @@ Due to technical limitations, this layer cannot capture events that
 occurred before the handle was opened.
 </p>
 <p>
-Finally, the <code>WINDIVERT_LAYER_REFLECT</code> layer can capture events
-relating to WinDivert itself, such as when another process opens a
-new WinDivert handle, or closes an old WinDivert handle.
-WinDivert events can be captured but not injected nor blocked.
+Finally, the <code>CYDIVERT_LAYER_REFLECT</code> layer can capture events
+relating to CyDivert itself, such as when another process opens a
+new CyDivert handle, or closes an old CyDivert handle.
+CyDivert events can be captured but not injected nor blocked.
 Process ID information (of the process responsible for opening the
-WinDivert handle) is available at this layer.
+CyDivert handle) is available at this layer.
 This layer also returns data in the form of an <q>object</q> representation
 of the filter string used to open the handle.
 The object representation can be converted back into a human-readable
 filter string using the
-<a href="#divert_helper_format_filter"><code>WinDivertHelperFormatFilter()</code></a>
+<a href="#divert_helper_format_filter"><code>CyDivertHelperFormatFilter()</code></a>
 function.
 This layer can also capture events that occurred before the handle was opened.
 This layer cannot capture events related to other
-<code>WINDIVERT_LAYER_REFLECT</code>-layer handles.
+<code>CYDIVERT_LAYER_REFLECT</code>-layer handles.
 </p>
 </dd></dl>
 
-<a name="divert_events"><h3>5.2 WINDIVERT_EVENT</h3></a>
+<a name="divert_events"><h3>5.2 CYDIVERT_EVENT</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
 typedef enum
 {
-    WINDIVERT_EVENT_NETWORK_PACKET,
-    WINDIVERT_EVENT_FLOW_ESTABLISHED,
-    WINDIVERT_EVENT_FLOW_DELETED,
-    WINDIVERT_EVENT_SOCKET_BIND,
-    WINDIVERT_EVENT_SOCKET_CONNECT,
-    WINDIVERT_EVENT_SOCKET_LISTEN,
-    WINDIVERT_EVENT_SOCKET_ACCEPT,
-    WINDIVERT_EVENT_SOCKET_CLOSE,
-    WINDIVERT_EVENT_REFLECT_OPEN,
-    WINDIVERT_EVENT_REFLECT_CLOSE,
-} <b>WINDIVERT_EVENT</b>, *<b>PWINDIVERT_EVENT</b>;
+    CYDIVERT_EVENT_NETWORK_PACKET,
+    CYDIVERT_EVENT_FLOW_ESTABLISHED,
+    CYDIVERT_EVENT_FLOW_DELETED,
+    CYDIVERT_EVENT_SOCKET_BIND,
+    CYDIVERT_EVENT_SOCKET_CONNECT,
+    CYDIVERT_EVENT_SOCKET_LISTEN,
+    CYDIVERT_EVENT_SOCKET_ACCEPT,
+    CYDIVERT_EVENT_SOCKET_CLOSE,
+    CYDIVERT_EVENT_REFLECT_OPEN,
+    CYDIVERT_EVENT_REFLECT_CLOSE,
+} <b>CYDIVERT_EVENT</b>, *<b>PCYDIVERT_EVENT</b>;
 </pre>
 </td></tr></table>
 <dl><dd>
@@ -445,8 +445,8 @@ Each layer supports one or more <i>events</i> summarized below:
 <ul>
 <li>
 <p>
-<b><code>WINDIVERT_LAYER_NETWORK</code></b> and
-<b><code>WINDIVERT_LAYER_NETWORK_FORWARD</code></b>:
+<b><code>CYDIVERT_LAYER_NETWORK</code></b> and
+<b><code>CYDIVERT_LAYER_NETWORK_FORWARD</code></b>:
 Only a single event is supported:
 </p>
 <center>
@@ -456,7 +456,7 @@ Only a single event is supported:
 <th>Description</th>
 <tr>
 <td>
-<code>WINDIVERT_EVENT_NETWORK_PACKET</code>
+<code>CYDIVERT_EVENT_NETWORK_PACKET</code>
 </td>
 <td>
 A new network packet.
@@ -469,7 +469,7 @@ A new network packet.
 </li>
 <li>
 <p>
-<b><code>WINDIVERT_LAYER_FLOW</code></b>:
+<b><code>CYDIVERT_LAYER_FLOW</code></b>:
 Two events are supported:
 </p>
 <center>
@@ -479,7 +479,7 @@ Two events are supported:
 <th>Description</th>
 <tr>
 <td>
-<code>WINDIVERT_EVENT_FLOW_ESTABLISHED</code>
+<code>CYDIVERT_EVENT_FLOW_ESTABLISHED</code>
 </td>
 <td>
 A new flow is created.
@@ -487,7 +487,7 @@ A new flow is created.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_EVENT_FLOW_DELETED</code>
+<code>CYDIVERT_EVENT_FLOW_DELETED</code>
 </td>
 <td>
 An old flow is deleted.
@@ -498,7 +498,7 @@ An old flow is deleted.
 </li>
 <li>
 <p>
-<b><code>WINDIVERT_LAYER_SOCKET</code></b>:
+<b><code>CYDIVERT_LAYER_SOCKET</code></b>:
 The following events are supported:
 </p>
 <center>
@@ -508,7 +508,7 @@ The following events are supported:
 <th>Description</th>
 <tr>
 <td>
-<code>WINDIVERT_EVENT_SOCKET_BIND</code>
+<code>CYDIVERT_EVENT_SOCKET_BIND</code>
 </td>
 <td>
 A <code>bind()</code> operation.
@@ -516,7 +516,7 @@ A <code>bind()</code> operation.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_EVENT_SOCKET_CONNECT</code>
+<code>CYDIVERT_EVENT_SOCKET_CONNECT</code>
 </td>
 <td>
 A <code>connect()</code> operation.
@@ -524,7 +524,7 @@ A <code>connect()</code> operation.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_EVENT_SOCKET_LISTEN</code>
+<code>CYDIVERT_EVENT_SOCKET_LISTEN</code>
 </td>
 <td>
 A <code>listen()</code> operation.
@@ -532,7 +532,7 @@ A <code>listen()</code> operation.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_EVENT_SOCKET_ACCEPT</code>
+<code>CYDIVERT_EVENT_SOCKET_ACCEPT</code>
 </td>
 <td>
 An <code>accept()</code> operation.
@@ -540,7 +540,7 @@ An <code>accept()</code> operation.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_EVENT_SOCKET_CLOSE</code>
+<code>CYDIVERT_EVENT_SOCKET_CLOSE</code>
 </td>
 <td>
 A socket endpoint is closed.
@@ -552,7 +552,7 @@ The event cannot be blocked.
 </li>
 <li>
 <p>
-<b><code>WINDIVERT_LAYER_REFLECT</code></b>:
+<b><code>CYDIVERT_LAYER_REFLECT</code></b>:
 Two events are supported:
 </p>
 <center>
@@ -562,18 +562,18 @@ Two events are supported:
 <th>Description</th>
 <tr>
 <td>
-<code>WINDIVERT_EVENT_REFLECT_OPEN</code>
+<code>CYDIVERT_EVENT_REFLECT_OPEN</code>
 </td>
 <td>
-A new WinDivert handle was opened.
+A new CyDivert handle was opened.
 </td>
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_EVENT_REFLECT_CLOSE</code>
+<code>CYDIVERT_EVENT_REFLECT_CLOSE</code>
 </td>
 <td>
-An old WinDivert handle was closed.
+An old CyDivert handle was closed.
 </td>
 </tr>
 </table>
@@ -582,14 +582,14 @@ An old WinDivert handle was closed.
 </ul>
 </dd></dl>
 
-<a name="divert_address"><h3>5.3 WINDIVERT_ADDRESS</h3></a>
+<a name="divert_address"><h3>5.3 CYDIVERT_ADDRESS</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
 typedef struct
 {
     UINT32 IfIdx;
     UINT32 SubIfIdx;
-} <b>WINDIVERT_DATA_NETWORK</b>, *<b>PWINDIVERT_DATA_NETWORK</b>;
+} <b>CYDIVERT_DATA_NETWORK</b>, *<b>PCYDIVERT_DATA_NETWORK</b>;
 
 typedef struct
 {
@@ -601,7 +601,7 @@ typedef struct
     UINT16 LocalPort;
     UINT16 RemotePort;
     UINT8  Protocol;
-} <b>WINDIVERT_DATA_FLOW</b>, *<b>PWINDIVERT_DATA_FLOW</b>;
+} <b>CYDIVERT_DATA_FLOW</b>, *<b>PCYDIVERT_DATA_FLOW</b>;
 
 typedef struct
 {
@@ -613,16 +613,16 @@ typedef struct
     UINT16 LocalPort;
     UINT16 RemotePort;
     UINT8  Protocol;
-} <b>WINDIVERT_DATA_SOCKET</b>, *<b>PWINDIVERT_DATA_SOCKET</b>;
+} <b>CYDIVERT_DATA_SOCKET</b>, *<b>PCYDIVERT_DATA_SOCKET</b>;
 
 typedef struct
 {
     INT64  Timestamp;
     UINT32 ProcessId;
-    WINDIVERT_LAYER Layer;
+    CYDIVERT_LAYER Layer;
     UINT64 Flags;
     INT16  Priority;
-} <b>WINDIVERT_DATA_REFLECT</b>, *<b>PWINDIVERT_DATA_REFLECT</b>;
+} <b>CYDIVERT_DATA_REFLECT</b>, *<b>PCYDIVERT_DATA_REFLECT</b>;
 
 typedef struct
 {
@@ -639,20 +639,20 @@ typedef struct
     UINT64 UDPChecksum:1;
     union
     {
-        WINDIVERT_DATA_NETWORK Network;
-        WINDIVERT_DATA_FLOW    Flow;
-        WINDIVERT_DATA_SOCKET  Socket;
-        WINDIVERT_DATA_REFLECT Reflect;
+        CYDIVERT_DATA_NETWORK Network;
+        CYDIVERT_DATA_FLOW    Flow;
+        CYDIVERT_DATA_SOCKET  Socket;
+        CYDIVERT_DATA_REFLECT Reflect;
     };
-} <b>WINDIVERT_ADDRESS</b>, *<b>PWINDIVERT_ADDRESS</b>;
+} <b>CYDIVERT_ADDRESS</b>, *<b>PCYDIVERT_ADDRESS</b>;
 </pre>
 </td></tr></table>
 <dl><dd>
 <p><b>Fields</b></p>
 <ul>
 <li> <code>Timestamp</code>: A timestamp indicating when event occurred.</li>
-<li> <code>Layer</code>: The handle's layer (<code>WINDIVERT_LAYER_*</code>).</li>
-<li> <code>Event</code>: The captured event (<code>WINDIVERT_EVENT_*</code>).</li>
+<li> <code>Layer</code>: The handle's layer (<code>CYDIVERT_LAYER_*</code>).</li>
+<li> <code>Event</code>: The captured event (<code>CYDIVERT_EVENT_*</code>).</li>
 <li> <code>Sniffed</code>: Set to <code>1</code> if the event was
     <q>sniffed</q> (i.e., not blocked), <code>0</code> otherwise..</li>
 <li> <code>Outbound</code>: Set to <code>1</code> for <i>outbound</i>
@@ -697,33 +697,33 @@ valid, <code>0</code> otherwise.</li>
      handle.</li>
 <li> <code>Reflect.Layer</code>, <code>Reflect.Flags</code>, and
      <code>Reflect.Priority</code>: The
-     <a href="#divert_open"><code>WinDivertOpen()</code></a> parameters of
+     <a href="#divert_open"><code>CyDivertOpen()</code></a> parameters of
      the opened handle.</li>
 </ul>
 <p>
 <b>Remarks</b><br>
-The <a href="#divert_address"><code>WINDIVERT_ADDRESS</code></a> structure
+The <a href="#divert_address"><code>CYDIVERT_ADDRESS</code></a> structure
 represents the "address" of a captured or injected packet.
 The address includes the packet's timestamp, layer, event, flags, and
 layer-specific data.
-All fields are set by <a href="#divert_recv"><code>WinDivertRecv()</code></a>
+All fields are set by <a href="#divert_recv"><code>CyDivertRecv()</code></a>
 when the packet/event is captured.
 Only some fields are used by
-<a href="#divert_send"><code>WinDivertSend()</code></a> when a packet
+<a href="#divert_send"><code>CyDivertSend()</code></a> when a packet
 is injected.
 </p><p>
 The <code>Timestamp</code> indicates when the packet/event was first
-captured by WinDivert.
+captured by CyDivert.
 It uses the same clock as
 <a href="https://msdn.microsoft.com/en-us/library/windows/desktop/ms644904(v=vs.85).aspx"><code>QueryPerformanceCounter()</code></a>.
 </p><p>
 The <code>Layer</code> indicates the <i>layer</i> parameter
-(<a href="#divert_layers"><code>WINDIVERT_LAYER_*</code></a>) that was passed to
-<a href="#divert_open"><code>WinDivertOpen()</code></a>.
+(<a href="#divert_layers"><code>CYDIVERT_LAYER_*</code></a>) that was passed to
+<a href="#divert_open"><code>CyDivertOpen()</code></a>.
 It is included in the address to make the structure self-contained.
 </p><p>
 The <code>Event</code> indicates the layer-specific <i>event</i>
-(<a href="#divert_events"><code>WINDIVERT_EVENT_*</code></a>) that was captured.
+(<a href="#divert_events"><code>CYDIVERT_EVENT_*</code></a>) that was captured.
 </p><p>
 The <code>Outbound</code> flag is set for <i>outbound</i>
 packets/events, and is cleared
@@ -733,7 +733,7 @@ The <code>Loopback</code> flag is set for <i>loopback</i> packets.
 Note that Windows considers any packet originating from, and destined to, the
 current machine to be a loopback packet, so loopback packets are not
 limited to localhost addresses.
-Note that WinDivert considers loopback packets to be
+Note that CyDivert considers loopback packets to be
 <i>outbound only</i>, and will not capture loopback packets on the
 inbound path.
 </p><p>
@@ -741,9 +741,9 @@ The <code>Impostor</code> flag is set for <i>impostor</i> packets.
 An impostor packet is any packet injected by another driver rather than
 originating from the network or Windows TCP/IP stack.
 Impostor packets are problematic since they can cause infinite loops,
-where a packet injected by <a href="#divert_send"><code>WinDivertSend()</code></a> 
-is captured again by <a href="#divert_recv"><code>WinDivertRecv()</code></a>.
-For more information, see <a href="#divert_send"><code>WinDivertSend()</code></a>.
+where a packet injected by <a href="#divert_send"><code>CyDivertSend()</code></a> 
+is captured again by <a href="#divert_recv"><code>CyDivertRecv()</code></a>.
+For more information, see <a href="#divert_send"><code>CyDivertSend()</code></a>.
 </p><p>
 The <code>IPv6</code> flag is set for <i>IPv6</i> packets/events, and cleared
 for <i>IPv4</i> packets/events.
@@ -755,14 +755,14 @@ captured packets do not have valid checksums.
 Invalid checksums may be arbitrary values.
 </p><p>
 The <code>Network.*</code> fields are only valid at the
-<code>WINDIVERT_LAYER_NETWORK</code> and
-<code>WINDIVERT_LAYER_NETWORK_FORWARD</code> layers.
+<code>CYDIVERT_LAYER_NETWORK</code> and
+<code>CYDIVERT_LAYER_NETWORK_FORWARD</code> layers.
 The <code>Network.IfIdx</code>/<code>Network.SubIfIdx</code> indicate the packet's
 network adapter (a.k.a. interface) index.
 These values are ignored for <i>outbound</i> packets.
 </p><p>
 The <code>Flow.*</code> fields are only valid at the
-<code>WINDIVERT_LAYER_FLOW</code> layer.
+<code>CYDIVERT_LAYER_FLOW</code> layer.
 The <code>Flow.ProcessId</code> is the <i>ID</i> of the process that
 created the flow (for outbound), or receives the flow (for inbound).
 The
@@ -775,7 +775,7 @@ e.g. the IPv4 address <code>X.Y.Z.W</code> will be represented by
 <code>::ffff:X.Y.Z.W</code>.
 </p><p>
 The <code>Socket.*</code> fields are only valid at the
-<code>WINDIVERT_LAYER_SOCKET</code> layer.
+<code>CYDIVERT_LAYER_SOCKET</code> layer.
 The <code>Socket.ProcessId</code> is the <i>ID</i> of the process that executed
 the socket operation.
 The
@@ -785,41 +785,41 @@ The
 fields form the network 5-tuple associated with the operation.
 For IPv4, the <code>Socket.LocalAddr</code> and <code>Socket.RemoteAddr</code>
 fields will be IPv4-mapped IPv6 addresses.
-The <code>WINDIVERT_EVENT_SOCKET_BIND</code> and
-<code>WINDIVERT_EVENT_SOCKET_LISTEN</code> events can occur before a
+The <code>CYDIVERT_EVENT_SOCKET_BIND</code> and
+<code>CYDIVERT_EVENT_SOCKET_LISTEN</code> events can occur before a
 connection attempt has been made, meaning that the
 <code>Socket.RemoteAddr</code> and <code>Socket.RemotePort</code> fields
 for these events will be zero.
 </p><p>
 The <code>Reflect.*</code> fields are only valid at the
-<code>WINDIVERT_LAYER_REFLECT</code> layer.
+<code>CYDIVERT_LAYER_REFLECT</code> layer.
 The <code>Reflect.ProcessId</code> is the <i>ID</i> of the process that
-opened the WinDivert handle.
+opened the CyDivert handle.
 The <code>Reflect.Timestamp</code> field is a timestamp indicating when the
 handle was opened, using
 the same clock as
 <a href="https://msdn.microsoft.com/en-us/library/windows/desktop/ms644904(v=vs.85).aspx"><code>QueryPerformanceCounter()</code></a>.
 The <code>Reflect.Layer</code>, <code>Reflect.Flags</code>, and
     <code>Reflect.Priority</code> fields correspond to the
-<a href="#divert_open"><code>WinDivertOpen()</code></a> parameters of
+<a href="#divert_open"><code>CyDivertOpen()</code></a> parameters of
 the opened handle.
 </p><p>
 Most address fields are ignored by
-<a href="#divert_send"><code>WinDivertSend()</code></a>.
+<a href="#divert_send"><code>CyDivertSend()</code></a>.
 The exceptions are
-<code>Outbound</code> (for <code>WINDIVERT_LAYER_NETWORK</code> only),
+<code>Outbound</code> (for <code>CYDIVERT_LAYER_NETWORK</code> only),
 <code>Impostor</code>, <code>IPChecksum</code>, <code>TCPChecksum</code>,
 <code>UDPChecksum</code>, <code>Network.IfIdx</code> and
 <code>Network.SubIfIdx</code>.
 </p>
 </dd></dl>
 
-<a name="divert_open"><h3>5.4 WinDivertOpen</h3></a>
+<a name="divert_open"><h3>5.4 CyDivertOpen</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-HANDLE <b>WinDivertOpen</b>(
+HANDLE <b>CyDivertOpen</b>(
     __in const char *filter,
-    __in WINDIVERT_LAYER layer,
+    __in CYDIVERT_LAYER layer,
     __in INT16 priority,
     __in UINT64 flags
 );
@@ -828,7 +828,7 @@ HANDLE <b>WinDivertOpen</b>(
 <dl><dd>
 <p><b>Parameters</b></p>
 <ul>
-<li> <code>filter</code>: A packet filter string specified in the WinDivert
+<li> <code>filter</code>: A packet filter string specified in the CyDivert
     <a href="#filter_language">filter language</a>.</li>
 <li> <code>layer</code>: The layer.</li>
 <li> <code>priority</code>: The priority of the handle.</li>
@@ -836,7 +836,7 @@ HANDLE <b>WinDivertOpen</b>(
 </ul>
 <p>
 <b>Return Value</b><br>
-A valid WinDivert handle on success, or
+A valid CyDivert handle on success, or
 <code>INVALID_HANDLE_VALUE</code> if an error occurred.
 Use <code>GetLastError()</code> to get the reason for the error.
 Common errors include:
@@ -863,7 +863,7 @@ Description
 </td>
 <td>
 The driver files
-<code>WinDivert32.sys</code> or <code>WinDivert64.sys</code>
+<code>CyDivert32.sys</code> or <code>CyDivert64.sys</code>
 were not found.
 </td>
 </tr>
@@ -897,7 +897,7 @@ This indicates an invalid packet filter string, layer, priority, or flags.
 577
 </td>
 <td>
-The <code>WinDivert32.sys</code> or <code>WinDivert64.sys</code> driver does not
+The <code>CyDivert32.sys</code> or <code>CyDivert64.sys</code> driver does not
 have a valid digital signature
 (see the <a href="#driver_signing">driver signing requirements</a> above).
 </td>
@@ -910,7 +910,7 @@ have a valid digital signature
 654
 </td>
 <td>
-An incompatible version of the WinDivert driver is currently loaded.
+An incompatible version of the CyDivert driver is currently loaded.
 </td>
 <tr>
 <td>
@@ -920,8 +920,8 @@ An incompatible version of the WinDivert driver is currently loaded.
 1060
 </td>
 <td>
-The handle was opened with the <code>WINDIVERT_FLAG_NO_INSTALL</code> flag and
-the WinDivert driver is not already installed.
+The handle was opened with the <code>CYDIVERT_FLAG_NO_INSTALL</code> flag and
+the CyDivert driver is not already installed.
 </td>
 </tr>
 <tr>
@@ -934,7 +934,7 @@ the WinDivert driver is not already installed.
 <td>
 This error occurs for various reasons, including:
 <ol>
-<li> the WinDivert driver is blocked by security software; or</li>
+<li> the CyDivert driver is blocked by security software; or</li>
 <li> you are using a virtualization environment that does not support
 drivers.</li>
 </ol>
@@ -956,11 +956,11 @@ disabled.
 </center>
 <p>
 <b>Remarks</b><br>
-Opens a WinDivert handle for the given filter.
+Opens a CyDivert handle for the given filter.
 Unless otherwise specified by <code>flags</code>, any packet or event that
 matches the filter will be diverted to the handle.
 Diverted packets/events can be read by the application with
-<a href="#divert_recv"><code>WinDivertRecv()</code></a>.
+<a href="#divert_recv"><code>CyDivertRecv()</code></a>.
 </p>
 <p>
 A typical application is only interested in a subset of all network traffic
@@ -973,9 +973,9 @@ See the <a href="#filter_language">filter language</a> section for more
 information.
 </p>
 <p>
-The <i>layer</i> of the WinDivert handle is determined by the <code>layer</code>
+The <i>layer</i> of the CyDivert handle is determined by the <code>layer</code>
 parameter.
-See <a href="#divert_layers"><code>WINDIVERT_LAYER</code></a> for more
+See <a href="#divert_layers"><code>CYDIVERT_LAYER</code></a> for more
 information.
 Currently the following layers are supported:
 </p>
@@ -991,7 +991,7 @@ Description
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_NETWORK = 0</code>
+<code>CYDIVERT_LAYER_NETWORK = 0</code>
 </td>
 <td>
 Network packets to/from the local machine.
@@ -1000,7 +1000,7 @@ This is the default layer.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_NETWORK_FORWARD</code>
+<code>CYDIVERT_LAYER_NETWORK_FORWARD</code>
 </td>
 <td>
 Network packets passing through the local machine.
@@ -1008,7 +1008,7 @@ Network packets passing through the local machine.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_FLOW</code>
+<code>CYDIVERT_LAYER_FLOW</code>
 </td>
 <td>
 Network flow established/deleted events.
@@ -1016,7 +1016,7 @@ Network flow established/deleted events.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_SOCKET</code>
+<code>CYDIVERT_LAYER_SOCKET</code>
 </td>
 <td>
 Socket operation events.
@@ -1024,16 +1024,16 @@ Socket operation events.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_REFLECT</code>
+<code>CYDIVERT_LAYER_REFLECT</code>
 </td>
 <td>
-WinDivert handle events.
+CyDivert handle events.
 </td>
 </tr>
 </table>
 </center>
 <p>
-Different WinDivert handles can be assigned different priorities by the
+Different CyDivert handles can be assigned different priorities by the
 <code>priority</code> parameter.
 Packets are diverted to higher priority handles before lower priority
 handles.
@@ -1043,9 +1043,9 @@ A packet is only diverted once per priority level, so handles should not
 share priority levels unless they use mutually exclusive filters.
 Otherwise it is not defined which handle will receive the packet first.
 Higher <code>priority</code> values represent higher priorities, with
-<code>WINDIVERT_PRIORITY_HIGHEST</code> being the highest priority,
+<code>CYDIVERT_PRIORITY_HIGHEST</code> being the highest priority,
 <code>0</code> the middle (and a good default) priority,
-and <code>WINDIVERT_PRIORITY_LOWEST</code> the lowest priority.
+and <code>CYDIVERT_PRIORITY_LOWEST</code> the lowest priority.
 </p>
 <p>
 Different flags affect how the opened handle behaves.
@@ -1063,10 +1063,10 @@ Description
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_FLAG_SNIFF</code>
+<code>CYDIVERT_FLAG_SNIFF</code>
 </td>
 <td>
-This flag opens the WinDivert handle in <i>packet sniffing</i> mode.
+This flag opens the CyDivert handle in <i>packet sniffing</i> mode.
 In packet sniffing mode the original packet is not dropped-and-diverted
 (the default) but copied-and-diverted.
 This mode is useful for implementing packet sniffing tools similar to those
@@ -1075,69 +1075,69 @@ applications that currently use <code>Winpcap</code>.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_FLAG_DROP</code>
+<code>CYDIVERT_FLAG_DROP</code>
 </td>
 <td>
 This flag indicates that the user application does not intend to read matching
-packets with <a href="#divert_recv"><code>WinDivertRecv()</code></a>, instead the
+packets with <a href="#divert_recv"><code>CyDivertRecv()</code></a>, instead the
 packets should be silently dropped.
 This is useful for implementing simple packet filters using the
-WinDivert <a href="#filter_language">filter language</a>.
+CyDivert <a href="#filter_language">filter language</a>.
 </td>
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_FLAG_RECV_ONLY</code>
+<code>CYDIVERT_FLAG_RECV_ONLY</code>
 </td>
 <td>
 This flags forces the handle into <q>receive only</q> mode which effectively
-disables <a href="#divert_send"><code>WinDivertSend()</code></a>.
+disables <a href="#divert_send"><code>CyDivertSend()</code></a>.
 This means that it is possible to block/capture packets or events but not
 inject them.
 </td>
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_FLAG_READ_ONLY</code>
+<code>CYDIVERT_FLAG_READ_ONLY</code>
 </td>
 <td>
-An alias for <code>WINDIVERT_FLAG_RECV_ONLY</code>.
+An alias for <code>CYDIVERT_FLAG_RECV_ONLY</code>.
 </td>
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_FLAG_SEND_ONLY</code>
+<code>CYDIVERT_FLAG_SEND_ONLY</code>
 </td>
 <td>
 This flags forces the handle into <q>send only</q> mode which effectively
-disables <a href="#divert_recv"><code>WinDivertRecv()</code></a>.
+disables <a href="#divert_recv"><code>CyDivertRecv()</code></a>.
 This means that it is possible to inject packets or events, but not
 block/capture them.
 </td>
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_FLAG_WRITE_ONLY</code>
+<code>CYDIVERT_FLAG_WRITE_ONLY</code>
 </td>
 <td>
-An alias for <code>WINDIVERT_FLAG_SEND_ONLY</code>.
+An alias for <code>CYDIVERT_FLAG_SEND_ONLY</code>.
 </td>
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_FLAG_NO_INSTALL</code>
+<code>CYDIVERT_FLAG_NO_INSTALL</code>
 </td>
 <td>
-This flags causes <code>WinDivertOpen()</code> to fail with 
-<code>ERROR_SERVICE_DOES_NOT_EXIST</code> if the WinDivert driver
+This flags causes <code>CyDivertOpen()</code> to fail with 
+<code>ERROR_SERVICE_DOES_NOT_EXIST</code> if the CyDivert driver
 is not already installed.
-This flag is useful for querying the WinDivert state using a
-<code>WINDIVERT_LAYER_REFLECT</code> handle.
+This flag is useful for querying the CyDivert state using a
+<code>CYDIVERT_LAYER_REFLECT</code> handle.
 </td>
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_FLAG_FRAGMENTS</code>
+<code>CYDIVERT_FLAG_FRAGMENTS</code>
 </td>
 <td>
 If set, the handle will capture inbound IP fragments, but not inbound
@@ -1145,15 +1145,15 @@ reassembled IP packets.
 Otherwise, if not set (the default), the handle will capture inbound
 reassembled IP packets, but not inbound IP fragments.
 This flag only affects inbound packets at the
-<code>WINDIVERT_LAYER_NETWORK</code> layer, else the flag is ignored.
+<code>CYDIVERT_LAYER_NETWORK</code> layer, else the flag is ignored.
 </td>
 </tr>
 </table>
 </center>
 <p>
 Note that any combination of
-<code>(WINDIVERT_FLAG_SNIFF | WINDIVERT_FLAG_DROP)</code> or
-<code>(WINDIVERT_FLAG_RECV_ONLY | WINDIVERT_FLAG_SEND_ONLY)</code> 
+<code>(CYDIVERT_FLAG_SNIFF | CYDIVERT_FLAG_DROP)</code> or
+<code>(CYDIVERT_FLAG_RECV_ONLY | CYDIVERT_FLAG_SEND_ONLY)</code> 
 are considered invalid.
 </p>
 <p>
@@ -1171,49 +1171,49 @@ Required Flags
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_FLOW</code>
+<code>CYDIVERT_LAYER_FLOW</code>
 </td>
 <td>
-<code>WINDIVERT_FLAG_SNIFF | WINDIVERT_FLAG_RECV_ONLY</code>
-</td>
-</tr>
-<tr>
-<td>
-<code>WINDIVERT_LAYER_SOCKET</code>
-</td>
-<td>
-<code>WINDIVERT_FLAG_RECV_ONLY</code>
+<code>CYDIVERT_FLAG_SNIFF | CYDIVERT_FLAG_RECV_ONLY</code>
 </td>
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_REFLECT</code>
+<code>CYDIVERT_LAYER_SOCKET</code>
 </td>
 <td>
-<code>WINDIVERT_FLAG_SNIFF | WINDIVERT_FLAG_RECV_ONLY</code>
+<code>CYDIVERT_FLAG_RECV_ONLY</code>
+</td>
+</tr>
+<tr>
+<td>
+<code>CYDIVERT_LAYER_REFLECT</code>
+</td>
+<td>
+<code>CYDIVERT_FLAG_SNIFF | CYDIVERT_FLAG_RECV_ONLY</code>
 </td>
 </tr>
 </table>
 </center>
 </dd></dl>
 
-<a name="divert_recv"><h3>5.5 WinDivertRecv</h3></a>
+<a name="divert_recv"><h3>5.5 CyDivertRecv</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertRecv</b>(
+BOOL <b>CyDivertRecv</b>(
     __in HANDLE handle,
     __out_opt PVOID pPacket,
     __in UINT packetLen,
     __out_opt UINT *pRecvLen,
-    __out_opt WINDIVERT_ADDRESS *pAddr
+    __out_opt CYDIVERT_ADDRESS *pAddr
 );
 </pre>
 </td></tr></table>
 <dl><dd>
 <p><b>Parameters</b></p>
 <ul>
-<li> <code>handle</code>: A valid WinDivert handle created by
-     <a href="#divert_open"><code>WinDivertOpen()</code></a>.</li>
+<li> <code>handle</code>: A valid CyDivert handle created by
+     <a href="#divert_open"><code>CyDivertOpen()</code></a>.</li>
 <li> <code>pPacket</code>: An optional buffer for the captured packet.</li>
 <li> <code>packetLen</code>: The length of the <code>pPacket</code> buffer.</li>
 <li> <code>pRecvLen</code>: The total number of bytes written to <code>pPacket</code>.
@@ -1262,7 +1262,7 @@ The captured packet is larger than the <code>pPacket</code> buffer.
 </td>
 <td>
 The <code>handle</code> has been shutdown using
-<a href="#divert_shutdown"><code>WinDivertShutdown()</code></a>
+<a href="#divert_shutdown"><code>CyDivertShutdown()</code></a>
 and the packet queue is empty.
 </td>
 </tr>
@@ -1271,7 +1271,7 @@ and the packet queue is empty.
 <p>
 <b>Remarks</b><br>
 Receives a single captured packet/event matching the filter passed to
-<a href="#divert_open"><code>WinDivertOpen()</code></a>.
+<a href="#divert_open"><code>CyDivertOpen()</code></a>.
 The received packet/event is guaranteed to match the filter.
 </p><p>
 Only some <a href="#divert_layers">layers</a> can capture packets/data, as
@@ -1292,7 +1292,7 @@ Description
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_NETWORK</code>
+<code>CYDIVERT_LAYER_NETWORK</code>
 </td>
 <td>
 &#10004;
@@ -1303,7 +1303,7 @@ Network packet.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_NETWORK_FORWARD</code>
+<code>CYDIVERT_LAYER_NETWORK_FORWARD</code>
 </td>
 <td>
 &#10004;
@@ -1314,7 +1314,7 @@ Network packet.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_FLOW</code>
+<code>CYDIVERT_LAYER_FLOW</code>
 </td>
 <td>
 </td>
@@ -1324,7 +1324,7 @@ Network packet.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_SOCKET</code>
+<code>CYDIVERT_LAYER_SOCKET</code>
 </td>
 <td>
 </td>
@@ -1334,7 +1334,7 @@ Network packet.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_REFLECT</code>
+<code>CYDIVERT_LAYER_REFLECT</code>
 </td>
 <td>
 &#10004;
@@ -1361,37 +1361,37 @@ should be <code>NULL</code> and <code>packetLen</code> should be zero.
 If non-<code>NULL</code>, the <a href="#divert_address">address</a> of the
 packet/event will be written to the <code>pAddr</code> buffer.
 </p><p>
-An application should call <a href="#divert_recv"><code>WinDivertRecv()</code></a>
+An application should call <a href="#divert_recv"><code>CyDivertRecv()</code></a>
 <i>as soon as possible</i>
-after a successful call to <a href="#divert_open"><code>WinDivertOpen()</code></a>.
-When a WinDivert handle is open, any packet/event that matches the filter will
+after a successful call to <a href="#divert_open"><code>CyDivertOpen()</code></a>.
+When a CyDivert handle is open, any packet/event that matches the filter will
 be captured and queued until handled by
-<a href="#divert_recv"><code>WinDivertRecv()</code></a>.
+<a href="#divert_recv"><code>CyDivertRecv()</code></a>.
 Packets/events are not queued indefinitely, and if not handled in a timely
 manner, data may be lost.
 The amount of time a packet/event is queued can be controlled using the
-<a href="#divert_set_param"><code>WinDivertSetParam()</code></a> function.
+<a href="#divert_set_param"><code>CyDivertSetParam()</code></a> function.
 </p><p>
 Captured packets are 
 guaranteed to have correct checksums or have the corresponding
 <code>*Checksum</code> flag unset
-(see <a href="#divert_address"><code>WINDIVERT_ADDRESS</code></a>).
+(see <a href="#divert_address"><code>CYDIVERT_ADDRESS</code></a>).
 </p><p>
-<a href="#divert_recv"><code>WinDivertRecv()</code></a> should not be used on any
-WinDivert handle created with the <code>WINDIVERT_FLAG_DROP</code> set.
+<a href="#divert_recv"><code>CyDivertRecv()</code></a> should not be used on any
+CyDivert handle created with the <code>CYDIVERT_FLAG_DROP</code> set.
 </p>
 </dd></dl>
 
-<a name="divert_recv_ex"><h3>5.6 WinDivertRecvEx</h3></a>
+<a name="divert_recv_ex"><h3>5.6 CyDivertRecvEx</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertRecvEx</b>(
+BOOL <b>CyDivertRecvEx</b>(
     __in HANDLE handle,
     __out VOID *pPacket,
     __in UINT packetLen,
     __out_opt UINT *pRecvLen,
     __in UINT64 flags,
-    __out_opt WINDIVERT_ADDRESS *pAddr,
+    __out_opt CYDIVERT_ADDRESS *pAddr,
     __inout_opt UINT *pAddrLen,
     __inout_opt LPOVERLAPPED lpOverlapped
 );
@@ -1400,8 +1400,8 @@ BOOL <b>WinDivertRecvEx</b>(
 <dl><dd>
 <p><b>Parameters</b></p>
 <ul>
-<li> <code>handle</code>: A valid WinDivert handle created by
-     <a href="#divert_open"><code>WinDivertOpen()</code></a>.</li>
+<li> <code>handle</code>: A valid CyDivert handle created by
+     <a href="#divert_open"><code>CyDivertOpen()</code></a>.</li>
 <li> <code>pPacket</code>: A buffer for the captured packet(s).</li>
 <li> <code>packetLen</code>: The length of the <code>pPacket</code> buffer in
     bytes.</li>
@@ -1409,12 +1409,12 @@ BOOL <b>WinDivertRecvEx</b>(
      Can be <code>NULL</code> if this information is not required.</li>
 <li> <code>flags</code>: Reserved, set to zero.</li>
 <li> <code>pAddr</code>: The
-    <a href="#divert_address"><code>WINDIVERT_ADDRESS</code></a> of the captured
+    <a href="#divert_address"><code>CYDIVERT_ADDRESS</code></a> of the captured
     packet(s).</li>
 <li> <code>pAddrLen</code>: Initially, a pointer to the length of the
     <code>pAddr</code> buffer in bytes.
     This value is updated to the total bytes written to <code>pAddr</code>.
-    If <code>NULL</code>, a fixed length of <code>sizeof(WINDIVERT_ADDRESS)</code> is
+    If <code>NULL</code>, a fixed length of <code>sizeof(CYDIVERT_ADDRESS)</code> is
     assumed.</li>
 <li> <code>lpOverlapped</code>: An optional pointer to a <code>OVERLAPPED</code>
      structure.</li>
@@ -1431,7 +1431,7 @@ All other codes indicate an error.
 </p><p>
 <b>Remarks</b><br>
 This function is equivalent to
-<a href="#divert_recv"><code>WinDivertRecv()</code></a> except:
+<a href="#divert_recv"><code>CyDivertRecv()</code></a> except:
 </p>
 <ul>
 <li> <i>Overlapped I/O</i> is supported via the <code>lpOverlapped</code>
@@ -1440,13 +1440,13 @@ This function is equivalent to
     supported.</li>
 </ul>
 <p>
-Batched I/O makes it possible to receive up to <code>WINDIVERT_BATCH_MAX</code>
+Batched I/O makes it possible to receive up to <code>CYDIVERT_BATCH_MAX</code>
 packets at once using a single operation, reducing the number of
 kernel/user-mode context switches and improving performance.
 To enable batched I/O:
 </p>
 <ol>
-<li> pass an array of more than one <code>WINDIVERT_ADDRESS</code>
+<li> pass an array of more than one <code>CYDIVERT_ADDRESS</code>
      to <code>pAddr</code>;</li>
 <li> set <code>pAddrLen</code> to be the total size (in bytes) of the
      <code>pAddr</code> buffer; and</li>
@@ -1458,37 +1458,37 @@ For example:
 </p>
 <pre>
     UINT8 packets[10 * MTU];        // Space for up to 10 packets
-    WINDIVERT_ADDRESS addr[10];     // Addresses for up to 10 packets
+    CYDIVERT_ADDRESS addr[10];     // Addresses for up to 10 packets
     UINT addr_len = sizeof(addr);
-    BOOL result = WinDivertRecvEx(handle, packets, ..., addr, &amp;addr_len, ...);
+    BOOL result = CyDivertRecvEx(handle, packets, ..., addr, &amp;addr_len, ...);
 </pre>
 <p>
 upon successful completion, the value pointed to by <code>pAddrLen</code>
 is updated to the total number of address bytes actually received.
 For example, if a total of <code>5</code> packets were received, then
 the value pointed to by <code>pAddrLen</code> will be set to
-<code>(5*sizeof(WINDIVERT_ADDRESS))</code>.
+<code>(5*sizeof(CYDIVERT_ADDRESS))</code>.
 The received packets are packed contiguously (i.e., no gaps) into the
 <code>pPacket</code> buffer.
 </dd></dl>
 
-<a name="divert_send"><h3>5.7 WinDivertSend</h3></a>
+<a name="divert_send"><h3>5.7 CyDivertSend</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertSend</b>(
+BOOL <b>CyDivertSend</b>(
     __in HANDLE handle,
     __in const VOID *pPacket,
     __in UINT packetLen,
     __out_opt UINT *pSendLen,
-    __in const WINDIVERT_ADDRESS *pAddr
+    __in const CYDIVERT_ADDRESS *pAddr
 );
 </pre>
 </td></tr></table>
 <dl><dd>
 <p><b>Parameters</b></p>
 <ul>
-<li> <code>handle</code>: A valid WinDivert handle created by
-     <a href="#divert_open"><code>WinDivertOpen()</code></a>.</li>
+<li> <code>handle</code>: A valid CyDivert handle created by
+     <a href="#divert_open"><code>CyDivertOpen()</code></a>.</li>
 <li> <code>pPacket</code>: A buffer containing a packet to be injected.</li>
 <li> <code>packetLen</code>: The total length of the <code>pPacket</code> buffer.</li> 
 <li> <code>pSendLen</code>: The total number of bytes injected.
@@ -1538,13 +1538,13 @@ impostor packets.
 <b>Remarks</b><br>
 Injects a packet into the network stack.
 The injected packet may be one received from
-<a href="#divert_recv"><code>WinDivertRecv()</code></a>, or a
+<a href="#divert_recv"><code>CyDivertRecv()</code></a>, or a
 modified version, or a completely new packet.
-Injected packets can be captured and diverted again by other WinDivert
+Injected packets can be captured and diverted again by other CyDivert
 handles with lower priorities.
 </p><p>
-Only the <code>WINDIVERT_LAYER_NETWORK</code> and
-<code>WINDIVERT_LAYER_NETWORK_FORWARD</code> <a href="#divert_layers">layers</a>
+Only the <code>CYDIVERT_LAYER_NETWORK</code> and
+<code>CYDIVERT_LAYER_NETWORK_FORWARD</code> <a href="#divert_layers">layers</a>
 support packet injection, as summarized below:
 </p>
 <center>
@@ -1559,7 +1559,7 @@ Inject?
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_NETWORK</code>
+<code>CYDIVERT_LAYER_NETWORK</code>
 </td>
 <td>
 &#10004;
@@ -1567,7 +1567,7 @@ Inject?
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_NETWORK_FORWARD</code>
+<code>CYDIVERT_LAYER_NETWORK_FORWARD</code>
 </td>
 <td>
 &#10004;
@@ -1575,21 +1575,21 @@ Inject?
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_FLOW</code>
+<code>CYDIVERT_LAYER_FLOW</code>
 </td>
 <td>
 </td>
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_SOCKET</code>
+<code>CYDIVERT_LAYER_SOCKET</code>
 </td>
 <td>
 </td>
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_LAYER_REFLECT</code>
+<code>CYDIVERT_LAYER_REFLECT</code>
 </td>
 <td>
 </td>
@@ -1597,7 +1597,7 @@ Inject?
 </table>
 </center>
 <p>
-For the <code>WINDIVERT_LAYER_NETWORK</code> layer the
+For the <code>CYDIVERT_LAYER_NETWORK</code> layer the
 <code>pAddr-&gt;Outbound</code> value determines which direction the packet
 is injected.
 If the <code>pAddr-&gt;Outbound</code> field is <code>1</code>,
@@ -1613,7 +1613,7 @@ For packets injected into the <i>inbound</i> path, the
 <code>pAddr-&gt;Network.IfIdx</code> and
 <code>pAddr-&gt;Network.SubIfIdx</code> fields are assumed to contain valid
 interface numbers.
-These may be retrieved from <a href="#divert_recv"><code>WinDivertRecv()</code></a>
+These may be retrieved from <a href="#divert_recv"><code>CyDivertRecv()</code></a>
 (for packet modification),
 or from the <a href="http://msdn.microsoft.com/en-us/library/aa366073%28v=VS.85%29.aspx">IP Helper API</a>.
 </p><p>
@@ -1624,35 +1624,35 @@ types of packets), however this should be considered "undocumented" behavior,
 and may be changed in the future.
 </p><p>
 For <i>impostor</i> packets (where <code>pAddr-&gt;Impostor</code> is set to
-<code>1</code>) WinDivert will automatically decrement the
+<code>1</code>) CyDivert will automatically decrement the
 <code>ip.TTL</code> or <code>ipv6.HopLimit</code> fields before reinjection.
-This is to mitigate infinite loops since WinDivert cannot prevent
+This is to mitigate infinite loops since CyDivert cannot prevent
 impostor packets from being captured again by
-<a href="#divert_recv"><code>WinDivertRecv()</code></a>.
+<a href="#divert_recv"><code>CyDivertRecv()</code></a>.
 </p><p>
 Injected packets must have the correct checksums or have the corresponding
 <code>pAddr-&gt;*Checksum</code> flag unset.
 A packet/address pair captured by
-<a href="#divert_recv"><code>WinDivertRecv()</code></a> is guaranteed to satisfy
+<a href="#divert_recv"><code>CyDivertRecv()</code></a> is guaranteed to satisfy
 this condition, so can be reinjected unmodified without recalculating
 checksums.
 Otherwise, if a modification is necessary,
 checksums can be recalculated using the
-<a href="#divert_helper_calc_checksums"><code>WinDivertHelperCalcChecksums()</code></a>
+<a href="#divert_helper_calc_checksums"><code>CyDivertHelperCalcChecksums()</code></a>
 function.
 </p>
 </dd></dl>
 
-<a name="divert_send_ex"><h3>5.8 WinDivertSendEx</h3></a>
+<a name="divert_send_ex"><h3>5.8 CyDivertSendEx</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertSendEx</b>(
+BOOL <b>CyDivertSendEx</b>(
     __in HANDLE handle,
     __in const VOID *pPacket,
     __in UINT packetLen,
     __out_opt UINT *pSendLen,
     __in UINT64 flags,
-    __in const WINDIVERT_ADDRESS *pAddr,
+    __in const CYDIVERT_ADDRESS *pAddr,
     __in UINT addrLen,
     __inout_opt LPOVERLAPPED lpOverlapped
 );
@@ -1661,8 +1661,8 @@ BOOL <b>WinDivertSendEx</b>(
 <dl><dd>
 <p><b>Parameters</b></p>
 <ul>
-<li> <code>handle</code>: A valid WinDivert handle created by
-     <a href="#divert_open"><code>WinDivertOpen()</code></a>.</li>
+<li> <code>handle</code>: A valid CyDivert handle created by
+     <a href="#divert_open"><code>CyDivertOpen()</code></a>.</li>
 <li> <code>pPacket</code>: A buffer containing the packet(s) to be injected.</li>
 <li> <code>packetLen</code>: The total length of the buffer <code>pPacket</code>.</li>
 <li> <code>pSendLen</code>: The total number of bytes injected.
@@ -1688,7 +1688,7 @@ All other codes indicate an error.
 </p><p>
 <b>Remarks</b><br>
 This function is equivalent to
-<a href="#divert_recv"><code>WinDivertSend()</code></a> except:
+<a href="#divert_recv"><code>CyDivertSend()</code></a> except:
 </p>
 <ul>
 <li> <i>Overlapped I/O</i> is supported via the <code>lpOverlapped</code>
@@ -1697,7 +1697,7 @@ This function is equivalent to
     supported.</li>
 </ul>
 <p>
-Batched I/O makes it possible to send up to <code>WINDIVERT_BATCH_MAX</code>
+Batched I/O makes it possible to send up to <code>CYDIVERT_BATCH_MAX</code>
 packets at once using a single operation, reducing the number of
 kernel/user-mode context switches and improving performance.
 To use batched I/O:
@@ -1707,28 +1707,28 @@ To use batched I/O:
      (with no gaps between packets);</li>
 <li> set <code>packetLen</code> to be the total sum of the <i>N</i> packet lengths;
      </li>
-<li> pack the corresponding <i>N</i> <code>WINDIVERT_ADDRESS</code>
+<li> pack the corresponding <i>N</i> <code>CYDIVERT_ADDRESS</code>
      address structures into the <code>pAddr</code> buffer; and </li>
 <li> set <code>addrLen</code> to be the total size (in bytes) of the <code>pAddr</code>
     buffer.</li>
 </ol>
 </dd></dl>
 
-<a name="divert_shutdown"><h3>5.9 WinDivertShutdown</h3></a>
+<a name="divert_shutdown"><h3>5.9 CyDivertShutdown</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertShutdown</b>(
+BOOL <b>CyDivertShutdown</b>(
     __in HANDLE handle,
-    __in WINDIVERT_SHUTDOWN how);
+    __in CYDIVERT_SHUTDOWN how);
 );
 </pre>
 </td></tr></table>
 <dl><dd>
 <p><b>Parameters</b></p>
 <ul>
-<li> <code>handle</code>: A valid WinDivert handle created by
-     <a href="#divert_open"><code>WinDivertOpen()</code></a>.</li>
-<li> <code>how</code>: A <code>WINDIVERT_SHUTDOWN</code> value to indicate how
+<li> <code>handle</code>: A valid CyDivert handle created by
+     <a href="#divert_open"><code>CyDivertOpen()</code></a>.</li>
+<li> <code>how</code>: A <code>CYDIVERT_SHUTDOWN</code> value to indicate how
      the handle should be shutdown.</li>
 </ul>
 <p>
@@ -1737,7 +1737,7 @@ BOOL <b>WinDivertShutdown</b>(
 Use <code>GetLastError()</code> to get the reason for the error.
 </p><p>
 <b>Remarks</b><br>
-This operation causes all or part of a WinDivert handle to be shut down.
+This operation causes all or part of a CyDivert handle to be shut down.
 The possible values for <code>how</code> are:
 </p>
 <center>
@@ -1752,45 +1752,45 @@ Description
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_SHUTDOWN_RECV</code>
+<code>CYDIVERT_SHUTDOWN_RECV</code>
 </td>
 <td>
 Stop new packets being queued for
-<a href="#divert_recv"><code>WinDivertRecv()</code></a>.
+<a href="#divert_recv"><code>CyDivertRecv()</code></a>.
 </td>
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_SHUTDOWN_SEND</code>
+<code>CYDIVERT_SHUTDOWN_SEND</code>
 </td>
 <td>
 Stop new packets being injected via
-<a href="#divert_send"><code>WinDivertSend()</code></a>.
+<a href="#divert_send"><code>CyDivertSend()</code></a>.
 </td>
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_SHUTDOWN_BOTH</code>
+<code>CYDIVERT_SHUTDOWN_BOTH</code>
 </td>
 <td>
-Equivalent to <code>(WINDIVERT_SHUTDOWN_RECV | WINDIVERT_SHUTDOWN_SEND)</code>.
+Equivalent to <code>(CYDIVERT_SHUTDOWN_RECV | CYDIVERT_SHUTDOWN_SEND)</code>.
 </td>
 </tr>
 </table>
 </center>
 <p>
 Note that previously queued packets can still be received after
-<code>WINDIVERT_SHUTDOWN_RECV</code>.
+<code>CYDIVERT_SHUTDOWN_RECV</code>.
 When the packet queue is empty,
-<a href="#divert_recv"><code>WinDivertRecv()</code></a>
+<a href="#divert_recv"><code>CyDivertRecv()</code></a>
 will fail with <code>ERROR_NO_DATA</code>.
 </p>
 </dd></dl>
 
-<a name="divert_close"><h3>5.10 WinDivertClose</h3></a>
+<a name="divert_close"><h3>5.10 CyDivertClose</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertClose</b>(
+BOOL <b>CyDivertClose</b>(
     __in HANDLE handle
 );
 </pre>
@@ -1798,8 +1798,8 @@ BOOL <b>WinDivertClose</b>(
 <dl><dd>
 <p><b>Parameters</b></p>
 <ul>
-<li> <code>handle</code>: A valid WinDivert handle created by
-     <a href="#divert_open"><code>WinDivertOpen()</code></a>.</li>
+<li> <code>handle</code>: A valid CyDivert handle created by
+     <a href="#divert_open"><code>CyDivertOpen()</code></a>.</li>
 </ul>
 <p>
 <b>Return Value</b><br>
@@ -1807,26 +1807,26 @@ BOOL <b>WinDivertClose</b>(
 Use <code>GetLastError()</code> to get the reason for the error.
 </p><p>
 <b>Remarks</b><br>
-Closes a WinDivert handle created by
-<a href="#divert_open"><code>WinDivertOpen()</code></a>.
+Closes a CyDivert handle created by
+<a href="#divert_open"><code>CyDivertOpen()</code></a>.
 </p>
 </dd></dl>
 
-<a name="divert_set_param"><h3>5.11 WinDivertSetParam</h3></a>
+<a name="divert_set_param"><h3>5.11 CyDivertSetParam</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertSetParam</b>(
+BOOL <b>CyDivertSetParam</b>(
     __in HANDLE handle,
-    __in WINDIVERT_PARAM param,
+    __in CYDIVERT_PARAM param,
     __in UINT64 value);
 </pre>
 </td></tr></table>
 <dl><dd>
 <p><b>Parameters</b></p>
 <ul>
-<li> <code>handle</code>: A valid WinDivert handle created by
-     <a href="#divert_open"><code>WinDivertOpen()</code></a>.</li>
-<li> <code>param</code>: A WinDivert parameter name.</li>
+<li> <code>handle</code>: A valid CyDivert handle created by
+     <a href="#divert_open"><code>CyDivertOpen()</code></a>.</li>
+<li> <code>param</code>: A CyDivert parameter name.</li>
 <li> <code>value</code>: The parameter's new value.</li>
 </ul>
 <p>
@@ -1835,8 +1835,8 @@ BOOL <b>WinDivertSetParam</b>(
 Use <code>GetLastError()</code> to get the reason for the error.
 </p><p>
 <b>Remarks</b><br>
-Sets a WinDivert parameter.
-Currently, the following WinDivert parameters are defined.
+Sets a CyDivert parameter.
+Currently, the following CyDivert parameters are defined.
 </p>
 <center>
 <table border="1" cellpadding="5" width="75%">
@@ -1850,19 +1850,19 @@ Description
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_PARAM_QUEUE_LENGTH</code>
+<code>CYDIVERT_PARAM_QUEUE_LENGTH</code>
 </td>
 <td>
 Sets the maximum length of the packet queue for
-<a href="#divert_recv"><code>WinDivertRecv()</code></a>.
-The default value is <code>WINDIVERT_PARAM_QUEUE_LENGTH_DEFAULT</code>,
-the minimum is <code>WINDIVERT_PARAM_QUEUE_LENGTH_MIN</code>, and the maximum
-is <code>WINDIVERT_PARAM_QUEUE_LENGTH_MAX</code>.
+<a href="#divert_recv"><code>CyDivertRecv()</code></a>.
+The default value is <code>CYDIVERT_PARAM_QUEUE_LENGTH_DEFAULT</code>,
+the minimum is <code>CYDIVERT_PARAM_QUEUE_LENGTH_MIN</code>, and the maximum
+is <code>CYDIVERT_PARAM_QUEUE_LENGTH_MAX</code>.
 </td>
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_PARAM_QUEUE_TIME</code>
+<code>CYDIVERT_PARAM_QUEUE_TIME</code>
 </td>
 <td>
 Sets the minimum time, in milliseconds, a packet can be queued before it is
@@ -1872,42 +1872,42 @@ processed by the application as soon as is possible.
 Note that this sets the <i>minimum</i> time a packet can be queued before 
 it can be dropped.
 The actual time may be exceed this value.
-Currently the default value is <code>WINDIVERT_PARAM_QUEUE_TIME_DEFAULT</code>,
-the minimum is <code>WINDIVERT_PARAM_QUEUE_TIME_MIN</code>, and the
-maximum is <code>WINDIVERT_PARAM_QUEUE_TIME_MAX</code>.
+Currently the default value is <code>CYDIVERT_PARAM_QUEUE_TIME_DEFAULT</code>,
+the minimum is <code>CYDIVERT_PARAM_QUEUE_TIME_MIN</code>, and the
+maximum is <code>CYDIVERT_PARAM_QUEUE_TIME_MAX</code>.
 </td>
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_PARAM_QUEUE_SIZE</code>
+<code>CYDIVERT_PARAM_QUEUE_SIZE</code>
 </td>
 <td>
 Sets the maximum number of bytes that can be stored in the packet queue for
-<a href="#divert_recv"><code>WinDivertRecv()</code></a>.
-Currently the default value is <code>WINDIVERT_PARAM_QUEUE_SIZE_DEFAULT</code>,
-the minimum is <code>WINDIVERT_PARAM_QUEUE_SIZE_MIN</code>,
-and the maximum is <code>WINDIVERT_PARAM_QUEUE_SIZE_MAX</code>.
+<a href="#divert_recv"><code>CyDivertRecv()</code></a>.
+Currently the default value is <code>CYDIVERT_PARAM_QUEUE_SIZE_DEFAULT</code>,
+the minimum is <code>CYDIVERT_PARAM_QUEUE_SIZE_MIN</code>,
+and the maximum is <code>CYDIVERT_PARAM_QUEUE_SIZE_MAX</code>.
 </td>
 </tr>
 </table>
 </center>
 </dd></dl>
 
-<a name="divert_get_param"><h3>5.12 WinDivertGetParam</h3></a>
+<a name="divert_get_param"><h3>5.12 CyDivertGetParam</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertGetParam</b>(
+BOOL <b>CyDivertGetParam</b>(
     __in HANDLE handle,
-    __in WINDIVERT_PARAM param,
+    __in CYDIVERT_PARAM param,
     __out UINT64 *pValue);
 </pre>
 </td></tr></table>
 <dl><dd>
 <p><b>Parameters</b></p>
 <ul>
-<li> <code>handle</code>: A valid WinDivert handle created by
-     <a href="#divert_open"><code>WinDivertOpen()</code></a>.</li>
-<li> <code>param</code>: A WinDivert parameter name.</li>
+<li> <code>handle</code>: A valid CyDivert handle created by
+     <a href="#divert_open"><code>CyDivertOpen()</code></a>.</li>
+<li> <code>param</code>: A CyDivert parameter name.</li>
 <li> <code>value</code>: The parameter's current value.</li>
 </ul>
 <p>
@@ -1916,9 +1916,9 @@ BOOL <b>WinDivertGetParam</b>(
 Use <code>GetLastError()</code> to get the reason for the error.
 </p><p>
 <b>Remarks</b><br>
-Gets a WinDivert parameter.
+Gets a CyDivert parameter.
 This function supports all the parameters from
-<a href="#divert_set_param"><code>WinDivertSetParam()</code></a>,
+<a href="#divert_set_param"><code>CyDivertSetParam()</code></a>,
 and the following additional <q>read-only</q> parameters:
 </p>
 <center>
@@ -1933,7 +1933,7 @@ Description
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_PARAM_VERSION_MAJOR</code>
+<code>CYDIVERT_PARAM_VERSION_MAJOR</code>
 </td>
 <td>
 Returns the major version of the driver.
@@ -1941,7 +1941,7 @@ Returns the major version of the driver.
 </tr>
 <tr>
 <td>
-<code>WINDIVERT_PARAM_VERSION_MINOR</code>
+<code>CYDIVERT_PARAM_VERSION_MINOR</code>
 </td>
 <td>
 Returns the minor version of the driver.
@@ -1954,11 +1954,11 @@ Returns the minor version of the driver.
 <hr>
 <a name="helper_programming_api"><h2>6. Helper Programming API</h2></a>
 
-The WinDivert helper programming API is a collection of definitions
-and functions designed to make writing WinDivert applications easier.
+The CyDivert helper programming API is a collection of definitions
+and functions designed to make writing CyDivert applications easier.
 The use of the helper API is optional.
 
-<a name="divert_iphdr"><h3>6.1 WINDIVERT_IPHDR</h3></a>
+<a name="divert_iphdr"><h3>6.1 CYDIVERT_IPHDR</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
 typedef struct
@@ -1974,7 +1974,7 @@ typedef struct
     UINT16 Checksum;
     UINT32 SrcAddr;
     UINT32 DstAddr;
-} <b>WINDIVERT_IPHDR</b>, *<b>PWINDIVERT_IPHDR</b>;
+} <b>CYDIVERT_IPHDR</b>, *<b>PCYDIVERT_IPHDR</b>;
 </pre>
 </td></tr></table>
 <dl><dd>
@@ -1990,18 +1990,18 @@ The following fields can only be get/set using the following macro
 definitions:
 </p>
 <ul>
-<li><i>FragOff</i> with <code>WINDIVERT_IPHDR_GET_FRAGOFF(<i>hdr</i>)</code> and
-    <code>WINDIVERT_IPHDR_SET_FRAGOFF(<i>hdr</i>, <i>val</i>)</code></li>
-<li><i>MF</i> with <code>WINDIVERT_IPHDR_GET_MF(<i>hdr</i>)</code> and
-    <code>WINDIVERT_IPHDR_SET_MF(<i>hdr</i>, <i>val</i>)</code></li>
-<li><i>DF</i> with <code>WINDIVERT_IPHDR_GET_DF(<i>hdr</i>)</code> and
-    <code>WINDIVERT_IPHDR_SET_DF(<i>hdr</i>, <i>val</i>)</code></li>
-<li><i>Reserved</i> with <code>WINDIVERT_IPHDR_GET_RESERVED(<i>hdr</i>)</code> and
-    <code>WINDIVERT_IPHDR_SET_RESERVED(<i>hdr</i>, <i>val</i>)</code></li>
+<li><i>FragOff</i> with <code>CYDIVERT_IPHDR_GET_FRAGOFF(<i>hdr</i>)</code> and
+    <code>CYDIVERT_IPHDR_SET_FRAGOFF(<i>hdr</i>, <i>val</i>)</code></li>
+<li><i>MF</i> with <code>CYDIVERT_IPHDR_GET_MF(<i>hdr</i>)</code> and
+    <code>CYDIVERT_IPHDR_SET_MF(<i>hdr</i>, <i>val</i>)</code></li>
+<li><i>DF</i> with <code>CYDIVERT_IPHDR_GET_DF(<i>hdr</i>)</code> and
+    <code>CYDIVERT_IPHDR_SET_DF(<i>hdr</i>, <i>val</i>)</code></li>
+<li><i>Reserved</i> with <code>CYDIVERT_IPHDR_GET_RESERVED(<i>hdr</i>)</code> and
+    <code>CYDIVERT_IPHDR_SET_RESERVED(<i>hdr</i>, <i>val</i>)</code></li>
 </ul>
 </dl></dd>
 
-<a name="divert_ipv6hdr"><h3>6.2 WINDIVERT_IPV6HDR</h3></a>
+<a name="divert_ipv6hdr"><h3>6.2 CYDIVERT_IPV6HDR</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
 typedef struct
@@ -2013,7 +2013,7 @@ typedef struct
     UINT8  HopLimit;
     UINT32 SrcAddr[4];
     UINT32 DstAddr[4];
-} <b>WINDIVERT_IPV6HDR</b>, *<b>PWINDIVERT_IPV6HDR</b>;
+} <b>CYDIVERT_IPV6HDR</b>, *<b>PCYDIVERT_IPV6HDR</b>;
 </pre>
 </td></tr></table>
 <dl><dd>
@@ -2030,14 +2030,14 @@ definitions:
 </p>
 <ul>
 <li><i>TrafficClass</i> with
-    <code>WINDIVERT_IPV6HDR_GET_TRAFFICCLASS(<i>hdr</i>)</code> and
-    <code>WINDIVERT_IPV6HDR_SET_TRAFFICCLASS(<i>hdr</i>, <i>val</i>)</code></li>
-<li><i>FlowLabel</i> with <code>WINDIVERT_IPV6HDR_GET_FLOWLABEL(<i>hdr</i>)</code> and
-    <code>WINDIVERT_IPV6HDR_SET_FLOWLABEL(<i>hdr</i>, <i>val</i>)</code></li>
+    <code>CYDIVERT_IPV6HDR_GET_TRAFFICCLASS(<i>hdr</i>)</code> and
+    <code>CYDIVERT_IPV6HDR_SET_TRAFFICCLASS(<i>hdr</i>, <i>val</i>)</code></li>
+<li><i>FlowLabel</i> with <code>CYDIVERT_IPV6HDR_GET_FLOWLABEL(<i>hdr</i>)</code> and
+    <code>CYDIVERT_IPV6HDR_SET_FLOWLABEL(<i>hdr</i>, <i>val</i>)</code></li>
 </ul>
 </dl></dd>
 
-<a name="divert_icmphdr"><h3>6.3 WINDIVERT_ICMPHDR</h3></a>
+<a name="divert_icmphdr"><h3>6.3 CYDIVERT_ICMPHDR</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
 typedef struct
@@ -2046,7 +2046,7 @@ typedef struct
     UINT8  Code;
     UINT16 Checksum;
     UINT32 Body;
-} <b>WINDIVERT_ICMPHDR</b>, *<b>PWINDIVERT_ICMPHDR</b>;
+} <b>CYDIVERT_ICMPHDR</b>, *<b>PCYDIVERT_ICMPHDR</b>;
 </pre>
 </td></tr></table>
 <dl><dd>
@@ -2060,7 +2060,7 @@ ICMP header definition.
 </p>
 </dl></dd>
 
-<a name="divert_icmpv6hdr"><h3>6.4 WINDIVERT_ICMPV6HDR</h3></a>
+<a name="divert_icmpv6hdr"><h3>6.4 CYDIVERT_ICMPV6HDR</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
 typedef struct
@@ -2069,7 +2069,7 @@ typedef struct
     UINT8  Code;
     UINT16 Checksum;
     UINT32 Body;
-} <b>WINDIVERT_ICMPV6HDR</b>, *<b>PWINDIVERT_ICMPV6HDR</b>;
+} <b>CYDIVERT_ICMPV6HDR</b>, *<b>PCYDIVERT_ICMPV6HDR</b>;
 </pre>
 </td></tr></table>
 <dl><dd>
@@ -2083,7 +2083,7 @@ ICMPv6 header definition.
 </p>
 </dl></dd>
 
-<a name="divert_tcphdr"><h3>6.5 WINDIVERT_TCPHDR</h3></a>
+<a name="divert_tcphdr"><h3>6.5 CYDIVERT_TCPHDR</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
 typedef struct
@@ -2104,7 +2104,7 @@ typedef struct
     UINT16 Window;
     UINT16 Checksum;
     UINT16 UrgPtr;
-} <b>WINDIVERT_TCPHDR</b>, *<b>PWINDIVERT_TCPHDR</b>;
+} <b>CYDIVERT_TCPHDR</b>, *<b>PCYDIVERT_TCPHDR</b>;
 </pre>
 </td></tr></table>
 <dl><dd>
@@ -2118,7 +2118,7 @@ TCP header definition.
 </p>
 </dl></dd>
 
-<a name="divert_udphdr"><h3>6.6 WINDIVERT_UDPHDR</h3></a>
+<a name="divert_udphdr"><h3>6.6 CYDIVERT_UDPHDR</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
 typedef struct
@@ -2127,7 +2127,7 @@ typedef struct
     UINT16 DstPort;
     UINT16 Length;
     UINT16 Checksum;
-} <b>WINDIVERT_UDPHDR</b>, *<b>PWINDIVERT_UDPHDR</b>;
+} <b>CYDIVERT_UDPHDR</b>, *<b>PCYDIVERT_UDPHDR</b>;
 </pre>
 </td></tr></table>
 <dl><dd>
@@ -2141,19 +2141,19 @@ UDP header definition.
 </p>
 </dl></dd>
 
-<a name="divert_helper_parse_packet"><h3>6.7 WinDivertHelperParsePacket</h3></a>
+<a name="divert_helper_parse_packet"><h3>6.7 CyDivertHelperParsePacket</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertHelperParsePacket</b>(
+BOOL <b>CyDivertHelperParsePacket</b>(
     __in PVOID pPacket,
     __in UINT packetLen,
-    __out_opt PWINDIVERT_IPHDR *ppIpHdr,
-    __out_opt PWINDIVERT_IPV6HDR *ppIpv6Hdr,
+    __out_opt PCYDIVERT_IPHDR *ppIpHdr,
+    __out_opt PCYDIVERT_IPV6HDR *ppIpv6Hdr,
     __out_opt UINT8 *pProtocol,
-    __out_opt PWINDIVERT_ICMPHDR *ppIcmpHdr,
-    __out_opt PWINDIVERT_ICMPV6HDR *ppIcmpv6Hdr,
-    __out_opt PWINDIVERT_TCPHDR *ppTcpHdr,
-    __out_opt PWINDIVERT_UDPHDR *ppUdpHdr,
+    __out_opt PCYDIVERT_ICMPHDR *ppIcmpHdr,
+    __out_opt PCYDIVERT_ICMPV6HDR *ppIcmpv6Hdr,
+    __out_opt PCYDIVERT_TCPHDR *ppTcpHdr,
+    __out_opt PCYDIVERT_UDPHDR *ppUdpHdr,
     __out_opt PVOID *ppData,
     __out_opt UINT *pDataLen,
     __out_opt PVOID *ppNext,
@@ -2166,13 +2166,13 @@ BOOL <b>WinDivertHelperParsePacket</b>(
 <ul>
 <li> <code>pPacket</code>: The packet(s) to be parsed.</li>
 <li> <code>packetLen</code>: The total length of the packet(s) <code>pPacket</code>.</li>
-<li> <code>ppIpHdr</code>: Output pointer to a <code>WINDIVERT_IPHDR</code>.</li>
-<li> <code>ppIpv6Hdr</code>: Output pointer to a <code>WINDIVERT_IPV6HDR</code>.</li>
+<li> <code>ppIpHdr</code>: Output pointer to a <code>CYDIVERT_IPHDR</code>.</li>
+<li> <code>ppIpv6Hdr</code>: Output pointer to a <code>CYDIVERT_IPV6HDR</code>.</li>
 <li> <code>pProtocol</code>: Output transport protocol.</li>
-<li> <code>ppIcmpHdr</code>: Output pointer to a <code>WINDIVERT_ICMPHDR</code>.</li>
-<li> <code>ppIcmpv6Hdr</code>: Output pointer to a <code>WINDIVERT_ICMPV6HDR</code>.</li>
-<li> <code>ppTcpHdr</code>: Output pointer to a <code>WINDIVERT_TCPHDR</code>.</li>
-<li> <code>ppUdpHdr</code>: Output pointer to a <code>WINDIVERT_UDPHDR</code>.</li>
+<li> <code>ppIcmpHdr</code>: Output pointer to a <code>CYDIVERT_ICMPHDR</code>.</li>
+<li> <code>ppIcmpv6Hdr</code>: Output pointer to a <code>CYDIVERT_ICMPV6HDR</code>.</li>
+<li> <code>ppTcpHdr</code>: Output pointer to a <code>CYDIVERT_TCPHDR</code>.</li>
+<li> <code>ppUdpHdr</code>: Output pointer to a <code>CYDIVERT_UDPHDR</code>.</li>
 <li> <code>ppData</code>: Output pointer to the packet's data/payload.</li>
 <li> <code>pDataLen</code>: Output data/payload length.</li>
 <li> <code>ppNext</code>: Output pointer to the next packet (if present).</li>
@@ -2184,7 +2184,7 @@ BOOL <b>WinDivertHelperParsePacket</b>(
 </p><p>
 <b>Remarks</b><br>
 Parses a raw packet or batch of packets (e.g. from <a
-href="#divert_recv"><code>WinDivertRecv()</code></a>) into the
+href="#divert_recv"><code>CyDivertRecv()</code></a>) into the
 various packet headers and/or payloads that may or may not be present.
 </p><p>
 Each output parameter may be <code>NULL</code> or non-<code>NULL</code>.
@@ -2216,17 +2216,17 @@ and the remaining length will be written to <code>pNextLen</code>.
 This makes it convenient to loop over every packet in the batch as follows:
 </p>
 <pre>
-    while (WinDivertHelperParsePacket(pPacket, packetLen, ..., &amp;pPacket, &amp;packetLen))
+    while (CyDivertHelperParsePacket(pPacket, packetLen, ..., &amp;pPacket, &amp;packetLen))
     {
         ...
     }
 </pre>
 </dd></dl>
 
-<a name="divert_helper_hash_packet"><h3>6.8 WinDivertHelperHashPacket</h3></a>
+<a name="divert_helper_hash_packet"><h3>6.8 CyDivertHelperHashPacket</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-UINT64 <b>WinDivertHelperHashPacket</b>(
+UINT64 <b>CyDivertHelperHashPacket</b>(
     __in const VOID *pPacket,
     __in UINT packetLen,
     __in UINT64 seed = 0
@@ -2258,10 +2258,10 @@ The optional <code>seed</code> value is also incorporated into the hash.
 <p>
 </dd></dl>
 
-<a name="divert_helper_parse_ipv4_address"><h3>6.9 WinDivertHelperParseIPv4Address</h3></a>
+<a name="divert_helper_parse_ipv4_address"><h3>6.9 CyDivertHelperParseIPv4Address</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertHelperParseIPv4Address</b>(
+BOOL <b>CyDivertHelperParseIPv4Address</b>(
     __in const char *addrStr,
     __out_opt UINT32 *pAddr
 );
@@ -2282,15 +2282,15 @@ Use <code>GetLastError()</code> to get the reason for the error.
 Parses an IPv4 address stored in <code>addrStr</code>.
 If <code>pAddr</code> is non-<code>NULL</code>, the result is be stored in
 host-byte-order.
-Use <a href="#divert_helper_hton"><code>WinDivertHelperHtonl()</code></a>
+Use <a href="#divert_helper_hton"><code>CyDivertHelperHtonl()</code></a>
 to convert the result into network-byte-order.
 </p>
 </dd></dl>
 
-<a name="divert_helper_parse_ipv6_address"><h3>6.10 WinDivertHelperParseIPv6Address</h3></a>
+<a name="divert_helper_parse_ipv6_address"><h3>6.10 CyDivertHelperParseIPv6Address</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertHelperParseIPv6Address</b>(
+BOOL <b>CyDivertHelperParseIPv6Address</b>(
     __in const char *addrStr,
     __out_opt UINT32 *pAddr
 );
@@ -2312,15 +2312,15 @@ Parses an IPv6 address stored in <code>addrStr</code>.
 If <code>pAddr</code> is non-<code>NULL</code>, the buffer assumed 
 to be large enough to hold a 16-byte IPv6 address.
 The result is stored in host-byte-order.
-Use <a href="#divert_helper_hton"><code>WinDivertHelperHtonIPv6Address()</code></a>
+Use <a href="#divert_helper_hton"><code>CyDivertHelperHtonIPv6Address()</code></a>
 to convert the result into network-byte-order.
 </p>
 </dd></dl>
 
-<a name="divert_helper_format_ipv4_address"><h3>6.11 WinDivertHelperFormatIPv4Address</h3></a>
+<a name="divert_helper_format_ipv4_address"><h3>6.11 CyDivertHelperFormatIPv4Address</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertHelperFormatIPv4Address</b>(
+BOOL <b>CyDivertHelperFormatIPv4Address</b>(
     __in UINT32 addr,
     __out char *buffer,
     __in UINT bufLen
@@ -2344,10 +2344,10 @@ Convert an IPv4 address into a string.
 </p>
 </dd></dl>
 
-<a name="divert_helper_format_ipv6_address"><h3>6.12 WinDivertHelperParseIPv6Address</h3></a>
+<a name="divert_helper_format_ipv6_address"><h3>6.12 CyDivertHelperParseIPv6Address</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertHelperFormatIPv6Address</b>(
+BOOL <b>CyDivertHelperFormatIPv6Address</b>(
     __in const UINT32 *pAddr,
     __out char *buffer,
     __in UINT bufLen
@@ -2371,13 +2371,13 @@ Convert an IPv6 address into a string.
 </p>
 </dd></dl>
 
-<a name="divert_helper_calc_checksums"><h3>6.13 WinDivertHelperCalcChecksums</h3></a>
+<a name="divert_helper_calc_checksums"><h3>6.13 CyDivertHelperCalcChecksums</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertHelperCalcChecksums</b>(
+BOOL <b>CyDivertHelperCalcChecksums</b>(
     __inout VOID *pPacket,
     __in UINT packetLen,
-    __out_opt WINDIVERT_ADDRESS *pAddr,
+    __out_opt CYDIVERT_ADDRESS *pAddr,
     __in UINT64 flags
 );
 </pre>
@@ -2388,18 +2388,18 @@ BOOL <b>WinDivertHelperCalcChecksums</b>(
 <li> <code>pPacket</code>: The packet to be modified.</li>
 <li> <code>packetLen</code>: The total length of the packet <code>pPacket</code>.</li>
 <li> <code>pAddr</code>: Optional pointer to a
-    <a href="#divert_address"><code>WINDIVERT_ADDRESS</code></a> structure.</li>
+    <a href="#divert_address"><code>CYDIVERT_ADDRESS</code></a> structure.</li>
 <li> <code>flags</code>: One or more of the following flags:
 <ul>
-<li> <code>WINDIVERT_HELPER_NO_IP_CHECKSUM</code>: Do not calculate the IPv4
+<li> <code>CYDIVERT_HELPER_NO_IP_CHECKSUM</code>: Do not calculate the IPv4
     checksum.</li>
-<li> <code>WINDIVERT_HELPER_NO_ICMP_CHECKSUM</code>: Do not calculate the ICMP
+<li> <code>CYDIVERT_HELPER_NO_ICMP_CHECKSUM</code>: Do not calculate the ICMP
     checksum.</li>
-<li> <code>WINDIVERT_HELPER_NO_ICMPV6_CHECKSUM</code>: Do not calculate the ICMPv6
+<li> <code>CYDIVERT_HELPER_NO_ICMPV6_CHECKSUM</code>: Do not calculate the ICMPv6
     checksum.</li>
-<li> <code>WINDIVERT_HELPER_NO_TCP_CHECKSUM</code>: Do not calculate the TCP
+<li> <code>CYDIVERT_HELPER_NO_TCP_CHECKSUM</code>: Do not calculate the TCP
     checksum.</li>
-<li> <code>WINDIVERT_HELPER_NO_UDP_CHECKSUM</code>: Do not calculate the UDP
+<li> <code>CYDIVERT_HELPER_NO_UDP_CHECKSUM</code>: Do not calculate the UDP
     checksum.</li>
 </ul></li>
 </ul>
@@ -2412,7 +2412,7 @@ BOOL <b>WinDivertHelperCalcChecksums</b>(
 in the given packet.
 Individual checksum calculations may be disabled via the appropriate flag.
 Typically this function should be invoked on a modified packet before it is
-injected with <a href="#divert_send"><code>WinDivertSend()</code></a>.
+injected with <a href="#divert_send"><code>CyDivertSend()</code></a>.
 </p><p>
 By default this function will calculate each checksum from scratch, even if
 the existing checksum is correct.
@@ -2422,17 +2422,17 @@ instead (not provided by this API).
 </p><p>
 If <code>pAddr</code> is non-<code>NULL</code>, this function sets
 the corresponding <code>*Checksum</code> flag
-(see <a href="#divert_address"><code>WINDIVERT_ADDRESS</code></a>).
+(see <a href="#divert_address"><code>CYDIVERT_ADDRESS</code></a>).
 Normally, <code>pAddr</code> should point to the address 
-passed to <a href="#divert_send"><code>WinDivertSend()</code></a> for
+passed to <a href="#divert_send"><code>CyDivertSend()</code></a> for
 packet injection.
 </p>
 </dd></dl>
 
-<a name="divert_helper_dec_ttl"><h3>6.14 WinDivertHelperDecrementTTL</h3></a>
+<a name="divert_helper_dec_ttl"><h3>6.14 CyDivertHelperDecrementTTL</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertHelperDecrementTTL</b>(
+BOOL <b>CyDivertHelperDecrementTTL</b>(
     __inout VOID *packet,
     __in packetLen
 );
@@ -2463,12 +2463,12 @@ This function updates the checksum field incrementally.
 </p>
 </dd></dl>
 
-<a name="divert_helper_compile_filter"><h3>6.15 WinDivertHelperCompileFilter</h3></a>
+<a name="divert_helper_compile_filter"><h3>6.15 CyDivertHelperCompileFilter</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertHelperCompileFilter</b>(
+BOOL <b>CyDivertHelperCompileFilter</b>(
     __in const char *filter,
-    __in WINDIVERT_LAYER layer,
+    __in CYDIVERT_LAYER layer,
     __out_opt char *object,
     __in UINT objLen,
     __out_opt const char **errorStr,
@@ -2496,8 +2496,8 @@ Compiles the given packet filter string into a compact <q>object</q>
 representation that is optionally stored in <code>object</code> if non-NULL.
 The <q>object</q> representation is a valid null terminated C string, but is
 otherwise opaque and not meant to be human readable.
-The object representation can be passed to all WinDivert functions,
-such as <a href="#divert_open"><code>WinDivertOpen()</code></a>, in place of the
+The object representation can be passed to all CyDivert functions,
+such as <a href="#divert_open"><code>CyDivertOpen()</code></a>, in place of the
 human-readable filter string equivalent.
 </p>
 <p>
@@ -2514,14 +2514,14 @@ objects, and therefore do not need to be deallocated.
 <p>
 </dd></dl>
 
-<a name="divert_helper_eval_filter"><h3>6.16 WinDivertHelperEvalFilter</h3></a>
+<a name="divert_helper_eval_filter"><h3>6.16 CyDivertHelperEvalFilter</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertHelperEvalFilter</b>(
+BOOL <b>CyDivertHelperEvalFilter</b>(
     __in const char *filter,
     __in const VOID *pPacket,
     __in UINT packetLen,
-    __in const WINDIVERT_ADDRESS *pAddr
+    __in const CYDIVERT_ADDRESS *pAddr
 );
 </pre>
 </td></tr></table>
@@ -2531,7 +2531,7 @@ BOOL <b>WinDivertHelperEvalFilter</b>(
 <li> <code>filter</code>: The packet filter string to be evaluated.</li>
 <li> <code>pPacket</code>: The packet.</li>
 <li> <code>packetLen</code>: The total length of the packet <code>pPacket</code>.</li>
-<li> <code>pAddr</code>: The <code>WINDIVERT_ADDRESS</code> of the packet
+<li> <code>pAddr</code>: The <code>CYDIVERT_ADDRESS</code> of the packet
     <code>pPacket</code>.</li>
 </ul>
 <p>
@@ -2553,17 +2553,17 @@ Note that this function is relatively slow since the packet filter string
 will be (re)compiled for each call.
 This overhead can be minimized by pre-compiling the filter string into the
 object representation using the
-<a href="#divert_helper_compile_filter"><code>WinDivertHelperCompileFilter()</code></a>
+<a href="#divert_helper_compile_filter"><code>CyDivertHelperCompileFilter()</code></a>
 function.
 <p>
 </dd></dl>
 
-<a name="divert_helper_format_filter"><h3>6.17 WinDivertHelperFormatFilter</h3></a>
+<a name="divert_helper_format_filter"><h3>6.17 CyDivertHelperFormatFilter</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-BOOL <b>WinDivertHelperEvalFilter</b>(
+BOOL <b>CyDivertHelperEvalFilter</b>(
     __in const char *filter,
-    __in WINDIVERT_LAYER layer,
+    __in CYDIVERT_LAYER layer,
     __out char *buffer,
     __in UINT bufLen
 );
@@ -2586,25 +2586,25 @@ Use <code>GetLastError()</code> to get the reason for the error.
 Formats the given filter string or object.
 This function is mainly useful for <q>decompiling</q> the filter object
 representation back into a human-readable filter string representation.
-One application is the <code>WINDIVERT_LAYER_REFLECT</code> layer,
+One application is the <code>CYDIVERT_LAYER_REFLECT</code> layer,
 where the filter object associated with the reflection event is
-returned by <a href="#divert_recv"><code>WinDivertRecv()</code></a>.
+returned by <a href="#divert_recv"><code>CyDivertRecv()</code></a>.
 </p>
 </dd></dl>
 
-<a name="divert_helper_ntoh"><h3>6.18 WinDivertHelperNtoh*</h3></a>
+<a name="divert_helper_ntoh"><h3>6.18 CyDivertHelperNtoh*</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-UINT16 <b>WinDivertHelperNtohs</b>(
+UINT16 <b>CyDivertHelperNtohs</b>(
     __in UINT16 x
 );
-UINT32 <b>WinDivertHelperNtohl</b>(
+UINT32 <b>CyDivertHelperNtohl</b>(
     __in UINT32 x
 );
-UINT64 <b>WinDivertHelperNtohll</b>(
+UINT64 <b>CyDivertHelperNtohll</b>(
     __in UINT64 x
 );
-void <b>WinDivertHelperNtohIPv6Address</b>(
+void <b>CyDivertHelperNtohIPv6Address</b>(
     __in const UINT *inAddr,
     __out UINT *outAddr
 );
@@ -2627,19 +2627,19 @@ Converts a value/IPv6-address from network to host byte-order.
 </p>
 </dd></dl>
 
-<a name="divert_helper_hton"><h3>6.19 WinDivertHelperHton*</h3></a>
+<a name="divert_helper_hton"><h3>6.19 CyDivertHelperHton*</h3></a>
 <table border="1" cellpadding="5"><tr><td>
 <pre>
-UINT16 <b>WinDivertHelperHtons</b>(
+UINT16 <b>CyDivertHelperHtons</b>(
     __in UINT16 x
 );
-UINT32 <b>WinDivertHelperHtonl</b>(
+UINT32 <b>CyDivertHelperHtonl</b>(
     __in UINT32 x
 );
-UINT64 <b>WinDivertHelperHtonll</b>(
+UINT64 <b>CyDivertHelperHtonll</b>(
     __in UINT64 x
 );
-void <b>WinDivertHelperHtonIPv6Address</b>(
+void <b>CyDivertHelperHtonIPv6Address</b>(
     __in const UINT *inAddr,
     __out UINT *outAddr
 );
@@ -2666,7 +2666,7 @@ Converts a value/IPv6-address from host to network byte-order.
 <a name="filter_language"><h2>7. Filter Language</h2></a>
 
 <p>
-The <a href="#divert_open"><code>WinDivertOpen()</code></a> function accepts a
+The <a href="#divert_open"><code>CyDivertOpen()</code></a> function accepts a
 string containing a <i>filter</i>.
 Only packets/events that match the filter will be blocked and/or captured.
 All other non-matching packets/events will be allowed to continue as normal.
@@ -2678,7 +2678,7 @@ might contain URLs.
 This could be achieved using the following filter.
 </p>
 <pre>
-HANDLE handle = WinDivertOpen(
+HANDLE handle = CyDivertOpen(
     "outbound and "
     "tcp.PayloadLength &gt; 0 and "
     "tcp.DstPort == 80", 0, 0, 0);
@@ -2775,16 +2775,16 @@ The possible fields are:
 <tr><td><code>localPort</code></td><td>&#10004;</td><td></td><td>&#10004;</td><td>&#10004;</td><td></td><td>The local port</td></tr>
 <tr><td><code>remoteAddr</code></td><td>&#10004;</td><td></td><td>&#10004;</td><td>&#10004;</td><td></td><td>The remote address</td></tr>
 <tr><td><code>remotePort</code></td><td>&#10004;</td><td></td><td>&#10004;</td><td>&#10004;</td><td></td><td>The remote port</td></tr>
-<tr><td><code>ip.*</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>IPv4 fields (see <code>WINDIVERT_IPHDR</code>)</td></tr>
-<tr><td><code>ipv6.*</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>IPv6 fields (see <code>WINDIVERT_IPV6HDR</code>)</td></tr>
-<tr><td><code>icmp.*</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>ICMP fields (see <code>WINDIVERT_ICMPHDR</code>)</td></tr>
-<tr><td><code>icmpv6.*</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>ICMPV6 fields (see <code>WINDIVERT_ICMPV6HDR</code>)</td></tr>
-<tr><td><code>tcp.*</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>TCP fields (see <code>WINDIVERT_TCPHDR</code>)</td></tr>
+<tr><td><code>ip.*</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>IPv4 fields (see <code>CYDIVERT_IPHDR</code>)</td></tr>
+<tr><td><code>ipv6.*</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>IPv6 fields (see <code>CYDIVERT_IPV6HDR</code>)</td></tr>
+<tr><td><code>icmp.*</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>ICMP fields (see <code>CYDIVERT_ICMPHDR</code>)</td></tr>
+<tr><td><code>icmpv6.*</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>ICMPV6 fields (see <code>CYDIVERT_ICMPV6HDR</code>)</td></tr>
+<tr><td><code>tcp.*</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>TCP fields (see <code>CYDIVERT_TCPHDR</code>)</td></tr>
 <tr><td><code>tcp.PayloadLength</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>The TCP payload length</td></tr>
 <tr><td><code>tcp.Payload[i]</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>The <code>i</code><sup>th</sup> 8-bit word of the TCP payload</td></tr>
 <tr><td><code>tcp.Payload16[i]</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>The <code>i</code><sup>th</sup> 16-bit word of the TCP payload</td></tr>
 <tr><td><code>tcp.Payload32[i]</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>The <code>i</code><sup>th</sup> 32-bit word of the TCP payload</td></tr>
-<tr><td><code>udp.*</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>UDP fields (see <code>WINDIVERT_UDPHDR</code>)</td></tr>
+<tr><td><code>udp.*</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>UDP fields (see <code>CYDIVERT_UDPHDR</code>)</td></tr>
 <tr><td><code>udp.PayloadLength</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>The UDP payload length</td></tr>
 <tr><td><code>udp.Payload[i]</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>The <code>i</code><sup>th</sup> 8-bit word of the UDP payload</td></tr>
 <tr><td><code>udp.Payload16[i]</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td>The <code>i</code><sup>th</sup> 16-bit word of the UDP payload</td></tr>
@@ -2799,7 +2799,7 @@ packet does not contain a TCP header.
 The <code>processId</code> field matches the ID of the process associated
 to an event.
 Due to technical limitations, this field is not supported by the
-<code>WINDIVERT_LAYER_NETWORK*</code> layers.
+<code>CYDIVERT_LAYER_NETWORK*</code> layers.
 That said, it is usually possible to associate process IDs to network packets 
 matching the same network 5-tuple.
 Note that a fundamental race condition exists between the <code>processId</code>
@@ -2833,7 +2833,7 @@ deemed to have failed.
 </p><p>
 The <code>random*</code> fields are not really random but use a
 deterministic hash value calculated using the
-<a href="#divert_helper_hash_packet"><code>WinDivertHelperHashPacket()</code></a>
+<a href="#divert_helper_hash_packet"><code>CyDivertHelperHashPacket()</code></a>
 function.
 </p><p>
 Layer-specific macros make it possible to match events
@@ -2851,23 +2851,23 @@ The possible macros are:
 <tr><td><code>UDP</code></td><td>&#10004;</td><td>&#10004;</td><td>&#10004;</td><td>&#10004;</td><td>&#10004;</td><td><code>IPPROTO_UDP</code> (<code>17</code>)</td></tr>
 <tr><td><code>ICMP</code></td><td>&#10004;</td><td>&#10004;</td><td>&#10004;</td><td>&#10004;</td><td>&#10004;</td><td><code>IPPROTO_ICMP</code> (<code>1</code>)</td></tr>
 <tr><td><code>ICMPV6</code></td><td>&#10004;</td><td>&#10004;</td><td>&#10004;</td><td>&#10004;</td><td>&#10004;</td><td><code>IPPROTO_ICMPV6</code> (<code>58</code>)</td></tr>
-<tr><td><code>PACKET</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td><code>WINDIVERT_EVENT_NETWORK_PACKET</code></td></tr>
-<tr><td><code>ESTABLISHED</code></td><td></td><td></td><td>&#10004;</td><td></td><td></td><td><code>WINDIVERT_EVENT_FLOW_ESTABLISHED</code></td></tr>
-<tr><td><code>DELETED</code></td><td></td><td></td><td>&#10004;</td><td></td><td></td><td><code>WINDIVERT_EVENT_FLOW_DELETED</code></td></tr>
-<tr><td><code>BIND</code></td><td></td><td></td><td></td><td>&#10004;</td><td></td><td><code>WINDIVERT_EVENT_SOCKET_BIND</code></td></tr>
-<tr><td><code>CONNECT</code></td><td></td><td></td><td></td><td>&#10004;</td><td></td><td><code>WINDIVERT_EVENT_SOCKET_CONNECT</code></td></tr>
-<tr><td><code>ACCEPT</code></td><td></td><td></td><td></td><td>&#10004;</td><td></td><td><code>WINDIVERT_EVENT_SOCKET_ACCEPT</code></td></tr>
-<tr><td><code>LISTEN</code></td><td></td><td></td><td></td><td>&#10004;</td><td></td><td><code>WINDIVERT_EVENT_SOCKET_LISTEN</code></td></tr>
-<tr><td><code>OPEN</code></td><td></td><td></td><td></td><td></td><td>&#10004;</td><td><code>WINDIVERT_EVENT_REFLECT_OPEN</code></td></tr>
-<tr><td><code>CLOSE</code></td><td></td><td></td><td></td><td>&#10004;</td><td>&#10004;</td><td><code>WINDIVERT_EVENT_SOCKET_CLOSE</code>
+<tr><td><code>PACKET</code></td><td>&#10004;</td><td>&#10004;</td><td></td><td></td><td></td><td><code>CYDIVERT_EVENT_NETWORK_PACKET</code></td></tr>
+<tr><td><code>ESTABLISHED</code></td><td></td><td></td><td>&#10004;</td><td></td><td></td><td><code>CYDIVERT_EVENT_FLOW_ESTABLISHED</code></td></tr>
+<tr><td><code>DELETED</code></td><td></td><td></td><td>&#10004;</td><td></td><td></td><td><code>CYDIVERT_EVENT_FLOW_DELETED</code></td></tr>
+<tr><td><code>BIND</code></td><td></td><td></td><td></td><td>&#10004;</td><td></td><td><code>CYDIVERT_EVENT_SOCKET_BIND</code></td></tr>
+<tr><td><code>CONNECT</code></td><td></td><td></td><td></td><td>&#10004;</td><td></td><td><code>CYDIVERT_EVENT_SOCKET_CONNECT</code></td></tr>
+<tr><td><code>ACCEPT</code></td><td></td><td></td><td></td><td>&#10004;</td><td></td><td><code>CYDIVERT_EVENT_SOCKET_ACCEPT</code></td></tr>
+<tr><td><code>LISTEN</code></td><td></td><td></td><td></td><td>&#10004;</td><td></td><td><code>CYDIVERT_EVENT_SOCKET_LISTEN</code></td></tr>
+<tr><td><code>OPEN</code></td><td></td><td></td><td></td><td></td><td>&#10004;</td><td><code>CYDIVERT_EVENT_REFLECT_OPEN</code></td></tr>
+<tr><td><code>CLOSE</code></td><td></td><td></td><td></td><td>&#10004;</td><td>&#10004;</td><td><code>CYDIVERT_EVENT_SOCKET_CLOSE</code>
 for the <code>SOCKET</code> layer, or
-<code>WINDIVERT_EVENT_REFLECT_CLOSE</code> for the <code>REFLECT</code>
+<code>CYDIVERT_EVENT_REFLECT_CLOSE</code> for the <code>REFLECT</code>
 layer.</td></tr>
-<tr><td><code>NETWORK</code></td><td></td><td></td><td></td><td></td><td>&#10004;</td><td><code>WINDIVERT_LAYER_NETWORK</code></td></tr>
-<tr><td><code>NETWORK_FORWARD</code></td><td></td><td></td><td></td><td></td><td>&#10004;</td><td><code>WINDIVERT_LAYER_NETWORK_FORWARD</code></td></tr>
-<tr><td><code>FLOW</code></td><td></td><td></td><td></td><td></td><td>&#10004;</td><td><code>WINDIVERT_LAYER_FLOW</code></td></tr>
-<tr><td><code>SOCKET</code></td><td></td><td></td><td></td><td></td><td>&#10004;</td><td><code>WINDIVERT_LAYER_SOCKET</code></td></tr>
-<tr><td><code>REFLECT</code></td><td></td><td></td><td></td><td></td><td>&#10004;</td><td><code>WINDIVERT_LAYER_REFLECT</code></td></tr>
+<tr><td><code>NETWORK</code></td><td></td><td></td><td></td><td></td><td>&#10004;</td><td><code>CYDIVERT_LAYER_NETWORK</code></td></tr>
+<tr><td><code>NETWORK_FORWARD</code></td><td></td><td></td><td></td><td></td><td>&#10004;</td><td><code>CYDIVERT_LAYER_NETWORK_FORWARD</code></td></tr>
+<tr><td><code>FLOW</code></td><td></td><td></td><td></td><td></td><td>&#10004;</td><td><code>CYDIVERT_LAYER_FLOW</code></td></tr>
+<tr><td><code>SOCKET</code></td><td></td><td></td><td></td><td></td><td>&#10004;</td><td><code>CYDIVERT_LAYER_SOCKET</code></td></tr>
+<tr><td><code>REFLECT</code></td><td></td><td></td><td></td><td></td><td>&#10004;</td><td><code>CYDIVERT_LAYER_REFLECT</code></td></tr>
 </table>
 </center>
 
@@ -2877,7 +2877,7 @@ layer.</td></tr>
 <li>
 Divert all outbound (non-local) web traffic:
 <pre>
-HANDLE handle = WinDivertOpen(
+HANDLE handle = CyDivertOpen(
         "outbound and !loopback and "
         "(tcp.DstPort == 80 or udp.DstPort == 53)",
         0, 0, 0
@@ -2887,7 +2887,7 @@ HANDLE handle = WinDivertOpen(
 <li>
 Divert all inbound TCP SYNs:
 <pre>
-HANDLE handle = WinDivertOpen(
+HANDLE handle = CyDivertOpen(
         "inbound and "
         "tcp.Syn",
         0, 0, 0
@@ -2897,13 +2897,13 @@ HANDLE handle = WinDivertOpen(
 <li>
 Divert all traffic:
 <pre>
-HANDLE handle = WinDivertOpen("true", 0, 0, 0);
+HANDLE handle = CyDivertOpen("true", 0, 0, 0);
 </pre>
 </li>
 <li>
 Divert no traffic:
 <pre>
-HANDLE handle = WinDivertOpen("false", 0, 0, 0);
+HANDLE handle = CyDivertOpen("false", 0, 0, 0);
 </pre>
 This is useful for packet injection.
 </ol>
@@ -2931,7 +2931,7 @@ find the optimal solution.
 <a name="performance"><h2>8. Performance</h2></a>
 
 <p>
-Using WinDivert to redirect network traffic to/from a user application incurs
+Using CyDivert to redirect network traffic to/from a user application incurs
 performance overheads, such as copying packet data and user/kernel mode
 context switching.
 Under heavy load (&geq;1Gbps) these overheads can be significant.
@@ -2944,8 +2944,8 @@ reduce overheads (in order of importance):
     Non-matching traffic will continue to use the default path without
     incurring additional overheads.</li>
 <li><i>Batch Mode</i>: The
-    <a href="#divert_recv_ex">WinDivertRecvEx()</a> and
-    <a href="#divert_send_ex">WinDivertSendEx()</a> functions
+    <a href="#divert_recv_ex">CyDivertRecvEx()</a> and
+    <a href="#divert_send_ex">CyDivertSendEx()</a> functions
     support <i>batching</i> that allows several packets to be
     received/sent at once.
     This can significantly reduce the overheads relating to
@@ -2960,7 +2960,7 @@ reduce overheads (in order of importance):
     In general, the buffer size should reflect the expected usage
     as closely as possible.</li>
 <li><i>Simple Filters</i>: 
-    Currently WinDivert does not optimize the filter compilation, so it
+    Currently CyDivert does not optimize the filter compilation, so it
     is up to the user application to ensure the filter is simple/optimized.
     </li>
 <li><i>Overlapped I/O</i>: This allows the user application to do
@@ -2970,15 +2970,15 @@ reduce overheads (in order of importance):
     receive/send operations at once.
     However, using overlapped I/O can be tricky, and it is important
     that all buffers passed to
-    <a href="#divert_recv_ex">WinDivertRecvEx()</a> or
-    <a href="#divert_send_ex">WinDivertSendEx()</a> 
+    <a href="#divert_recv_ex">CyDivertRecvEx()</a> or
+    <a href="#divert_send_ex">CyDivertSendEx()</a> 
     (including the <code>OVERLAPPED</code> structure)
     are not modified by the user application until the operation
     completes.</li>
 <li><i>Queue length/size/time</i>: If these values are too small then some
     packets may be dropped under heavy load.
     These values can be controlled using the
-    <a href="#divert_set_param">WinDivertSetParam()</a> function.</li>
+    <a href="#divert_set_param">CyDivertSetParam()</a> function.</li>
 </ol>
 <p>
 The <code>passthru.exe</code> <a href="#samples">sample program</a> can
@@ -2989,7 +2989,7 @@ be used to experiment with different batch sizes and thread counts.
 <a name="samples"><h2>9. Samples</h2></a>
 
 <p>
-Some samples have been provided to demonstrate the WinDivert API.
+Some samples have been provided to demonstrate the CyDivert API.
 The sample programs are:
 </p>
 <ul>
@@ -3000,14 +3000,14 @@ The sample programs are:
     sending a simple block-page to the browser.
     The blacklist(s) are specified at the command-line.</li>
 <li><code>netdump.exe</code>: A simple packet sniffer based on the
-    WinDivert filter language.
+    CyDivert filter language.
     This program takes a filter specified at the command line, and prints
     information about any packet that matches the filter.
-    This example uses WinDivert in "packet sniffing" mode, similar to
+    This example uses CyDivert in "packet sniffing" mode, similar to
     <code>winpcap</code>.
-    However, unlike <code>winpcap</code>, WinDivert can see local (loopback)
+    However, unlike <code>winpcap</code>, CyDivert can see local (loopback)
     packets.
-<li><code>netfilter.exe</code>: A simple firewall based on the WinDivert
+<li><code>netfilter.exe</code>: A simple firewall based on the CyDivert
     filter language.
     This program takes a filter specified at the command line, and blocks
     any packet that matches the filter.
@@ -3021,45 +3021,45 @@ The sample programs are:
     and so is useful for performance testing or as a starting point
     for more interesting applications.</li>
 <li><code>streamdump.exe</code>: A simple program that demonstrates how to
-    handle streams using WinDivert.
+    handle streams using CyDivert.
     The basic idea is to divert outbound TCP connections to a local proxy
     server which can capture or manipulate the stream.</li>
 <li><code>flowtrack.exe</code>: A program that tracks all network flows
     to and from the local machine, including information such as the ID of the
     responsible process.
     The <code>flowtrack</code> sample demonstrates the
-    <code>WINDIVERT_LAYER_FLOW</code> layer.</li>
+    <code>CYDIVERT_LAYER_FLOW</code> layer.</li>
 <li><code>socketdump.exe</code>: Dumps socket operations
     (<code>bind()</code>, <code>connect()</code>, etc.) and the ID of the
     responsible process.
     The <code>socketdump</code> sample demonstrates the
-    <code>WINDIVERT_LAYER_SOCKET</code> layer.</li>
-<li><code>windivertctl.exe</code> allows the user to query which processes
-    are using WinDivert via the <code>list</code> or <code>watch</code>
+    <code>CYDIVERT_LAYER_SOCKET</code> layer.</li>
+<li><code>cydivertctl.exe</code> allows the user to query which processes
+    are using CyDivert via the <code>list</code> or <code>watch</code>
     commands, or to terminate all such processes using the
     <code>kill</code> command.
-    The <code>windivertctl.exe</code> can also forcibly remove the
-    WinDivert driver using the <code>uninstall</code> command.
-    The <code>windivertctl</code> sample demonstrates the
-    <code>WINDIVERT_LAYER_REFLECT</code> layer.</li>
+    The <code>cydivertctl.exe</code> can also forcibly remove the
+    CyDivert driver using the <code>uninstall</code> command.
+    The <code>cydivertctl</code> sample demonstrates the
+    <code>CYDIVERT_LAYER_REFLECT</code> layer.</li>
 </ul>
 <p>
 The samples are intended for educational purposes only, and are not
 fully-featured applications.
 </p><p>
-The following basic template for a WinDivert application using the
-<code>WINDIVERT_LAYER_NETWORK</code> layer.
-The basic idea is to open a WinDivert handle, then enter a
+The following basic template for a CyDivert application using the
+<code>CYDIVERT_LAYER_NETWORK</code> layer.
+The basic idea is to open a CyDivert handle, then enter a
 capture-modify-reinject loop:
 </p>
 <pre>
-    HANDLE handle;          // WinDivert handle
-    WINDIVERT_ADDRESS addr; // Packet address
+    HANDLE handle;          // CyDivert handle
+    CYDIVERT_ADDRESS addr; // Packet address
     char packet[MAXBUF];    // Packet buffer
     UINT packetLen;
 
     // Open some filter
-    handle = WinDivertOpen("...", WINDIVERT_LAYER_NETWORK, 0, 0);
+    handle = CyDivertOpen("...", CYDIVERT_LAYER_NETWORK, 0, 0);
     if (handle == INVALID_HANDLE_VALUE)
     {
         // Handle error
@@ -3069,7 +3069,7 @@ capture-modify-reinject loop:
     // Main capture-modify-inject loop:
     while (TRUE)
     {
-        if (!WinDivertRecv(handle, packet, sizeof(packet), &amp;packetLen, &amp;addr))
+        if (!CyDivertRecv(handle, packet, sizeof(packet), &amp;packetLen, &amp;addr))
         {
             // Handle recv error
             continue;
@@ -3077,8 +3077,8 @@ capture-modify-reinject loop:
 
         // Modify packet.
 
-        WinDivertHelperCalcChecksums(packet, packetLen, &amp;addr, 0);
-        if (!WinDivertSend(handle, packet, packetLen, NULL, &amp;addr))
+        CyDivertHelperCalcChecksums(packet, packetLen, &amp;addr, 0);
+        if (!CyDivertSend(handle, packet, packetLen, NULL, &amp;addr))
         {
             // Handle send error
             continue;
@@ -3087,9 +3087,9 @@ capture-modify-reinject loop:
 </pre>
 <p>
 For applications that do not need to modify the packet, a better approach is
-to open the WinDivert handle with the <code>WINDIVERT_FLAG_SNIFF</code> flag set,
+to open the CyDivert handle with the <code>CYDIVERT_FLAG_SNIFF</code> flag set,
 and not re-inject the packet with
-<a href="#divert_send"><code>WinDivertSend()</code></a>.
+<a href="#divert_send"><code>CyDivertSend()</code></a>.
 See the <code>netdump.exe</code> sample program for an example of this usage.
 </p>
 
@@ -3097,27 +3097,27 @@ See the <code>netdump.exe</code> sample program for an example of this usage.
 <a name="known_issues"><h2>10. Known Issues</h2></a>
 
 <p>
-WinDivert has some known limitations listed below:
+CyDivert has some known limitations listed below:
 </p>
 <ul>
 <li><i>Injecting inbound ICMP/ICMPv6 messages</i>:
-    Calling <a href="#divert_send"><code>WinDivertSend()</code></a> will fail
+    Calling <a href="#divert_send"><code>CyDivertSend()</code></a> will fail
     with an error for certain types of inbound ICMP/ICMPv6 messages.
     This is probably because the Windows TCP/IP stack does not handle
     such messages.
     Such errors are harmless and can be ignored.
     </li>
 <li><i>The forward layer does not interact well with the Windows NAT</i>:
-    It is not possible to block packets pre-NAT with WinDivert.
-    As a general principle, you should not try and mix WinDivert at the
+    It is not possible to block packets pre-NAT with CyDivert.
+    As a general principle, you should not try and mix CyDivert at the
     forward layer with the Windows NAT implementation.
     </li>
 <li><i>Re-injecting unmodified packets can lead to infinite loops</i>:
     If two or more Windows Filtering Platform (WFP) callout drivers
-    (including WinDivert applications) block and inject unmodified copies of
+    (including CyDivert applications) block and inject unmodified copies of
     packets then this can lead to an infinite loop.
     If such a loop occurs, 
-    <a href="#divert_send"><code>WinDivertSend()</code></a> will eventually fail
+    <a href="#divert_send"><code>CyDivertSend()</code></a> will eventually fail
     with error <code>ERROR_HOST_UNREACHABLE</code>.
     Unfortunately, such errors are not easy to fix.
     Some crude solutions include: (1) removing the incompatible driver, or
@@ -3127,16 +3127,16 @@ WinDivert has some known limitations listed below:
     See <a href="https://github.com/basil00/Divert/issues/41">
     GitHub issue #41</a> for more information.
     </li>
-<li><i>WinDivert can cause the MSVC x86_64 debugger to deadlock</i>:
+<li><i>CyDivert can cause the MSVC x86_64 debugger to deadlock</i>:
     The deadlock occurs because the debugger uses local sockets.
-    Thus: the debugger pauses the WinDivert
+    Thus: the debugger pauses the CyDivert
     application, which stops packets from being processed, which 
     causes the debugger wait forever on input from a socket.
     The deadlock can be avoided by ignoring loopback traffic.
     See <a href="https://github.com/basil00/Divert/issues/26">
     GitHub issue #26</a> for more information.
     </li>
-<li><i>WinDivert can cause packets to be out-of-order</i>:
+<li><i>CyDivert can cause packets to be out-of-order</i>:
     Simply running the <code>passthru.exe</code> sample program can cause
     packets to become out-of-order.
     This is not a bug, since there is no requirement for packets to
@@ -3148,7 +3148,7 @@ WinDivert has some known limitations listed below:
 <li><i>A race condition exists between <q><code>addr.*.processId</code></q> and
     process termination.</i>
     By the time an event is received using
-    <a href="#divert_recv"><code>WinDivertRecv()</code></a>,
+    <a href="#divert_recv"><code>CyDivertRecv()</code></a>,
     it is possible that the process responsible for the event has already
     terminated.
     Furthermore, it is theoretically possible that the
@@ -3157,10 +3157,10 @@ WinDivert has some known limitations listed below:
     (<code>addr.Timestamp</code>) with the creation time of the process.
     If the process is newer, then the ID has been reassigned.
     This race condition does <b>not</b> affect the
-    <code>WINDIVERT_EVENT_REFLECT_OPEN</code> event.
+    <code>CYDIVERT_EVENT_REFLECT_OPEN</code> event.
     In this special case, the <code>addr.Reflect.processId</code> is
     guaranteed to be valid until the corresponding
-    <code>WINDIVERT_EVENT_REFLECT_CLOSE</code> event is
+    <code>CYDIVERT_EVENT_REFLECT_CLOSE</code> event is
     received by the user application or is dropped
     (filter mismatch or timeout).
 	</li>
@@ -3169,7 +3169,7 @@ WinDivert has some known limitations listed below:
 <hr>
 <a name="license"><h2>11. License</h2></a>
 <p>
-WinDivert is dual-licensed under your choice of either the
+CyDivert is dual-licensed under your choice of either the
 <a href="http://www.gnu.org/licenses/lgpl-3.0.txt">GNU Lesser General
 Public License (LGPL) Version 3</a> or the
 <a href="https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt">
@@ -3180,7 +3180,7 @@ Please see the notices below:
 <b>LGPL version 3</b>:
 </p>
 <pre>
-WinDivert is free software: you can redistribute it and/or modify
+CyDivert is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
@@ -3197,7 +3197,7 @@ along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.
 <b>GPL version 2</b>:
 </p>
 <pre>
-WinDivert is free software; you can redistribute it and/or modify
+CyDivert is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.

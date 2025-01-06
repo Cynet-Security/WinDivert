@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
 
-    test.vcxproj
+    cydivert.vcxproj
     (C) 2019, all rights reserved,
     
     This file is part of CyDivert.
@@ -42,28 +42,48 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="test.c">
+    <ClCompile Include="cydivert.c">
       <TreatWarningAsError>false</TreatWarningAsError>
       <Optimization>MinSpace</Optimization>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
       <AdditionalIncludeDirectories>..\include</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="CyDivert.rc" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
-    <RootNamespace>test</RootNamespace>
-    <ProjectName>test</ProjectName>
-    <ProjectGuid>{FC002AFD-0A77-4A82-9CDD-7A8389162367}</ProjectGuid>
+    <RootNamespace>CyDivert</RootNamespace>
+    <ProjectName>CyDivert</ProjectName>
+    <ProjectGuid>{2253C1F4-2B6E-41A9-9F0F-F2BC540ABC92}</ProjectGuid>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
     <PlatformToolset>v141</PlatformToolset>
-    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <TargetName>CyDivert</TargetName>
+  </PropertyGroup>
   <ItemDefinitionGroup>
+    <ClCompile>
+      <WppEnabled>false</WppEnabled>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">WIN32;NDEBUG;_WINDOWS;_USRDLL;DLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
     <Link>
-      <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\dll\CyDivert.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <EntryPointSymbol>CyDivertDllEntry</EntryPointSymbol>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+      <ModuleDefinitionFile>cydivert.def</ModuleDefinitionFile>
+      <ImportLibrary>CyDivert.lib</ImportLibrary>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

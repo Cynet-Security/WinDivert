@@ -2,9 +2,9 @@
  * passthru.c
  * (C) 2019, all rights reserved,
  *
- * This file is part of WinDivert.
+ * This file is part of CyDivert.
  *
- * WinDivert is free software: you can redistribute it and/or modify it under
+ * CyDivert is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
  * option) any later version.
@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * WinDivert is free software; you can redistribute it and/or modify it under
+ * CyDivert is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
@@ -37,7 +37,7 @@
  * This program does nothing except divert packets and re-inject them.  This is
  * useful for performance testing.
  *
- * usage: passthru.exe [windivert-filter] [num-threads] [batch-size] [priority]
+ * usage: passthru.exe [cydivert-filter] [num-threads] [batch-size] [priority]
  */
 
 #include <winsock2.h>
@@ -45,7 +45,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "windivert.h"
+#include "cydivert.h"
 
 #define MTU 1500
 
@@ -90,7 +90,7 @@ int __cdecl main(int argc, char **argv)
     if (argc >= 4)
     {
         batch = atoi(argv[3]);
-        if (batch <= 0 || batch > WINDIVERT_BATCH_MAX)
+        if (batch <= 0 || batch > CYDIVERT_BATCH_MAX)
         {
             fprintf(stderr, "error: invalid batch size\n");
             exit(EXIT_FAILURE);
@@ -99,8 +99,8 @@ int __cdecl main(int argc, char **argv)
     if (argc >= 5)
     {
         priority = atoi(argv[4]);
-        if (priority < WINDIVERT_PRIORITY_LOWEST ||
-            priority > WINDIVERT_PRIORITY_HIGHEST)
+        if (priority < CYDIVERT_PRIORITY_LOWEST ||
+            priority > CYDIVERT_PRIORITY_HIGHEST)
         {
             fprintf(stderr, "error: invalid priority value\n");
             exit(EXIT_FAILURE);
@@ -108,7 +108,7 @@ int __cdecl main(int argc, char **argv)
     }
 
     // Divert traffic matching the filter:
-    handle = WinDivertOpen(filter, WINDIVERT_LAYER_NETWORK, (INT16)priority,
+    handle = CyDivertOpen(filter, CYDIVERT_LAYER_NETWORK, (INT16)priority,
         0);
     if (handle == INVALID_HANDLE_VALUE)
     {
@@ -117,7 +117,7 @@ int __cdecl main(int argc, char **argv)
             fprintf(stderr, "error: filter syntax error\n");
             exit(EXIT_FAILURE);
         }
-        fprintf(stderr, "error: failed to open the WinDivert device (%d)\n",
+        fprintf(stderr, "error: failed to open the CyDivert device (%d)\n",
             GetLastError());
         exit(EXIT_FAILURE);
     }
@@ -148,7 +148,7 @@ static DWORD passthru(LPVOID arg)
 {
     UINT8 *packet;
     UINT packet_len, recv_len, addr_len;
-    WINDIVERT_ADDRESS *addr;
+    CYDIVERT_ADDRESS *addr;
     PCONFIG config = (PCONFIG)arg;
     HANDLE handle;
     int batch;
@@ -158,9 +158,9 @@ static DWORD passthru(LPVOID arg)
 
     packet_len = batch * MTU;
     packet_len =
-        (packet_len < WINDIVERT_MTU_MAX? WINDIVERT_MTU_MAX: packet_len);
+        (packet_len < CYDIVERT_MTU_MAX? CYDIVERT_MTU_MAX: packet_len);
     packet = (UINT8 *)malloc(packet_len);
-    addr = (WINDIVERT_ADDRESS *)malloc(batch * sizeof(WINDIVERT_ADDRESS));
+    addr = (CYDIVERT_ADDRESS *)malloc(batch * sizeof(CYDIVERT_ADDRESS));
     if (packet == NULL || addr == NULL)
     {
         fprintf(stderr, "error: failed to allocate buffer (%d)\n",
@@ -172,8 +172,8 @@ static DWORD passthru(LPVOID arg)
     while (TRUE)
     {
         // Read a matching packet.
-        addr_len = batch * sizeof(WINDIVERT_ADDRESS);
-        if (!WinDivertRecvEx(handle, packet, packet_len, &recv_len, 0,
+        addr_len = batch * sizeof(CYDIVERT_ADDRESS);
+        if (!CyDivertRecvEx(handle, packet, packet_len, &recv_len, 0,
                 addr, &addr_len, NULL))
         {
             fprintf(stderr, "warning: failed to read packet (%d)\n",
@@ -182,7 +182,7 @@ static DWORD passthru(LPVOID arg)
         }
 
         // Re-inject the matching packet.
-        if (!WinDivertSendEx(handle, packet, recv_len, NULL, 0, addr,
+        if (!CyDivertSendEx(handle, packet, recv_len, NULL, 0, addr,
                 addr_len, NULL))
         {
             fprintf(stderr, "warning: failed to reinject packet (%d)\n",

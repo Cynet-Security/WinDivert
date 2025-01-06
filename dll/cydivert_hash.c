@@ -1,10 +1,10 @@
 /*
- * windivert_hash.c
+ * cydivert_hash.c
  * (C) 2019, all rights reserved,
  *
- * This file is part of WinDivert.
+ * This file is part of CyDivert.
  *
- * WinDivert is free software: you can redistribute it and/or modify it under
+ * CyDivert is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
  * option) any later version.
@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * WinDivert is free software; you can redistribute it and/or modify it under
+ * CyDivert is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
@@ -68,47 +68,47 @@
  *   only ever a single round.  As such, the algorithm has been specialized.
  */
 
-#define WINDIVERT_ROTL64(x, r)  (((x) << (r)) | ((x) >> (64 - (r))))
+#define CYDIVERT_ROTL64(x, r)  (((x) << (r)) | ((x) >> (64 - (r))))
 
-static const UINT64 WINDIVERT_PRIME64_1 = 11400714785074694791ull;
-static const UINT64 WINDIVERT_PRIME64_2 = 14029467366897019727ull;
-static const UINT64 WINDIVERT_PRIME64_3 = 1609587929392839161ull;
-static const UINT64 WINDIVERT_PRIME64_4 = 9650029242287828579ull;
+static const UINT64 CYDIVERT_PRIME64_1 = 11400714785074694791ull;
+static const UINT64 CYDIVERT_PRIME64_2 = 14029467366897019727ull;
+static const UINT64 CYDIVERT_PRIME64_3 = 1609587929392839161ull;
+static const UINT64 CYDIVERT_PRIME64_4 = 9650029242287828579ull;
 
-static UINT64 WinDivertXXH64Round(UINT64 acc, UINT64 input)
+static UINT64 CyDivertXXH64Round(UINT64 acc, UINT64 input)
 {
-    acc += WINDIVERT_MUL64(input, WINDIVERT_PRIME64_2);
-    acc  = WINDIVERT_ROTL64(acc, 31);
-    acc  = WINDIVERT_MUL64(acc, WINDIVERT_PRIME64_1);
+    acc += CYDIVERT_MUL64(input, CYDIVERT_PRIME64_2);
+    acc  = CYDIVERT_ROTL64(acc, 31);
+    acc  = CYDIVERT_MUL64(acc, CYDIVERT_PRIME64_1);
     return acc;
 }
 
-static UINT64 WinDivertXXH64MergeRound(UINT64 acc, UINT64 val)
+static UINT64 CyDivertXXH64MergeRound(UINT64 acc, UINT64 val)
 {
-    val  = WinDivertXXH64Round(0, val);
+    val  = CyDivertXXH64Round(0, val);
     acc ^= val;
-    acc  = WINDIVERT_MUL64(acc, WINDIVERT_PRIME64_1) + WINDIVERT_PRIME64_4;
+    acc  = CYDIVERT_MUL64(acc, CYDIVERT_PRIME64_1) + CYDIVERT_PRIME64_4;
     return acc;
 }
 
-static UINT64 WinDivertXXH64Avalanche(UINT64 h64)
+static UINT64 CyDivertXXH64Avalanche(UINT64 h64)
 {
     h64 ^= h64 >> 33;
-    h64  = WINDIVERT_MUL64(h64, WINDIVERT_PRIME64_2);
+    h64  = CYDIVERT_MUL64(h64, CYDIVERT_PRIME64_2);
     h64 ^= h64 >> 29;
-    h64  = WINDIVERT_MUL64(h64, WINDIVERT_PRIME64_3);
+    h64  = CYDIVERT_MUL64(h64, CYDIVERT_PRIME64_3);
     h64 ^= h64 >> 32;
     return h64;
 }
 
 /*
- * WinDivert packet hash function.
+ * CyDivert packet hash function.
  */
-static UINT64 WinDivertHashPacket(UINT64 seed,
-    const WINDIVERT_IPHDR *ip_header, const WINDIVERT_IPV6HDR *ipv6_header,
-    const WINDIVERT_ICMPHDR *icmp_header,
-    const WINDIVERT_ICMPV6HDR *icmpv6_header,
-    const WINDIVERT_TCPHDR *tcp_header, const WINDIVERT_UDPHDR *udp_header)
+static UINT64 CyDivertHashPacket(UINT64 seed,
+    const CYDIVERT_IPHDR *ip_header, const CYDIVERT_IPV6HDR *ipv6_header,
+    const CYDIVERT_ICMPHDR *icmp_header,
+    const CYDIVERT_ICMPV6HDR *icmpv6_header,
+    const CYDIVERT_TCPHDR *tcp_header, const CYDIVERT_UDPHDR *udp_header)
 {
     UINT64 h64, v1, v2, v3, v4, v[4];
     const UINT64 *data64;
@@ -185,18 +185,18 @@ static UINT64 WinDivertHashPacket(UINT64 seed,
     }
 
     // Hash
-    v1 = WinDivertXXH64Round(v[0], v1);
-    v2 = WinDivertXXH64Round(v[1], v2);
-    v3 = WinDivertXXH64Round(v[2], v3);
-    v4 = WinDivertXXH64Round(v[3], v4);
-    h64 = WINDIVERT_ROTL64(v1, 1) + WINDIVERT_ROTL64(v2, 7) +
-          WINDIVERT_ROTL64(v3, 12) + WINDIVERT_ROTL64(v4, 18);
-    h64 = WinDivertXXH64MergeRound(h64, v1);
-    h64 = WinDivertXXH64MergeRound(h64, v2);
-    h64 = WinDivertXXH64MergeRound(h64, v3);
-    h64 = WinDivertXXH64MergeRound(h64, v4); 
+    v1 = CyDivertXXH64Round(v[0], v1);
+    v2 = CyDivertXXH64Round(v[1], v2);
+    v3 = CyDivertXXH64Round(v[2], v3);
+    v4 = CyDivertXXH64Round(v[3], v4);
+    h64 = CYDIVERT_ROTL64(v1, 1) + CYDIVERT_ROTL64(v2, 7) +
+          CYDIVERT_ROTL64(v3, 12) + CYDIVERT_ROTL64(v4, 18);
+    h64 = CyDivertXXH64MergeRound(h64, v1);
+    h64 = CyDivertXXH64MergeRound(h64, v2);
+    h64 = CyDivertXXH64MergeRound(h64, v3);
+    h64 = CyDivertXXH64MergeRound(h64, v4); 
     h64 += 32;          // "length"
-    h64 = WinDivertXXH64Avalanche(h64);
+    h64 = CyDivertXXH64Avalanche(h64);
 
     return h64;
 }

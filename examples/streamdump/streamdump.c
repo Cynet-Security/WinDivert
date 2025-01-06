@@ -2,9 +2,9 @@
  * streamdump.c
  * (C) 2019, all rights reserved,
  *
- * This file is part of WinDivert.
+ * This file is part of CyDivert.
  *
- * WinDivert is free software: you can redistribute it and/or modify it under
+ * CyDivert is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
  * option) any later version.
@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * WinDivert is free software; you can redistribute it and/or modify it under
+ * CyDivert is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
@@ -35,7 +35,7 @@
 /*
  * DESCRIPTION:
  *
- * This program demonstrates how to handle streams using WinDivert.
+ * This program demonstrates how to handle streams using CyDivert.
  *
  * The program works by "reflecting" outbound TCP connections into inbound
  * TCP connections that are handled by a simple proxy server.
@@ -49,9 +49,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "windivert.h"
+#include "cydivert.h"
 
-#define MAXBUF          WINDIVERT_MTU_MAX
+#define MAXBUF          CYDIVERT_MTU_MAX
 #define PROXY_PORT      34010
 #define ALT_PORT        43010
 #define MAX_LINE        65
@@ -125,9 +125,9 @@ int __cdecl main(int argc, char **argv)
     PPROXY_CONFIG config;
     unsigned char packet[MAXBUF];
     UINT packet_len;
-    WINDIVERT_ADDRESS addr;
-    PWINDIVERT_IPHDR ip_header;
-    PWINDIVERT_TCPHDR tcp_header;
+    CYDIVERT_ADDRESS addr;
+    PCYDIVERT_IPHDR ip_header;
+    PCYDIVERT_TCPHDR tcp_header;
     DWORD len;
 
     // Init.
@@ -162,10 +162,10 @@ int __cdecl main(int argc, char **argv)
     {
         error("failed to create filter string");
     }
-    handle = WinDivertOpen(filter, WINDIVERT_LAYER_NETWORK, priority, 0);
+    handle = CyDivertOpen(filter, CYDIVERT_LAYER_NETWORK, priority, 0);
     if (handle == INVALID_HANDLE_VALUE)
     {
-        error("failed to open the WinDivert device (%d)", GetLastError());
+        error("failed to open the CyDivert device (%d)", GetLastError());
     }
 
     // Spawn proxy thread,
@@ -187,13 +187,13 @@ int __cdecl main(int argc, char **argv)
     // Main loop:
     while (TRUE)
     {
-        if (!WinDivertRecv(handle, packet, sizeof(packet), &packet_len, &addr))
+        if (!CyDivertRecv(handle, packet, sizeof(packet), &packet_len, &addr))
         {
             warning("failed to read packet (%d)", GetLastError());
             continue;
         }
 
-        WinDivertHelperParsePacket(packet, packet_len, &ip_header, NULL, NULL,
+        CyDivertHelperParsePacket(packet, packet_len, &ip_header, NULL, NULL,
             NULL, NULL, &tcp_header, NULL, NULL, NULL, NULL, NULL);
         if (ip_header == NULL || tcp_header == NULL)
         {
@@ -236,8 +236,8 @@ int __cdecl main(int argc, char **argv)
             }
         }
 
-        WinDivertHelperCalcChecksums(packet, packet_len, &addr, 0);
-        if (!WinDivertSend(handle, packet, packet_len, NULL, &addr))
+        CyDivertHelperCalcChecksums(packet, packet_len, &addr, 0);
+        if (!CyDivertSend(handle, packet, packet_len, NULL, &addr))
         {
             warning("failed to send packet (%d)", GetLastError());
             continue;

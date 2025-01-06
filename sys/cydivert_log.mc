@@ -1,10 +1,10 @@
 ;/*
-; * windivert_log.mc
+; * cydivert_log.mc
 ; * (C) 2019, all rights reserved,
 ; *
-; * This file is part of WinDivert.
+; * This file is part of CyDivert.
 ; *
-; * WinDivert is free software: you can redistribute it and/or modify it under
+; * CyDivert is free software: you can redistribute it and/or modify it under
 ; * the terms of the GNU Lesser General Public License as published by the
 ; * Free Software Foundation, either version 3 of the License, or (at your
 ; * option) any later version.
@@ -17,7 +17,7 @@
 ; * You should have received a copy of the GNU Lesser General Public License
 ; * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ; *
-; * WinDivert is free software; you can redistribute it and/or modify it under
+; * CyDivert is free software; you can redistribute it and/or modify it under
 ; * the terms of the GNU General Public License as published by the Free
 ; * Software Foundation; either version 2 of the License, or (at your option)
 ; * any later version.
@@ -46,13 +46,13 @@ FacilityNames = (
     Runtime   = 0x2:FACILITY_RUNTIME
     Stubs     = 0x3:FACILITY_STUBS
     Io        = 0x4:FACILITY_IO_ERROR_CODE
-    WinDivert = 0x574:FACILITY_WINDIVERT
+    CyDivert = 0x574:FACILITY_CYDIVERT
 )
 
 MessageId=0x312D
-Facility=WinDivert
+Facility=CyDivert
 Severity=Informational
-SymbolicName=WINDIVERT_INFO_EVENT
+SymbolicName=CYDIVERT_INFO_EVENT
 Language=English
 %2 %3 (processId=%4)
 .

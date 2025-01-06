@@ -1,10 +1,10 @@
 /*
- * windivert.c
+ * cydivert.c
  * (C) 2019, all rights reserved,
  *
- * This file is part of WinDivert.
+ * This file is part of CyDivert.
  *
- * WinDivert is free software: you can redistribute it and/or modify it under
+ * CyDivert is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
  * option) any later version.
@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * WinDivert is free software; you can redistribute it and/or modify it under
+ * CyDivert is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
@@ -43,36 +43,34 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifndef WINDIVERTEXPORT
-#define WINDIVERTEXPORT extern
+#ifndef CYDIVERTEXPORT
+#define CYDIVERTEXPORT extern
 #endif
-#include "windivert.h"
-#include "windivert_device.h"
+#include "cydivert.h"
+#include "cydivert_device.h"
 
-#define WINDIVERT_DRIVER_NAME           L"WinDivert"
-#define WINDIVERT_DRIVER32_SYS          L"\\" WINDIVERT_DRIVER_NAME L"32.sys"
-#define WINDIVERT_DRIVER64_SYS          L"\\" WINDIVERT_DRIVER_NAME L"64.sys"
-#define WINDIVERT_VERSION_MAJOR_MIN     2
+#define CYDIVERT_DRIVER_NAME           L"CyDivert"
+#define CYDIVERT_DRIVER_SYS          L"\\" CYDIVERT_DRIVER_NAME L".sys"
 
 #ifndef ERROR_DRIVER_FAILED_PRIOR_UNLOAD
 #define ERROR_DRIVER_FAILED_PRIOR_UNLOAD    ((DWORD)654)
 #endif
 
-static BOOLEAN WinDivertIsDigit(char c);
-static BOOLEAN WinDivertIsXDigit(char c);
-static BOOLEAN WinDivertIsSpace(char c);
-static BOOLEAN WinDivertIsAlNum(char c);
-static char WinDivertToLower(char c);
-static BOOLEAN WinDivertStrLen(const wchar_t *s, size_t maxlen,
+static BOOLEAN CyDivertIsDigit(char c);
+static BOOLEAN CyDivertIsXDigit(char c);
+static BOOLEAN CyDivertIsSpace(char c);
+static BOOLEAN CyDivertIsAlNum(char c);
+static char CyDivertToLower(char c);
+static BOOLEAN CyDivertStrLen(const wchar_t *s, size_t maxlen,
     size_t *lenptr);
-static BOOLEAN WinDivertStrCpy(wchar_t *dst, size_t dstlen,
+static BOOLEAN CyDivertStrCpy(wchar_t *dst, size_t dstlen,
     const wchar_t *src);
-static int WinDivertStrCmp(const char *s, const char *t);
-static BOOLEAN WinDivertAToI(const char *str, char **endptr, UINT32 *intptr,
+static int CyDivertStrCmp(const char *s, const char *t);
+static BOOLEAN CyDivertAToI(const char *str, char **endptr, UINT32 *intptr,
     UINT size);
-static BOOLEAN WinDivertAToX(const char *str, char **endptr, UINT32 *intptr,
+static BOOLEAN CyDivertAToX(const char *str, char **endptr, UINT32 *intptr,
     UINT size, BOOL prefix);
-static UINT32 WinDivertDivTen128(UINT32 *a);
+static UINT32 CyDivertDivTen128(UINT32 *a);
 
 /*
  * Misc.
@@ -111,40 +109,40 @@ void *memset(void *dst, int c, size_t n)
     return dst;
 }
 
-#define WINDIVERT_INLINE    __forceinline
+#define CYDIVERT_INLINE    __forceinline
 
 #else       /* _MSC_VER */
 
-#define WINDIVERT_INLINE    __attribute__((__always_inline__)) inline
+#define CYDIVERT_INLINE    __attribute__((__always_inline__)) inline
 
 #endif      /* _MSC_VER */
 
 /*
  * Filter interpreter config.
  */
-static BOOL WinDivertGetData(const VOID *packet, UINT packet_len, INT min,
+static BOOL CyDivertGetData(const VOID *packet, UINT packet_len, INT min,
     INT max, INT idx, PVOID data, UINT size);
-#define WINDIVERT_GET_DATA(packet, packet_len, min, max, index, data, size) \
-    WinDivertGetData((packet), (packet_len), (min), (max), (index), (data), \
+#define CYDIVERT_GET_DATA(packet, packet_len, min, max, index, data, size) \
+    CyDivertGetData((packet), (packet_len), (min), (max), (index), (data), \
         (size))
 
 /*
  * Prototypes.
  */
-static BOOLEAN WinDivertUse32Bit(void);
-static BOOLEAN WinDivertGetDriverFileName(LPWSTR sys_str);
-static BOOLEAN WinDivertDriverInstall(VOID);
+static BOOLEAN CyDivertUse32Bit(void);
+static BOOLEAN CyDivertGetDriverFileName(LPWSTR sys_str);
+static BOOLEAN CyDivertDriverInstall(VOID);
 
 /*
  * Include the helper API implementation.
  */
-#include "windivert_shared.c"
-#include "windivert_helper.c"
+#include "cydivert_shared.c"
+#include "cydivert_helper.c"
 
 /*
  * Thread local.
  */
-static DWORD windivert_tls_idx;
+static DWORD cydivert_tls_idx;
 
 /*
  * Current DLL hmodule.
@@ -154,14 +152,14 @@ static HMODULE module = NULL;
 /*
  * Dll Entry
  */
-BOOL APIENTRY WinDivertDllEntry(HANDLE module0, DWORD reason, LPVOID reserved)
+BOOL APIENTRY CyDivertDllEntry(HANDLE module0, DWORD reason, LPVOID reserved)
 {
     HANDLE event;
     switch (reason)
     {
         case DLL_PROCESS_ATTACH:
             module = module0;
-            if ((windivert_tls_idx = TlsAlloc()) == TLS_OUT_OF_INDEXES)
+            if ((cydivert_tls_idx = TlsAlloc()) == TLS_OUT_OF_INDEXES)
             {
                 return FALSE;
             }
@@ -172,20 +170,20 @@ BOOL APIENTRY WinDivertDllEntry(HANDLE module0, DWORD reason, LPVOID reserved)
             {
                 return FALSE;
             }
-            TlsSetValue(windivert_tls_idx, (LPVOID)event);
+            TlsSetValue(cydivert_tls_idx, (LPVOID)event);
             break;
 
         case DLL_PROCESS_DETACH:
-            event = (HANDLE)TlsGetValue(windivert_tls_idx);
+            event = (HANDLE)TlsGetValue(cydivert_tls_idx);
             if (event != (HANDLE)NULL)
             {
                 CloseHandle(event);
             }
-            TlsFree(windivert_tls_idx);
+            TlsFree(cydivert_tls_idx);
             break;
 
         case DLL_THREAD_DETACH:
-            event = (HANDLE)TlsGetValue(windivert_tls_idx);
+            event = (HANDLE)TlsGetValue(cydivert_tls_idx);
             if (event != (HANDLE)NULL)
             {
                 CloseHandle(event);
@@ -198,7 +196,7 @@ BOOL APIENTRY WinDivertDllEntry(HANDLE module0, DWORD reason, LPVOID reserved)
 /*
  * Test if we should use the 32-bit or 64-bit driver.
  */
-static BOOLEAN WinDivertUse32Bit(void)
+static BOOLEAN CyDivertUse32Bit(void)
 {
     BOOL is_wow64;
 
@@ -215,30 +213,16 @@ static BOOLEAN WinDivertUse32Bit(void)
 }
 
 /*
- * Locate the WinDivert driver files.
+ * Locate the CyDivert driver files.
  */
-static BOOLEAN WinDivertGetDriverFileName(LPWSTR sys_str)
+static BOOLEAN CyDivertGetDriverFileName(LPWSTR sys_str)
 {
     size_t dir_len, sys_len;
-    BOOLEAN is_32bit;
 
-    is_32bit = WinDivertUse32Bit();
-
-    if (is_32bit)
+    if (!CyDivertStrLen(CYDIVERT_DRIVER_SYS, MAX_PATH, &sys_len))
     {
-        if (!WinDivertStrLen(WINDIVERT_DRIVER32_SYS, MAX_PATH, &sys_len))
-        {
-            SetLastError(ERROR_BAD_PATHNAME);
-            return FALSE;
-        }
-    }
-    else
-    {
-        if (!WinDivertStrLen(WINDIVERT_DRIVER64_SYS, MAX_PATH, &sys_len))
-        {
-            SetLastError(ERROR_BAD_PATHNAME);
-            return FALSE;
-        }
+        SetLastError(ERROR_BAD_PATHNAME);
+        return FALSE;
     }
 
     dir_len = (size_t)GetModuleFileName(module, sys_str, MAX_PATH);
@@ -253,8 +237,7 @@ static BOOLEAN WinDivertGetDriverFileName(LPWSTR sys_str)
         SetLastError(ERROR_BAD_PATHNAME);
         return FALSE;
     }
-    if (!WinDivertStrCpy(sys_str + dir_len, MAX_PATH-dir_len-1,
-            (is_32bit? WINDIVERT_DRIVER32_SYS: WINDIVERT_DRIVER64_SYS)))
+    if (!CyDivertStrCpy(sys_str + dir_len, MAX_PATH-dir_len-1, CYDIVERT_DRIVER_SYS))
     {
         SetLastError(ERROR_BAD_PATHNAME);
         return FALSE;
@@ -266,24 +249,24 @@ static BOOLEAN WinDivertGetDriverFileName(LPWSTR sys_str)
 /*
  * Register event log.  It is not an error if this function fails.
  */
-static void WinDivertRegisterEventSource(const wchar_t *windivert_sys)
+static void CyDivertRegisterEventSource(const wchar_t *cydivert_sys)
 {
     HKEY key;
     size_t len;
     DWORD types = 7;
 
-    if (!WinDivertStrLen(windivert_sys, MAX_PATH, &len))
+    if (!CyDivertStrLen(cydivert_sys, MAX_PATH, &len))
     {
         return;
     }
     if (RegCreateKeyExA(HKEY_LOCAL_MACHINE,
-            "System\\CurrentControlSet\\Services\\EventLog\\System\\WinDivert",
+            "System\\CurrentControlSet\\Services\\EventLog\\System\\CyDivert",
             0, NULL, REG_OPTION_VOLATILE, KEY_SET_VALUE, NULL, &key, NULL)
                 != ERROR_SUCCESS)
     {
         return;
     }
-    RegSetValueExW(key, L"EventMessageFile", 0, REG_SZ, (LPBYTE)windivert_sys,
+    RegSetValueExW(key, L"EventMessageFile", 0, REG_SZ, (LPBYTE)cydivert_sys,
             (len + 1) * sizeof(wchar_t));
     RegSetValueExA(key, "TypesSupported", 0, REG_DWORD, (LPBYTE)&types,
             sizeof(types));
@@ -291,19 +274,19 @@ static void WinDivertRegisterEventSource(const wchar_t *windivert_sys)
 }
 
 /*
- * Install the WinDivert driver.
+ * Install the CyDivert driver.
  */
-static BOOLEAN WinDivertDriverInstall(VOID)
+static BOOLEAN CyDivertDriverInstall(VOID)
 {
     DWORD err;
     SC_HANDLE manager = NULL, service = NULL;
-    wchar_t windivert_sys[MAX_PATH+1];
+    wchar_t cydivert_sys[MAX_PATH+1];
     HANDLE mutex = NULL;
     BOOL success = TRUE;
 
     // Create & lock a named mutex.  This is to stop two processes trying
     // to start the driver at the same time.
-    mutex = CreateMutex(NULL, FALSE, L"WinDivertDriverInstallMutex");
+    mutex = CreateMutex(NULL, FALSE, L"CyDivertDriverInstallMutex");
     if (mutex == NULL)
     {
         return FALSE;
@@ -320,41 +303,41 @@ static BOOLEAN WinDivertDriverInstall(VOID)
     manager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
     if (manager == NULL)
     {
-        goto WinDivertDriverInstallExit;
+        goto CyDivertDriverInstallExit;
     }
 
-    // Check if the WinDivert service already exists; if so, start it.
-    service = OpenService(manager, WINDIVERT_DEVICE_NAME, SERVICE_ALL_ACCESS);
+    // Check if the CyDivert service already exists; if so, start it.
+    service = OpenService(manager, CYDIVERT_DEVICE_NAME, SERVICE_ALL_ACCESS);
     if (service != NULL)
     {
-        goto WinDivertDriverInstallExit;
+        goto CyDivertDriverInstallExit;
     }
 
     // Get driver file:
-    if (!WinDivertGetDriverFileName(windivert_sys))
+    if (!CyDivertGetDriverFileName(cydivert_sys))
     {
-        goto WinDivertDriverInstallExit;
+        goto CyDivertDriverInstallExit;
     }
 
     // Create the service:
-    service = CreateService(manager, WINDIVERT_DEVICE_NAME,
-        WINDIVERT_DEVICE_NAME, SERVICE_ALL_ACCESS, SERVICE_KERNEL_DRIVER,
-        SERVICE_DEMAND_START, SERVICE_ERROR_NORMAL, windivert_sys, NULL, NULL,
+    service = CreateService(manager, CYDIVERT_DEVICE_NAME,
+        CYDIVERT_DEVICE_NAME, SERVICE_ALL_ACCESS, SERVICE_KERNEL_DRIVER,
+        SERVICE_DEMAND_START, SERVICE_ERROR_NORMAL, cydivert_sys, NULL, NULL,
         NULL, NULL, NULL);
     if (service == NULL)
     {
         if (GetLastError() == ERROR_SERVICE_EXISTS) 
         {
-            service = OpenService(manager, WINDIVERT_DEVICE_NAME,
+            service = OpenService(manager, CYDIVERT_DEVICE_NAME,
                 SERVICE_ALL_ACCESS);
         }
-        goto WinDivertDriverInstallExit;
+        goto CyDivertDriverInstallExit;
     }
 
     // Register event logging:
-    WinDivertRegisterEventSource(windivert_sys);
+    CyDivertRegisterEventSource(cydivert_sys);
 
-WinDivertDriverInstallExit:
+CyDivertDriverInstallExit:
 
     success = (service != NULL);
     if (service != NULL)
@@ -393,14 +376,14 @@ WinDivertDriverInstallExit:
 /*
  * Perform an (overlapped) DeviceIoControl.
  */
-static BOOL WinDivertIoControlEx(HANDLE handle, DWORD code,
-    PWINDIVERT_IOCTL ioctl, PVOID buf, UINT len, UINT *iolen,
+static BOOL CyDivertIoControlEx(HANDLE handle, DWORD code,
+    PCYDIVERT_IOCTL ioctl, PVOID buf, UINT len, UINT *iolen,
     LPOVERLAPPED overlapped)
 {
     BOOL result;
     DWORD iolen0;
 
-    result = DeviceIoControl(handle, code, ioctl, sizeof(WINDIVERT_IOCTL), buf,
+    result = DeviceIoControl(handle, code, ioctl, sizeof(CYDIVERT_IOCTL), buf,
         (DWORD)len, &iolen0, overlapped);
     if (result && iolen != NULL)
     {
@@ -412,14 +395,14 @@ static BOOL WinDivertIoControlEx(HANDLE handle, DWORD code,
 /*
  * Perform a DeviceIoControl.
  */
-static BOOL WinDivertIoControl(HANDLE handle, DWORD code,
-    PWINDIVERT_IOCTL ioctl, PVOID buf, UINT len, UINT *iolen)
+static BOOL CyDivertIoControl(HANDLE handle, DWORD code,
+    PCYDIVERT_IOCTL ioctl, PVOID buf, UINT len, UINT *iolen)
 {
     OVERLAPPED overlapped;
     DWORD iolen0;
     HANDLE event;
 
-    event = (HANDLE)TlsGetValue(windivert_tls_idx);
+    event = (HANDLE)TlsGetValue(cydivert_tls_idx);
     if (event == (HANDLE)NULL)
     {
         event = CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -427,12 +410,12 @@ static BOOL WinDivertIoControl(HANDLE handle, DWORD code,
         {
             return FALSE;
         }
-        TlsSetValue(windivert_tls_idx, (LPVOID)event);
+        TlsSetValue(cydivert_tls_idx, (LPVOID)event);
     }
 
     memset(&overlapped, 0, sizeof(overlapped));
     overlapped.hEvent = event;
-    if (!WinDivertIoControlEx(handle, code, ioctl, buf, len, iolen,
+    if (!CyDivertIoControlEx(handle, code, ioctl, buf, len, iolen,
             &overlapped))
     {
         if (GetLastError() != ERROR_IO_PENDING ||
@@ -449,28 +432,28 @@ static BOOL WinDivertIoControl(HANDLE handle, DWORD code,
 }
 
 /*
- * Open a WinDivert handle.
+ * Open a CyDivert handle.
  */
-HANDLE WinDivertOpen(const char *filter, WINDIVERT_LAYER layer, INT16 priority,
+HANDLE CyDivertOpen(const char *filter, CYDIVERT_LAYER layer, INT16 priority,
     UINT64 flags)
 {
-    WINDIVERT_FILTER *object;
+    CYDIVERT_FILTER *object;
     UINT obj_len;
     ERROR comp_err;
     DWORD err;
     HANDLE handle, pool;
     UINT64 filter_flags;
-    WINDIVERT_IOCTL ioctl;
-    WINDIVERT_VERSION version;
+    CYDIVERT_IOCTL ioctl;
+    CYDIVERT_VERSION version;
 
     // Static checks (should be compiled away if TRUE):
-    if (sizeof(WINDIVERT_ADDRESS) != 80 ||
-        sizeof(WINDIVERT_DATA_NETWORK) != 8 ||
-        offsetof(WINDIVERT_DATA_FLOW, Protocol) != 56 ||
-        offsetof(WINDIVERT_DATA_SOCKET, Protocol) != 56 ||
-        offsetof(WINDIVERT_DATA_REFLECT, Priority) != 24 ||
-        sizeof(WINDIVERT_FILTER) != 24 ||
-        offsetof(WINDIVERT_ADDRESS, Reserved3) != 16)
+    if (sizeof(CYDIVERT_ADDRESS) != 80 ||
+        sizeof(CYDIVERT_DATA_NETWORK) != 8 ||
+        offsetof(CYDIVERT_DATA_FLOW, Protocol) != 56 ||
+        offsetof(CYDIVERT_DATA_SOCKET, Protocol) != 56 ||
+        offsetof(CYDIVERT_DATA_REFLECT, Priority) != 24 ||
+        sizeof(CYDIVERT_FILTER) != 24 ||
+        offsetof(CYDIVERT_ADDRESS, Reserved3) != 16)
     {
         SetLastError(ERROR_INVALID_PARAMETER);
         return INVALID_HANDLE_VALUE;
@@ -479,38 +462,38 @@ HANDLE WinDivertOpen(const char *filter, WINDIVERT_LAYER layer, INT16 priority,
     // Parameter checking:
     switch (layer)
     {
-        case WINDIVERT_LAYER_NETWORK:
-        case WINDIVERT_LAYER_NETWORK_FORWARD:
-        case WINDIVERT_LAYER_FLOW:
-        case WINDIVERT_LAYER_SOCKET:
-        case WINDIVERT_LAYER_REFLECT:
+        case CYDIVERT_LAYER_NETWORK:
+        case CYDIVERT_LAYER_NETWORK_FORWARD:
+        case CYDIVERT_LAYER_FLOW:
+        case CYDIVERT_LAYER_SOCKET:
+        case CYDIVERT_LAYER_REFLECT:
             break;
         default:
             SetLastError(ERROR_INVALID_PARAMETER);
             return INVALID_HANDLE_VALUE;
     }
-    if (!WINDIVERT_FLAGS_VALID(flags))
+    if (!CYDIVERT_FLAGS_VALID(flags))
     {
         SetLastError(ERROR_INVALID_PARAMETER);
         return INVALID_HANDLE_VALUE;
     }
 
-    if (priority < WINDIVERT_PRIORITY_MIN ||
-        priority > WINDIVERT_PRIORITY_MAX)
+    if (priority < CYDIVERT_PRIORITY_MIN ||
+        priority > CYDIVERT_PRIORITY_MAX)
     {
         SetLastError(ERROR_INVALID_PARAMETER);
         return INVALID_HANDLE_VALUE;
     }
 
     // Compile & analyze the filter:
-    pool = HeapCreate(HEAP_NO_SERIALIZE, WINDIVERT_MIN_POOL_SIZE,
-        WINDIVERT_MAX_POOL_SIZE);
+    pool = HeapCreate(HEAP_NO_SERIALIZE, CYDIVERT_MIN_POOL_SIZE,
+        CYDIVERT_MAX_POOL_SIZE);
     if (pool == NULL)
     {
         return FALSE;
     }
     object = HeapAlloc(pool, 0,
-        WINDIVERT_FILTER_MAXLEN * sizeof(WINDIVERT_FILTER));
+        CYDIVERT_FILTER_MAXLEN * sizeof(CYDIVERT_FILTER));
     if (object == NULL)
     {
         err = GetLastError();
@@ -518,17 +501,17 @@ HANDLE WinDivertOpen(const char *filter, WINDIVERT_LAYER layer, INT16 priority,
         SetLastError(err);
         return FALSE;
     }
-    comp_err = WinDivertCompileFilter(filter, pool, layer, object, &obj_len);
+    comp_err = CyDivertCompileFilter(filter, pool, layer, object, &obj_len);
     if (IS_ERROR(comp_err))
     {
         HeapDestroy(pool);
         SetLastError(ERROR_INVALID_PARAMETER);
         return INVALID_HANDLE_VALUE;
     }
-    filter_flags = WinDivertAnalyzeFilter(layer, object, obj_len);
+    filter_flags = CyDivertAnalyzeFilter(layer, object, obj_len);
 
-    // Attempt to open the WinDivert device:
-    handle = CreateFile(L"\\\\.\\" WINDIVERT_DEVICE_NAME,
+    // Attempt to open the CyDivert device:
+    handle = CreateFile(L"\\\\.\\" CYDIVERT_DEVICE_NAME,
         GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING,
         FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, INVALID_HANDLE_VALUE);
     if (handle == INVALID_HANDLE_VALUE)
@@ -542,14 +525,14 @@ HANDLE WinDivertOpen(const char *filter, WINDIVERT_LAYER layer, INT16 priority,
         }
 
         // Open failed because the device isn't installed; install it now.
-        if ((flags & WINDIVERT_FLAG_NO_INSTALL) != 0)
+        if ((flags & CYDIVERT_FLAG_NO_INSTALL) != 0)
         {
             HeapDestroy(pool);
             SetLastError(ERROR_SERVICE_DOES_NOT_EXIST);
             return INVALID_HANDLE_VALUE;
         }
         SetLastError(0);
-        if (!WinDivertDriverInstall())
+        if (!CyDivertDriverInstall())
         {
             err = GetLastError();
             err = (err == 0? ERROR_OPEN_FAILED: err);
@@ -557,7 +540,7 @@ HANDLE WinDivertOpen(const char *filter, WINDIVERT_LAYER layer, INT16 priority,
             SetLastError(err);
             return INVALID_HANDLE_VALUE;
         }
-        handle = CreateFile(L"\\\\.\\" WINDIVERT_DEVICE_NAME,
+        handle = CreateFile(L"\\\\.\\" CYDIVERT_DEVICE_NAME,
             GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING,
             FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED,
             INVALID_HANDLE_VALUE);
@@ -573,14 +556,14 @@ HANDLE WinDivertOpen(const char *filter, WINDIVERT_LAYER layer, INT16 priority,
     // Initialize the handle:
     memset(&ioctl, 0, sizeof(ioctl));
     ioctl.initialize.layer    = layer;
-    ioctl.initialize.priority = (INT32)priority + WINDIVERT_PRIORITY_MAX;
+    ioctl.initialize.priority = (INT32)priority + CYDIVERT_PRIORITY_MAX;
     ioctl.initialize.flags    = flags;
     memset(&version, 0, sizeof(version));
-    version.magic             = WINDIVERT_MAGIC_DLL;
-    version.major             = WINDIVERT_VERSION_MAJOR;
-    version.minor             = WINDIVERT_VERSION_MINOR;
+    version.magic             = CYDIVERT_MAGIC_DLL;
+    version.major             = CYDIVERT_VERSION_MAJOR;
+    version.minor             = CYDIVERT_VERSION_MINOR;
     version.bits              = 8 * sizeof(void *);
-    if (!WinDivertIoControl(handle, IOCTL_WINDIVERT_INITIALIZE, &ioctl,
+    if (!CyDivertIoControl(handle, IOCTL_CYDIVERT_INITIALIZE, &ioctl,
             &version, sizeof(version), NULL))
     {
         err = GetLastError();
@@ -589,8 +572,8 @@ HANDLE WinDivertOpen(const char *filter, WINDIVERT_LAYER layer, INT16 priority,
         SetLastError(err);
         return INVALID_HANDLE_VALUE;
     }
-    if (version.magic != WINDIVERT_MAGIC_SYS ||
-        version.major < WINDIVERT_VERSION_MAJOR_MIN)
+    if (version.magic != CYDIVERT_MAGIC_SYS ||
+        version.major != CYDIVERT_VERSION_MAJOR)
     {
         CloseHandle(handle);
         HeapDestroy(pool);
@@ -601,8 +584,8 @@ HANDLE WinDivertOpen(const char *filter, WINDIVERT_LAYER layer, INT16 priority,
     // Start the filter:
     memset(&ioctl, 0, sizeof(ioctl));
     ioctl.startup.flags = filter_flags;
-    if (!WinDivertIoControl(handle, IOCTL_WINDIVERT_STARTUP, &ioctl,
-            object, obj_len * sizeof(WINDIVERT_FILTER), NULL))
+    if (!CyDivertIoControl(handle, IOCTL_CYDIVERT_STARTUP, &ioctl,
+            object, obj_len * sizeof(CYDIVERT_FILTER), NULL))
     {
         err = GetLastError();
         CloseHandle(handle);
@@ -617,27 +600,27 @@ HANDLE WinDivertOpen(const char *filter, WINDIVERT_LAYER layer, INT16 priority,
 }
 
 /*
- * Receive a WinDivert packet.
+ * Receive a CyDivert packet.
  */
-BOOL WinDivertRecv(HANDLE handle, PVOID pPacket, UINT packetLen, UINT *readLen,
-    PWINDIVERT_ADDRESS addr)
+BOOL CyDivertRecv(HANDLE handle, PVOID pPacket, UINT packetLen, UINT *readLen,
+    PCYDIVERT_ADDRESS addr)
 {
-    WINDIVERT_IOCTL ioctl;
+    CYDIVERT_IOCTL ioctl;
     memset(&ioctl, 0, sizeof(ioctl));
     ioctl.recv.addr = (UINT64)(ULONG_PTR)addr;
     ioctl.recv.addr_len_ptr = (UINT64)(ULONG_PTR)NULL;
-    return WinDivertIoControl(handle, IOCTL_WINDIVERT_RECV, &ioctl,
+    return CyDivertIoControl(handle, IOCTL_CYDIVERT_RECV, &ioctl,
         pPacket, packetLen, readLen);
 }
 
 /*
- * Receive a WinDivert packet.
+ * Receive a CyDivert packet.
  */
-BOOL WinDivertRecvEx(HANDLE handle, PVOID pPacket, UINT packetLen,
-    UINT *readLen, UINT64 flags, PWINDIVERT_ADDRESS addr, UINT *pAddrLen,
+BOOL CyDivertRecvEx(HANDLE handle, PVOID pPacket, UINT packetLen,
+    UINT *readLen, UINT64 flags, PCYDIVERT_ADDRESS addr, UINT *pAddrLen,
     LPOVERLAPPED overlapped)
 {
-    WINDIVERT_IOCTL ioctl;
+    CYDIVERT_IOCTL ioctl;
     memset(&ioctl, 0, sizeof(ioctl));
     ioctl.recv.addr = (UINT64)(ULONG_PTR)addr;
     ioctl.recv.addr_len_ptr = (UINT64)(ULONG_PTR)pAddrLen;
@@ -648,38 +631,38 @@ BOOL WinDivertRecvEx(HANDLE handle, PVOID pPacket, UINT packetLen,
     }
     if (overlapped == NULL)
     {
-        return WinDivertIoControl(handle, IOCTL_WINDIVERT_RECV, &ioctl,
+        return CyDivertIoControl(handle, IOCTL_CYDIVERT_RECV, &ioctl,
             pPacket, packetLen, readLen);
     }
     else
     {
-        return WinDivertIoControlEx(handle, IOCTL_WINDIVERT_RECV, &ioctl,
+        return CyDivertIoControlEx(handle, IOCTL_CYDIVERT_RECV, &ioctl,
             pPacket, packetLen, readLen, overlapped);
     }
 }
 
 /*
- * Send a WinDivert packet.
+ * Send a CyDivert packet.
  */
-BOOL WinDivertSend(HANDLE handle, const VOID *pPacket, UINT packetLen,
-    UINT *writeLen, const WINDIVERT_ADDRESS *addr)
+BOOL CyDivertSend(HANDLE handle, const VOID *pPacket, UINT packetLen,
+    UINT *writeLen, const CYDIVERT_ADDRESS *addr)
 {
-    WINDIVERT_IOCTL ioctl;
+    CYDIVERT_IOCTL ioctl;
     memset(&ioctl, 0, sizeof(ioctl));
     ioctl.send.addr = (UINT64)(ULONG_PTR)addr;
-    ioctl.send.addr_len = sizeof(WINDIVERT_ADDRESS);
-    return WinDivertIoControl(handle, IOCTL_WINDIVERT_SEND, &ioctl,
+    ioctl.send.addr_len = sizeof(CYDIVERT_ADDRESS);
+    return CyDivertIoControl(handle, IOCTL_CYDIVERT_SEND, &ioctl,
         (PVOID)pPacket, packetLen, writeLen);
 }
 
 /*
- * Send a WinDivert packet.
+ * Send a CyDivert packet.
  */
-BOOL WinDivertSendEx(HANDLE handle, const VOID *pPacket, UINT packetLen,
-    UINT *writeLen, UINT64 flags, const WINDIVERT_ADDRESS *addr, UINT addrLen,
+BOOL CyDivertSendEx(HANDLE handle, const VOID *pPacket, UINT packetLen,
+    UINT *writeLen, UINT64 flags, const CYDIVERT_ADDRESS *addr, UINT addrLen,
     LPOVERLAPPED overlapped)
 {
-    WINDIVERT_IOCTL ioctl;
+    CYDIVERT_IOCTL ioctl;
     memset(&ioctl, 0, sizeof(ioctl));
     ioctl.send.addr = (UINT64)(ULONG_PTR)addr;
     ioctl.send.addr_len = addrLen;
@@ -690,58 +673,58 @@ BOOL WinDivertSendEx(HANDLE handle, const VOID *pPacket, UINT packetLen,
     }
     if (overlapped == NULL)
     {
-        return WinDivertIoControl(handle, IOCTL_WINDIVERT_SEND, &ioctl,
+        return CyDivertIoControl(handle, IOCTL_CYDIVERT_SEND, &ioctl,
             (PVOID)pPacket, packetLen, writeLen);
     }
     else
     {
-        return WinDivertIoControlEx(handle, IOCTL_WINDIVERT_SEND, &ioctl,
+        return CyDivertIoControlEx(handle, IOCTL_CYDIVERT_SEND, &ioctl,
             (PVOID)pPacket, packetLen, writeLen, overlapped);
     }
 }
 
 /*
- * Shutdown a WinDivert handle.
+ * Shutdown a CyDivert handle.
  */
-BOOL WinDivertShutdown(HANDLE handle, WINDIVERT_SHUTDOWN how)
+BOOL CyDivertShutdown(HANDLE handle, CYDIVERT_SHUTDOWN how)
 {
-    WINDIVERT_IOCTL ioctl;
+    CYDIVERT_IOCTL ioctl;
     memset(&ioctl, 0, sizeof(ioctl));
     ioctl.shutdown.how = (UINT32)how;
-    return WinDivertIoControl(handle, IOCTL_WINDIVERT_SHUTDOWN, &ioctl, NULL,
+    return CyDivertIoControl(handle, IOCTL_CYDIVERT_SHUTDOWN, &ioctl, NULL,
         0, NULL);
 }
 
 /*
- * Close a WinDivert handle.
+ * Close a CyDivert handle.
  */
-BOOL WinDivertClose(HANDLE handle)
+BOOL CyDivertClose(HANDLE handle)
 {
     return CloseHandle(handle);
 }
 
 /*
- * Set a WinDivert parameter.
+ * Set a CyDivert parameter.
  */
-BOOL WinDivertSetParam(HANDLE handle, WINDIVERT_PARAM param, UINT64 value)
+BOOL CyDivertSetParam(HANDLE handle, CYDIVERT_PARAM param, UINT64 value)
 {
-    WINDIVERT_IOCTL ioctl;
+    CYDIVERT_IOCTL ioctl;
     memset(&ioctl, 0, sizeof(ioctl));
     ioctl.set_param.param = (UINT32)param;
     ioctl.set_param.val   = value;
-    return WinDivertIoControl(handle, IOCTL_WINDIVERT_SET_PARAM, &ioctl, NULL,
+    return CyDivertIoControl(handle, IOCTL_CYDIVERT_SET_PARAM, &ioctl, NULL,
         0, NULL);
 }
 
 /*
- * Get a WinDivert parameter.
+ * Get a CyDivert parameter.
  */
-BOOL WinDivertGetParam(HANDLE handle, WINDIVERT_PARAM param, UINT64 *pValue)
+BOOL CyDivertGetParam(HANDLE handle, CYDIVERT_PARAM param, UINT64 *pValue)
 {
-    WINDIVERT_IOCTL ioctl;
+    CYDIVERT_IOCTL ioctl;
     memset(&ioctl, 0, sizeof(ioctl));
     ioctl.get_param.param = (UINT32)param;
-    return WinDivertIoControl(handle, IOCTL_WINDIVERT_GET_PARAM, &ioctl,
+    return CyDivertIoControl(handle, IOCTL_CYDIVERT_GET_PARAM, &ioctl,
         pValue, sizeof(UINT64), NULL);
 }
 
@@ -749,39 +732,39 @@ BOOL WinDivertGetParam(HANDLE handle, WINDIVERT_PARAM param, UINT64 *pValue)
 /* REPLACEMENTS                                                              */
 /*****************************************************************************/
 
-static BOOLEAN WinDivertIsDigit(char c)
+static BOOLEAN CyDivertIsDigit(char c)
 {
     return (c >= '0' && c <= '9');
 }
 
-static BOOLEAN WinDivertIsXDigit(char c)
+static BOOLEAN CyDivertIsXDigit(char c)
 {
     return (c >= '0' && c <= '9') ||
            (c >= 'a' && c <= 'f') ||
            (c >= 'A' && c <= 'F');
 }
 
-static BOOLEAN WinDivertIsSpace(char c)
+static BOOLEAN CyDivertIsSpace(char c)
 {
     return (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' ||
             c == '\v');
 }
 
-static BOOLEAN WinDivertIsAlNum(char c)
+static BOOLEAN CyDivertIsAlNum(char c)
 {
     return (c >= 'a' && c <= 'z') ||
            (c >= 'A' && c <= 'Z') ||
            (c >= '0' && c <= '9');
 }
 
-static char WinDivertToLower(char c)
+static char CyDivertToLower(char c)
 {
     if (c >= 'A' && c <= 'Z')
         return 'a' + (c - 'A');
     return c;
 }
 
-static BOOLEAN WinDivertStrLen(const wchar_t *s, size_t maxlen,
+static BOOLEAN CyDivertStrLen(const wchar_t *s, size_t maxlen,
     size_t *lenptr)
 {
     size_t i;
@@ -796,7 +779,7 @@ static BOOLEAN WinDivertStrLen(const wchar_t *s, size_t maxlen,
     return TRUE;
 }
 
-static BOOLEAN WinDivertStrCpy(wchar_t *dst, size_t dstlen, const wchar_t *src)
+static BOOLEAN CyDivertStrCpy(wchar_t *dst, size_t dstlen, const wchar_t *src)
 {
     size_t i;
     for (i = 0; src[i]; i++)
@@ -815,7 +798,7 @@ static BOOLEAN WinDivertStrCpy(wchar_t *dst, size_t dstlen, const wchar_t *src)
     return TRUE;
 }
 
-static int WinDivertStrCmp(const char *s, const char *t)
+static int CyDivertStrCmp(const char *s, const char *t)
 {
     int cmp;
     size_t i;
@@ -833,7 +816,7 @@ static int WinDivertStrCmp(const char *s, const char *t)
     }
 }
 
-static BOOLEAN WinDivertMul128(UINT32 *n, UINT32 m)
+static BOOLEAN CyDivertMul128(UINT32 *n, UINT32 m)
 {
     UINT64 n64 = (UINT64)n[0] * (UINT64)m;
     n[0] = (UINT32)n64;
@@ -846,7 +829,7 @@ static BOOLEAN WinDivertMul128(UINT32 *n, UINT32 m)
     return ((n64 >> 32) == 0);
 }
 
-static BOOLEAN WinDivertAdd128(UINT32 *n, UINT32 a)
+static BOOLEAN CyDivertAdd128(UINT32 *n, UINT32 a)
 {
     UINT64 n64 = (UINT64)n[0] + (UINT64)a;
     n[0] = (UINT32)n64;
@@ -859,15 +842,15 @@ static BOOLEAN WinDivertAdd128(UINT32 *n, UINT32 a)
     return ((n64 >> 32) == 0);
 }
 
-static BOOLEAN WinDivertAToI(const char *str, char **endptr, UINT32 *intptr,
+static BOOLEAN CyDivertAToI(const char *str, char **endptr, UINT32 *intptr,
     UINT size)
 {
     size_t i = 0;
     UINT32 n[4] = {0};
     BOOLEAN result = TRUE;
-    for (; str[i] && WinDivertIsDigit(str[i]); i++)
+    for (; str[i] && CyDivertIsDigit(str[i]); i++)
     {
-        if (!WinDivertMul128(n, 10) || !WinDivertAdd128(n, str[i] - '0'))
+        if (!CyDivertMul128(n, 10) || !CyDivertAdd128(n, str[i] - '0'))
         {
             return FALSE;
         }
@@ -891,7 +874,7 @@ static BOOLEAN WinDivertAToI(const char *str, char **endptr, UINT32 *intptr,
     return result;
 }
 
-static BOOLEAN WinDivertAToX(const char *str, char **endptr, UINT32 *intptr,
+static BOOLEAN CyDivertAToX(const char *str, char **endptr, UINT32 *intptr,
     UINT size, BOOL prefix)
 {
     size_t i = 0;
@@ -908,17 +891,17 @@ static BOOLEAN WinDivertAToX(const char *str, char **endptr, UINT32 *intptr,
             return FALSE;
         }
     }
-    for (; str[i] && WinDivertIsXDigit(str[i]); i++)
+    for (; str[i] && CyDivertIsXDigit(str[i]); i++)
     {
-        if (WinDivertIsDigit(str[i]))
+        if (CyDivertIsDigit(str[i]))
         {
             dig = (UINT32)(str[i] - '0');
         }
         else
         {
-            dig = (UINT32)(WinDivertToLower(str[i]) - 'a') + 0x0A;
+            dig = (UINT32)(CyDivertToLower(str[i]) - 'a') + 0x0A;
         }
-        if (!WinDivertMul128(n, 16) || !WinDivertAdd128(n, dig))
+        if (!CyDivertMul128(n, 16) || !CyDivertAdd128(n, dig))
         {
             return FALSE;
         }
@@ -945,9 +928,9 @@ static BOOLEAN WinDivertAToX(const char *str, char **endptr, UINT32 *intptr,
 /*
  * Divide by 10 and return the remainder.
  */
-#define WINDIVERT_BIG_MUL_ROUND(a, c, r, i)                                 \
+#define CYDIVERT_BIG_MUL_ROUND(a, c, r, i)                                 \
     do {                                                                    \
-        UINT64 t = WINDIVERT_MUL64((UINT64)(a), (UINT64)(c));               \
+        UINT64 t = CYDIVERT_MUL64((UINT64)(a), (UINT64)(c));               \
         UINT k;                                                             \
         for (k = (i); k < 9 && t != 0; k++)                                 \
         {                                                                   \
@@ -956,7 +939,7 @@ static BOOLEAN WinDivertAToX(const char *str, char **endptr, UINT32 *intptr,
             t = (t >> 32) + (s >> 32);                                      \
         }                                                                   \
     } while (FALSE)
-static UINT32 WinDivertDivTen128(UINT32 *a)
+static UINT32 CyDivertDivTen128(UINT32 *a)
 {
     const UINT32 c[5] =
     {
@@ -969,7 +952,7 @@ static UINT32 WinDivertDivTen128(UINT32 *a)
     {
         for (j = 0; j < 5; j++)
         {
-            WINDIVERT_BIG_MUL_ROUND(a[i], c[j], r, i+j);
+            CYDIVERT_BIG_MUL_ROUND(a[i], c[j], r, i+j);
         }
     }
 
@@ -980,7 +963,7 @@ static UINT32 WinDivertDivTen128(UINT32 *a)
     
     for (i = 0; i < 5; i++)
     {
-        WINDIVERT_BIG_MUL_ROUND(r[i], 10, m, i);
+        CYDIVERT_BIG_MUL_ROUND(r[i], 10, m, i);
     }
     
     return m[5];

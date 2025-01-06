@@ -1,9 +1,9 @@
 :: msvc-build.bat
 :: (C) 2019, all rights reserved,
 ::
-:: This file is part of WinDivert.
+:: This file is part of CyDivert.
 ::
-:: WinDivert is free software: you can redistribute it and/or modify it under
+:: CyDivert is free software: you can redistribute it and/or modify it under
 :: the terms of the GNU Lesser General Public License as published by the
 :: Free Software Foundation, either version 3 of the License, or (at your
 :: option) any later version.
@@ -16,7 +16,7 @@
 :: You should have received a copy of the GNU Lesser General Public License
 :: along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ::
-:: WinDivert is free software; you can redistribute it and/or modify it under
+:: CyDivert is free software; you can redistribute it and/or modify it under
 :: the terms of the GNU General Public License as published by the Free
 :: Software Foundation; either version 2 of the License, or (at your option)
 :: any later version.
@@ -32,31 +32,31 @@
 
 @echo off
 
-msbuild sys\windivert.vcxproj ^
+msbuild sys\cydivert.vcxproj ^
     /p:Configuration=Release ^
     /p:platform=Win32 ^
     /p:SignMode=Off ^
     /p:OutDir=..\install\MSVC\i386\ ^
-    /p:AssemblyName=WinDivert32
+    /p:AssemblyName=CyDivert32
 
-msbuild sys\windivert.vcxproj ^
+msbuild sys\cydivert.vcxproj ^
     /p:Configuration=Release ^
     /p:platform=x64 ^
     /p:SignMode=Off ^
     /p:OutDir=..\install\MSVC\amd64\ ^
-    /p:AssemblyName=WinDivert64
+    /p:AssemblyName=CyDivert64
 
-msbuild dll\windivert.vcxproj ^
+msbuild dll\cydivert.vcxproj ^
     /p:Configuration=Release ^
     /p:platform=Win32 ^
     /p:OutDir=..\install\MSVC\i386\
-move dll\WinDivert.lib install\MSVC\i386\.
+move dll\CyDivert.lib install\MSVC\i386\.
 
-msbuild dll\windivert.vcxproj ^
+msbuild dll\cydivert.vcxproj ^
     /p:Configuration=Release ^
     /p:platform=x64 ^
     /p:OutDir=..\install\MSVC\amd64\
-move dll\WinDivert.lib install\MSVC\amd64\.
+move dll\CyDivert.lib install\MSVC\amd64\.
 
 msbuild examples\flowtrack\flowtrack.vcxproj ^
     /p:Configuration=Release ^
@@ -128,12 +128,12 @@ msbuild examples\webfilter\webfilter.vcxproj ^
     /p:Platform=x64 ^
     /p:OutDir=..\..\install\MSVC\amd64\
 
-msbuild examples\windivertctl\windivertctl.vcxproj ^
+msbuild examples\cydivertctl\cydivertctl.vcxproj ^
     /p:Configuration=Release ^
     /p:Platform=Win32 ^
     /p:OutDir=..\..\install\MSVC\i386\
 
-msbuild examples\windivertctl\windivertctl.vcxproj ^
+msbuild examples\cydivertctl\cydivertctl.vcxproj ^
     /p:Configuration=Release ^
     /p:Platform=x64 ^
     /p:OutDir=..\..\install\MSVC\amd64\

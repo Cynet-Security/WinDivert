@@ -1,10 +1,10 @@
 /*
- * windivert.c
+ * cydivert.c
  * (C) 2022, all rights reserved,
  *
- * This file is part of WinDivert.
+ * This file is part of CyDivert.
  *
- * WinDivert is free software: you can redistribute it and/or modify it under
+ * CyDivert is free software: you can redistribute it and/or modify it under
  * the terms of the GNU Lesser General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or (at your
  * option) any later version.
@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * WinDivert is free software; you can redistribute it and/or modify it under
+ * CyDivert is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
@@ -52,22 +52,22 @@
 #define INITGUID
 #include <guiddef.h>
 
-#include "windivert_device.h"
-#include "windivert_log.h"
+#include "cydivert_device.h"
+#include "cydivert_log.h"
 
 /*
  * WDK function declaration cruft.
  */
 DRIVER_INITIALIZE DriverEntry;
-EVT_WDF_DRIVER_UNLOAD windivert_unload;
-EVT_WDF_IO_IN_CALLER_CONTEXT windivert_caller_context;
-EVT_WDF_IO_QUEUE_IO_DEVICE_CONTROL windivert_ioctl;
-EVT_WDF_DEVICE_FILE_CREATE windivert_create;
-EVT_WDF_FILE_CLEANUP windivert_cleanup;
-EVT_WDF_FILE_CLOSE windivert_close;
-EVT_WDF_OBJECT_CONTEXT_DESTROY windivert_destroy;
-EVT_WDF_WORKITEM windivert_worker;
-EVT_WDF_WORKITEM windivert_reflect_worker;
+EVT_WDF_DRIVER_UNLOAD cydivert_unload;
+EVT_WDF_IO_IN_CALLER_CONTEXT cydivert_caller_context;
+EVT_WDF_IO_QUEUE_IO_DEVICE_CONTROL cydivert_ioctl;
+EVT_WDF_DEVICE_FILE_CREATE cydivert_create;
+EVT_WDF_FILE_CLEANUP cydivert_cleanup;
+EVT_WDF_FILE_CLOSE cydivert_close;
+EVT_WDF_OBJECT_CONTEXT_DESTROY cydivert_destroy;
+EVT_WDF_WORKITEM cydivert_worker;
+EVT_WDF_WORKITEM cydivert_reflect_worker;
 
 /*
  * Debugging macros.
@@ -75,16 +75,16 @@ EVT_WDF_WORKITEM windivert_reflect_worker;
 // #define DEBUG_ON
 #ifdef DEBUG_ON
 #define DEBUG(format, ...)                                                  \
-    DbgPrint("WINDIVERT: " format "\n", ##__VA_ARGS__)
+    DbgPrint("CYDIVERT: " format "\n", ##__VA_ARGS__)
 #define DEBUG_ERROR(format, status, ...)                                    \
-    DbgPrint("WINDIVERT: *** ERROR ***: (status = 0x%x): " format "\n",     \
+    DbgPrint("CYDIVERT: *** ERROR ***: (status = 0x%x): " format "\n",     \
         (status), ##__VA_ARGS__)
 static void DEBUG_BOUNDS_CHECK(PVOID start, PVOID end, PVOID access_start,
     PVOID access_end)
 {
     if (access_end > end || access_start < start)
     {
-        DbgPrint("WINDIVERT: *** BOUNDS ERROR ***: access %p..%p outside "
+        DbgPrint("CYDIVERT: *** BOUNDS ERROR ***: access %p..%p outside "
             "of buffer bounds %p..%p", access_start, access_end, start, end);
     }
 }
@@ -94,45 +94,44 @@ static void DEBUG_BOUNDS_CHECK(PVOID start, PVOID end, PVOID access_start,
 #define DEBUG_BOUNDS_CHECK(start, end, access_start, access_end)
 #endif
 
-#define WINDIVERT_VERSION_MAJOR_MIN             2
-#define WINDIVERT_TAG                           'viDW'
+#define CYDIVERT_TAG                           'viDW'
 
 /*
- * WinDivert reflect event.
+ * CyDivert reflect event.
  */
 typedef struct context_s *context_t;
 struct reflect_event_s
 {
     LIST_ENTRY entry;                           // Entry.
     context_t context;                          // Context.
-    WINDIVERT_EVENT event;                      // Event.
+    CYDIVERT_EVENT event;                      // Event.
 };
 typedef struct reflect_event_s *reflect_event_t;
 
 /*
- * WinDivert reflect context information.
+ * CyDivert reflect context information.
  */
 struct reflect_context_s
 {
     LIST_ENTRY entry;                           // Open handle entry.
     LONGLONG timestamp;                         // Open timestamp.
-    WINDIVERT_DATA_REFLECT data;                // Reflect data.
+    CYDIVERT_DATA_REFLECT data;                // Reflect data.
     struct reflect_event_s open_event;          // Open event.
     struct reflect_event_s close_event;         // Close event
     BOOL open;                                  // Seen open event?
 };
 
 /*
- * WinDivert context information.
+ * CyDivert context information.
  */
-#define WINDIVERT_CONTEXT_SIZE                  (sizeof(struct context_s))
-#define WINDIVERT_CONTEXT_MAXLAYERS             12
+#define CYDIVERT_CONTEXT_SIZE                  (sizeof(struct context_s))
+#define CYDIVERT_CONTEXT_MAXLAYERS             12
 typedef enum
 {
-    WINDIVERT_CONTEXT_STATE_OPENING = 0xA0,     // Context is opening.
-    WINDIVERT_CONTEXT_STATE_OPEN    = 0xB1,     // Context is open.
-    WINDIVERT_CONTEXT_STATE_CLOSING = 0xC2,     // Context is closing.
-    WINDIVERT_CONTEXT_STATE_CLOSED  = 0xD3,     // Context is closed.
+    CYDIVERT_CONTEXT_STATE_OPENING = 0xA0,     // Context is opening.
+    CYDIVERT_CONTEXT_STATE_OPEN    = 0xB1,     // Context is open.
+    CYDIVERT_CONTEXT_STATE_CLOSING = 0xC2,     // Context is closing.
+    CYDIVERT_CONTEXT_STATE_CLOSED  = 0xD3,     // Context is closed.
 } context_state_t;
 struct context_s
 {
@@ -155,7 +154,7 @@ struct context_s
     ULONGLONG packet_queue_maxtime;             // Packet queue max time.
     WDFQUEUE read_queue;                        // Read queue.
     WDFWORKITEM worker;                         // Read worker.
-    WINDIVERT_LAYER layer;                      // Context's layer.
+    CYDIVERT_LAYER layer;                      // Context's layer.
     UINT64 flags;                               // Context's flags.
     BOOL initialized;                           // Context initialized?
     BOOL shutdown_recv;                         // Shutdown recv.
@@ -163,33 +162,33 @@ struct context_s
     BOOL shutdown_recv_enabled;                 // Shutdown recv enabled?
     UINT32 priority;                            // Context (internal) priority.
     INT16 priority16;                           // Context (user) priority.
-    GUID callout_guid[WINDIVERT_CONTEXT_MAXLAYERS];
+    GUID callout_guid[CYDIVERT_CONTEXT_MAXLAYERS];
                                                 // Callout GUIDs.
-    GUID filter_guid[WINDIVERT_CONTEXT_MAXLAYERS];
+    GUID filter_guid[CYDIVERT_CONTEXT_MAXLAYERS];
                                                 // Filter GUIDs.
-    BOOL installed[WINDIVERT_CONTEXT_MAXLAYERS];// What is installed?
+    BOOL installed[CYDIVERT_CONTEXT_MAXLAYERS];// What is installed?
     HANDLE engine_handle;                       // WFP engine handle.
-    const WINDIVERT_FILTER *filter;             // Packet filter.
+    const CYDIVERT_FILTER *filter;             // Packet filter.
     UINT16 filter_len;                          // Length of filter.
     UINT64 filter_flags;                        // Filter flags.
     struct reflect_context_s reflect;           // Reflection info.
 };
 typedef struct context_s context_s;
-WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(context_s, windivert_context_get);
+WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(context_s, cydivert_context_get);
 
-#define WINDIVERT_TIMEOUT(context, t0, t1)                                  \
+#define CYDIVERT_TIMEOUT(context, t0, t1)                                  \
      (((t1) >= (t0)? (t1) - (t0): (t0) - (t1)) >                            \
         (context)->packet_queue_maxcounts)
 
 /*
- * WinDivert Layer information.
+ * CyDivert Layer information.
  */
-typedef void (*windivert_classify_t)(
+typedef void (*cydivert_classify_t)(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-typedef void (*windivert_flow_delete_notify_t)(
+typedef void (*cydivert_flow_delete_notify_t)(
     IN UINT16 layer_id, IN UINT32 callout_id, IN UINT64 flow_context);
 struct layer_s
 {
@@ -201,28 +200,28 @@ struct layer_s
     wchar_t *filter_desc;                   // Filter description.
     const GUID *layer_guid;                 // WFP layer GUID.
     const GUID *sublayer_guid;              // Sub-layer GUID.
-    windivert_classify_t classify;          // Classify function.
-    windivert_flow_delete_notify_t flow_delete;
+    cydivert_classify_t classify;          // Classify function.
+    cydivert_flow_delete_notify_t flow_delete;
                                             // Flow delete function.
     UINT16 sublayer_weight;                 // Sub-layer weight.
 };
 typedef const struct layer_s *layer_t;
 
 /*
- * WinDivert request context.
+ * CyDivert request context.
  */
 struct req_context_s
 {
-    PWINDIVERT_ADDRESS addr;                // Pointer to address structure.
+    PCYDIVERT_ADDRESS addr;                // Pointer to address structure.
     UINT *addr_len_ptr;                     // Pointer to address length.
     UINT addr_len;                          // Address length (in bytes).
 };
 typedef struct req_context_s req_context_s;
 typedef struct req_context_s *req_context_t;
-WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(req_context_s, windivert_req_context_get);
+WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(req_context_s, cydivert_req_context_get);
 
 /*
- * WinDivert packet structure.  Layout is as follows:
+ * CyDivert packet structure.  Layout is as follows:
  *
  *     +-----------------+------------+-------------+
  *     | struct packet_s | layer data | packet data |
@@ -230,13 +229,13 @@ WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(req_context_s, windivert_req_context_get);
  *
  * Note the packet data must be pointer-aligned.
  */
-#define WINDIVERT_WORK_QUEUE_LENGTH_MAX     4096
+#define CYDIVERT_WORK_QUEUE_LENGTH_MAX     4096
 #ifdef _WIN64
-#define WINDIVERT_ALIGN_SIZE                8
-#define WINDIVERT_DATA_ALIGN                __declspec(align(8))
+#define CYDIVERT_ALIGN_SIZE                8
+#define CYDIVERT_DATA_ALIGN                __declspec(align(8))
 #else
-#define WINDIVERT_ALIGN_SIZE                4
-#define WINDIVERT_DATA_ALIGN                __declspec(align(4))
+#define CYDIVERT_ALIGN_SIZE                4
+#define CYDIVERT_DATA_ALIGN                __declspec(align(4))
 #endif
 struct packet_s
 {
@@ -259,23 +258,23 @@ struct packet_s
     PVOID object;                           // Object associated with packet.
     UINT32 priority;                        // Packet priority.
     UINT32 packet_len;                      // Length of the packet.
-    WINDIVERT_DATA_ALIGN UINT8 data[1];     // Packet/layer data.
+    CYDIVERT_DATA_ALIGN UINT8 data[1];     // Packet/layer data.
 };
 typedef struct packet_s *packet_t;
 
-#define WINDIVERT_DATA_SIZE(size)                                           \
-    ((((size) + WINDIVERT_ALIGN_SIZE - 1) / WINDIVERT_ALIGN_SIZE) *         \
-        WINDIVERT_ALIGN_SIZE)
-#define WINDIVERT_PACKET_SIZE(layer_type, packet_len)                       \
-    (sizeof(struct packet_s)-1 + WINDIVERT_DATA_SIZE(sizeof(layer_type)) +  \
+#define CYDIVERT_DATA_SIZE(size)                                           \
+    ((((size) + CYDIVERT_ALIGN_SIZE - 1) / CYDIVERT_ALIGN_SIZE) *         \
+        CYDIVERT_ALIGN_SIZE)
+#define CYDIVERT_PACKET_SIZE(layer_type, packet_len)                       \
+    (sizeof(struct packet_s)-1 + CYDIVERT_DATA_SIZE(sizeof(layer_type)) +  \
         (packet_len))
-#define WINDIVERT_LAYER_DATA_PTR(packet)                                    \
+#define CYDIVERT_LAYER_DATA_PTR(packet)                                    \
     ((packet)->data)
-#define WINDIVERT_PACKET_DATA_PTR(layer_type, packet)                       \
-    ((packet)->data + WINDIVERT_DATA_SIZE(sizeof(layer_type)))
+#define CYDIVERT_PACKET_DATA_PTR(layer_type, packet)                       \
+    ((packet)->data + CYDIVERT_DATA_SIZE(sizeof(layer_type)))
 
 /*
- * WinDivert flow structure.
+ * CyDivert flow structure.
  */
 struct flow_s
 {
@@ -289,7 +288,7 @@ struct flow_s
     BOOL outbound:1;                        // Flow is outound?
     BOOL loopback:1;                        // Flow is loopback?
     BOOL ipv6:1;                            // Flow is ipv6?
-    WINDIVERT_DATA_FLOW data;               // Flow data.
+    CYDIVERT_DATA_FLOW data;               // Flow data.
 };
 typedef struct flow_s *flow_t;
 
@@ -322,7 +321,7 @@ static LONG64 num_opens = 0;
 /*
  * Priorities.
  */
-static UINT32 windivert_context_priority(UINT32 priority)
+static UINT32 cydivert_context_priority(UINT32 priority)
 {
     UINT32 increment;
     priority = (priority << 16);
@@ -334,613 +333,613 @@ static UINT32 windivert_context_priority(UINT32 priority)
 /*
  * Prototypes.
  */
-static void windivert_driver_unload(void);
-extern VOID windivert_ioctl(IN WDFQUEUE queue, IN WDFREQUEST request,
+static void cydivert_driver_unload(void);
+extern VOID cydivert_ioctl(IN WDFQUEUE queue, IN WDFREQUEST request,
     IN size_t in_length, IN size_t out_len, IN ULONG code);
-static NTSTATUS windivert_read(context_t context, WDFREQUEST request);
-extern VOID windivert_worker(IN WDFWORKITEM item);
-static void windivert_read_service(context_t context);
-extern VOID windivert_create(IN WDFDEVICE device, IN WDFREQUEST request,
+static NTSTATUS cydivert_read(context_t context, WDFREQUEST request);
+extern VOID cydivert_worker(IN WDFWORKITEM item);
+static void cydivert_read_service(context_t context);
+extern VOID cydivert_create(IN WDFDEVICE device, IN WDFREQUEST request,
     IN WDFFILEOBJECT object);
-static NTSTATUS windivert_install_provider(void);
-static NTSTATUS windivert_install_sublayer(layer_t layer);
-static NTSTATUS windivert_install_callouts(context_t context, UINT8 layer,
+static NTSTATUS cydivert_install_provider(void);
+static NTSTATUS cydivert_install_sublayer(layer_t layer);
+static NTSTATUS cydivert_install_callouts(context_t context, UINT8 layer,
     UINT64 flags);
-static NTSTATUS windivert_install_callout(context_t context, UINT idx,
+static NTSTATUS cydivert_install_callout(context_t context, UINT idx,
     layer_t layer, UINT32 *callout_id_ptr);
-static void windivert_uninstall_callouts(context_t context,
+static void cydivert_uninstall_callouts(context_t context,
     context_state_t state);
-extern VOID windivert_cleanup(IN WDFFILEOBJECT object);
-extern VOID windivert_close(IN WDFFILEOBJECT object);
-extern VOID windivert_destroy(IN WDFOBJECT object);
-static NTSTATUS windivert_write(context_t context, WDFREQUEST request,
+extern VOID cydivert_cleanup(IN WDFFILEOBJECT object);
+extern VOID cydivert_close(IN WDFFILEOBJECT object);
+extern VOID cydivert_destroy(IN WDFOBJECT object);
+static NTSTATUS cydivert_write(context_t context, WDFREQUEST request,
     req_context_t req_context);
-static void NTAPI windivert_inject_complete(VOID *context,
+static void NTAPI cydivert_inject_complete(VOID *context,
     NET_BUFFER_LIST *packets, BOOLEAN dispatch_level);
-static void windivert_inject_packet_too_big(packet_t packet);
-static NTSTATUS windivert_notify(IN FWPS_CALLOUT_NOTIFY_TYPE type,
+static void cydivert_inject_packet_too_big(packet_t packet);
+static NTSTATUS cydivert_notify(IN FWPS_CALLOUT_NOTIFY_TYPE type,
     IN const GUID *filter_key, IN const FWPS_FILTER0 *filter);
-static void windivert_outbound_network_v4_classify(
+static void cydivert_outbound_network_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_inbound_network_v4_classify(
+static void cydivert_inbound_network_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_outbound_network_v6_classify(
+static void cydivert_outbound_network_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_inbound_network_v6_classify(
+static void cydivert_inbound_network_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_forward_network_v4_classify(
+static void cydivert_forward_network_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_forward_network_v6_classify(
+static void cydivert_forward_network_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_flow_established_v4_classify(
+static void cydivert_flow_established_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_flow_established_v6_classify(
+static void cydivert_flow_established_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_resource_assignment_v4_classify(
+static void cydivert_resource_assignment_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_resource_assignment_v6_classify(
+static void cydivert_resource_assignment_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_resource_release_v4_classify(
+static void cydivert_resource_release_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_resource_release_v6_classify(
+static void cydivert_resource_release_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_auth_connect_v4_classify(
+static void cydivert_auth_connect_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_auth_connect_v6_classify(
+static void cydivert_auth_connect_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_endpoint_closure_v4_classify(
+static void cydivert_endpoint_closure_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_endpoint_closure_v6_classify(
+static void cydivert_endpoint_closure_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_auth_listen_v4_classify(
+static void cydivert_auth_listen_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_auth_listen_v6_classify(
+static void cydivert_auth_listen_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_auth_recv_accept_v4_classify(
+static void cydivert_auth_recv_accept_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_auth_recv_accept_v6_classify(
+static void cydivert_auth_recv_accept_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_flow_established_classify(context_t context, 
-    IN UINT64 flow_id, IN PWINDIVERT_DATA_FLOW flow_data, IN BOOL ipv4,
+static void cydivert_flow_established_classify(context_t context, 
+    IN UINT64 flow_id, IN PCYDIVERT_DATA_FLOW flow_data, IN BOOL ipv4,
     IN BOOL outbound, IN BOOL loopback, OUT FWPS_CLASSIFY_OUT0 *result);
-static void windivert_flow_delete_notify(UINT16 layer_id, UINT32 callout_id,
+static void cydivert_flow_delete_notify(UINT16 layer_id, UINT32 callout_id,
     UINT64 flow_context);
-static void windivert_socket_classify(context_t context,
-    PWINDIVERT_DATA_SOCKET socket_data, WINDIVERT_EVENT event, BOOL ipv4,
+static void cydivert_socket_classify(context_t context,
+    PCYDIVERT_DATA_SOCKET socket_data, CYDIVERT_EVENT event, BOOL ipv4,
     BOOL outbound, BOOL loopback, FWPS_CLASSIFY_OUT0 *result);
-static void windivert_network_classify(context_t context,
-    IN PWINDIVERT_DATA_NETWORK network_data, IN BOOL ipv4, IN BOOL outbound,
+static void cydivert_network_classify(context_t context,
+    IN PCYDIVERT_DATA_NETWORK network_data, IN BOOL ipv4, IN BOOL outbound,
     IN BOOL loopback, IN BOOL reassembled, IN UINT advance, IN OUT void *data,
     OUT FWPS_CLASSIFY_OUT0 *result);
-static BOOL windivert_queue_work(context_t context, PVOID packet,
+static BOOL cydivert_queue_work(context_t context, PVOID packet,
     ULONG packet_len, PNET_BUFFER_LIST buffers, PVOID object,
-    WINDIVERT_LAYER layer, PVOID layer_data, WINDIVERT_EVENT event,
+    CYDIVERT_LAYER layer, PVOID layer_data, CYDIVERT_EVENT event,
     UINT64 flags, UINT32 priority, BOOL ipv4, BOOL outbound, BOOL loopback,
     BOOL impostor, BOOL match, LONGLONG timestamp);
-static void windivert_queue_packet(context_t context, packet_t packet);
-static NTSTATUS windivert_inject_packet(packet_t packet);
-static void windivert_free_packet(packet_t packet);
-static BOOL windivert_copy_data(PNET_BUFFER buffer, PVOID data, UINT size);
-static BOOL windivert_get_data(PNET_BUFFER buffer, UINT length, INT min,
+static void cydivert_queue_packet(context_t context, packet_t packet);
+static NTSTATUS cydivert_inject_packet(packet_t packet);
+static void cydivert_free_packet(packet_t packet);
+static BOOL cydivert_copy_data(PNET_BUFFER buffer, PVOID data, UINT size);
+static BOOL cydivert_get_data(PNET_BUFFER buffer, UINT length, INT min,
     INT max, INT idx, PVOID data, UINT size);
-static BOOL windivert_parse_headers(PNET_BUFFER buffer, BOOL ipv4,
-    BOOL *fragment_ptr, PWINDIVERT_IPHDR *ip_header_ptr,
-    PWINDIVERT_IPV6HDR *ipv6_header_ptr, PWINDIVERT_ICMPHDR *icmp_header_ptr,
-    PWINDIVERT_ICMPV6HDR *icmpv6_header_ptr, PWINDIVERT_TCPHDR *tcp_header_ptr,
-    PWINDIVERT_UDPHDR *udp_header_ptr, UINT8 *proto_ptr, UINT *header_len_ptr,
+static BOOL cydivert_parse_headers(PNET_BUFFER buffer, BOOL ipv4,
+    BOOL *fragment_ptr, PCYDIVERT_IPHDR *ip_header_ptr,
+    PCYDIVERT_IPV6HDR *ipv6_header_ptr, PCYDIVERT_ICMPHDR *icmp_header_ptr,
+    PCYDIVERT_ICMPV6HDR *icmpv6_header_ptr, PCYDIVERT_TCPHDR *tcp_header_ptr,
+    PCYDIVERT_UDPHDR *udp_header_ptr, UINT8 *proto_ptr, UINT *header_len_ptr,
     UINT *payload_len_ptr);
-static BOOL windivert_filter(PNET_BUFFER buffer, WINDIVERT_LAYER layer,
-    const VOID *layer_data, LONGLONG timestamp, WINDIVERT_EVENT event,
+static BOOL cydivert_filter(PNET_BUFFER buffer, CYDIVERT_LAYER layer,
+    const VOID *layer_data, LONGLONG timestamp, CYDIVERT_EVENT event,
     BOOL ipv4, BOOL outbound, BOOL loopback, BOOL impostor, BOOL frag_mode,
-    const WINDIVERT_FILTER *filter);
-static const WINDIVERT_FILTER *windivert_filter_compile(
-    const WINDIVERT_FILTER *ioctl_filter, size_t ioctl_filter_len,
-    WINDIVERT_LAYER layer);
-static NTSTATUS windivert_reflect_init(WDFOBJECT parent);
-static void windivert_reflect_close(void);
-static void windivert_reflect_open_event(context_t context);
-static void windivert_reflect_close_event(context_t context);
-static void windivert_reflect_event_notify(context_t context,
-    LONGLONG timestamp, WINDIVERT_EVENT event);
-static void windivert_reflect_established_notify(context_t context,
+    const CYDIVERT_FILTER *filter);
+static const CYDIVERT_FILTER *cydivert_filter_compile(
+    const CYDIVERT_FILTER *ioctl_filter, size_t ioctl_filter_len,
+    CYDIVERT_LAYER layer);
+static NTSTATUS cydivert_reflect_init(WDFOBJECT parent);
+static void cydivert_reflect_close(void);
+static void cydivert_reflect_open_event(context_t context);
+static void cydivert_reflect_close_event(context_t context);
+static void cydivert_reflect_event_notify(context_t context,
+    LONGLONG timestamp, CYDIVERT_EVENT event);
+static void cydivert_reflect_established_notify(context_t context,
     LONGLONG timestamp);
-extern void windivert_reflect_worker(IN WDFWORKITEM item);
-static void windivert_log_event(PEPROCESS process, PDRIVER_OBJECT driver,
+extern void cydivert_reflect_worker(IN WDFWORKITEM item);
+static void cydivert_log_event(PEPROCESS process, PDRIVER_OBJECT driver,
     const wchar_t *msg_str);
 
 /*
- * WinDivert provider GUIDs
+ * CyDivert provider GUIDs
  */
-DEFINE_GUID(WINDIVERT_PROVIDER_GUID,
+DEFINE_GUID(CYDIVERT_PROVIDER_GUID,
     0x450EC398, 0x1EAF, 0x49F5,
     0x85, 0xE0, 0x22, 0x8F, 0x0D, 0x29, 0x39, 0x21);
-#define WINDIVERT_PROVIDER_NAME WINDIVERT_DEVICE_NAME
-#define WINDIVERT_PROVIDER_DESC WINDIVERT_DEVICE_NAME L" provider"
+#define CYDIVERT_PROVIDER_NAME CYDIVERT_DEVICE_NAME
+#define CYDIVERT_PROVIDER_DESC CYDIVERT_DEVICE_NAME L" provider"
 
 /*
- * WinDivert sublayer GUIDs
+ * CyDivert sublayer GUIDs
  */
-DEFINE_GUID(WINDIVERT_SUBLAYER_INBOUND_IPV4_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_INBOUND_IPV4_GUID,
     0x82A99281, 0x0389, 0x4DE2,
     0xAE, 0x2D, 0xA4, 0x51, 0x59, 0x16, 0x26, 0x06);
-DEFINE_GUID(WINDIVERT_SUBLAYER_OUTBOUND_IPV4_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_OUTBOUND_IPV4_GUID,
     0xB0BB07C6, 0x3B3B, 0x41FE,
     0x83, 0x8B, 0xD8, 0x37, 0xDD, 0xB8, 0x75, 0x41);
-DEFINE_GUID(WINDIVERT_SUBLAYER_INBOUND_IPV6_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_INBOUND_IPV6_GUID,
     0xD7674846, 0x3AB5, 0x4E93,
     0x82, 0xD0, 0x2F, 0xCC, 0x03, 0xA2, 0x88, 0x7A);
-DEFINE_GUID(WINDIVERT_SUBLAYER_OUTBOUND_IPV6_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_OUTBOUND_IPV6_GUID,
     0x6672F761, 0xA0F2, 0x4578,
     0x92, 0x50, 0x09, 0x03, 0x0D, 0x4E, 0x8C, 0x46);
-DEFINE_GUID(WINDIVERT_SUBLAYER_FORWARD_IPV4_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_FORWARD_IPV4_GUID,
     0x4622DCC6, 0xBD71, 0x48ED,
     0x9D, 0x1A, 0x72, 0xC9, 0x0D, 0xEB, 0xA1, 0x74);
-DEFINE_GUID(WINDIVERT_SUBLAYER_FORWARD_IPV6_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_FORWARD_IPV6_GUID,
     0x7E5B39EC, 0xB54C, 0x41B3,
     0xA7, 0x99, 0x47, 0x5E, 0x57, 0x41, 0xA4, 0x33);
-DEFINE_GUID(WINDIVERT_SUBLAYER_FLOW_ESTABLISHED_IPV4_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_FLOW_ESTABLISHED_IPV4_GUID,
     0x53D6C270, 0xEB79, 0x44CD,
     0x83, 0xCD, 0x14, 0x34, 0xE6, 0x13, 0x91, 0x68);
-DEFINE_GUID(WINDIVERT_SUBLAYER_FLOW_ESTABLISHED_IPV6_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_FLOW_ESTABLISHED_IPV6_GUID,
     0x44B0CDED, 0xAA11, 0x4704,
     0x92, 0xA7, 0x99, 0xD2, 0xB7, 0x59, 0x7A, 0x68);
-DEFINE_GUID(WINDIVERT_SUBLAYER_RESOURCE_ASSIGNMENT_IPV4_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_RESOURCE_ASSIGNMENT_IPV4_GUID,
     0x736848B6, 0xBE0D, 0x4A8D,
     0xA0, 0xC2, 0xE2, 0x02, 0xDC, 0x29, 0x32, 0xBC);
-DEFINE_GUID(WINDIVERT_SUBLAYER_RESOURCE_ASSIGNMENT_IPV6_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_RESOURCE_ASSIGNMENT_IPV6_GUID,
     0xF3458E58, 0xD123, 0x439B,
     0xB6, 0x40, 0x74, 0x3C, 0xC7, 0x53, 0x9E, 0x36);
-DEFINE_GUID(WINDIVERT_SUBLAYER_RESOURCE_RELEASE_IPV4_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_RESOURCE_RELEASE_IPV4_GUID,
     0x02366282, 0x9099, 0x43A7,
     0x95, 0xC3, 0xAB, 0x52, 0x87, 0xB3, 0xF2, 0xDC);
-DEFINE_GUID(WINDIVERT_SUBLAYER_RESOURCE_RELEASE_IPV6_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_RESOURCE_RELEASE_IPV6_GUID,
     0x60FCA14A, 0x7677, 0x45D2,
     0xBB, 0x5C, 0x15, 0xDB, 0xAE, 0x4B, 0x7B, 0x6B);
-DEFINE_GUID(WINDIVERT_SUBLAYER_AUTH_CONNECT_IPV4_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_AUTH_CONNECT_IPV4_GUID,
     0x2F97411F, 0x6350, 0x450A,
     0xBF, 0x45, 0x4C, 0x0B, 0xC1, 0xDB, 0x3F, 0x7E);
-DEFINE_GUID(WINDIVERT_SUBLAYER_AUTH_CONNECT_IPV6_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_AUTH_CONNECT_IPV6_GUID,
     0x7BAFEEEB, 0x84F0, 0x4BB0,
     0x91, 0x1F, 0x7E, 0x62, 0x2D, 0x73, 0x24, 0x2C);
-DEFINE_GUID(WINDIVERT_SUBLAYER_ENDPOINT_CLOSURE_IPV4_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_ENDPOINT_CLOSURE_IPV4_GUID,
     0x8180D216, 0xB3BD, 0x4014,
     0x99, 0x69, 0xA3, 0xDF, 0x0F, 0x3E, 0x61, 0x85);
-DEFINE_GUID(WINDIVERT_SUBLAYER_ENDPOINT_CLOSURE_IPV6_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_ENDPOINT_CLOSURE_IPV6_GUID,
     0x2535A264, 0xEC8B, 0x49CC,
     0xA4, 0xD6, 0x83, 0x81, 0xD7, 0x5F, 0xAB, 0xE6);
-DEFINE_GUID(WINDIVERT_SUBLAYER_AUTH_LISTEN_IPV4_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_AUTH_LISTEN_IPV4_GUID,
     0x49F2A9AD, 0x805E, 0x4328,
     0xBB, 0xDA, 0x92, 0x57, 0xB5, 0x18, 0x3A, 0x40);
-DEFINE_GUID(WINDIVERT_SUBLAYER_AUTH_LISTEN_IPV6_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_AUTH_LISTEN_IPV6_GUID,
     0xC1BB250E, 0xDE07, 0x41AB,
     0x82, 0xEE, 0xAD, 0x7B, 0xFF, 0x13, 0xCE, 0x35);
-DEFINE_GUID(WINDIVERT_SUBLAYER_AUTH_RECV_ACCEPT_IPV4_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_AUTH_RECV_ACCEPT_IPV4_GUID,
     0x7A012579, 0xC75A, 0x4D29,
     0xB7, 0x47, 0x04, 0xAD, 0x3C, 0x7B, 0x32, 0x69);
-DEFINE_GUID(WINDIVERT_SUBLAYER_AUTH_RECV_ACCEPT_IPV6_GUID,
+DEFINE_GUID(CYDIVERT_SUBLAYER_AUTH_RECV_ACCEPT_IPV6_GUID,
     0x1C51DD53, 0x6BA4, 0x4149,
     0x89, 0x97, 0x1C, 0xD4, 0x8B, 0x51, 0x1B, 0x7D);
 
 /*
- * WinDivert supported layers.
+ * CyDivert supported layers.
  */
-static const struct layer_s windivert_layer_inbound_network_ipv4 =
+static const struct layer_s cydivert_layer_inbound_network_ipv4 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerInboundNetworkIPv4",
-    L"" WINDIVERT_LAYER_NAME L" sublayer network (inbound IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutInboundNetworkIPv4",
-    L"" WINDIVERT_LAYER_NAME L" callout network (inbound IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterInboundNetworkIPv4",
-    L"" WINDIVERT_LAYER_NAME L" filter network (inbound IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerInboundNetworkIPv4",
+    L"" CYDIVERT_LAYER_NAME L" sublayer network (inbound IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutInboundNetworkIPv4",
+    L"" CYDIVERT_LAYER_NAME L" callout network (inbound IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterInboundNetworkIPv4",
+    L"" CYDIVERT_LAYER_NAME L" filter network (inbound IPv4)",
     &FWPM_LAYER_INBOUND_IPPACKET_V4,
-    &WINDIVERT_SUBLAYER_INBOUND_IPV4_GUID,
-    windivert_inbound_network_v4_classify,
+    &CYDIVERT_SUBLAYER_INBOUND_IPV4_GUID,
+    cydivert_inbound_network_v4_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_INBOUND_NETWORK_IPV4                                \
-    (&windivert_layer_inbound_network_ipv4)
+#define CYDIVERT_LAYER_INBOUND_NETWORK_IPV4                                \
+    (&cydivert_layer_inbound_network_ipv4)
 
-static const struct layer_s windivert_layer_outbound_network_ipv4 =
+static const struct layer_s cydivert_layer_outbound_network_ipv4 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerOutboundNetworkIPv4",
-    L"" WINDIVERT_LAYER_NAME L" sublayer network (outbound IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutOutboundNetworkIPv4",
-    L"" WINDIVERT_LAYER_NAME L" callout network (outbound IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterOutboundNetworkIPv4",
-    L"" WINDIVERT_LAYER_NAME L" filter network (outbound IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerOutboundNetworkIPv4",
+    L"" CYDIVERT_LAYER_NAME L" sublayer network (outbound IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutOutboundNetworkIPv4",
+    L"" CYDIVERT_LAYER_NAME L" callout network (outbound IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterOutboundNetworkIPv4",
+    L"" CYDIVERT_LAYER_NAME L" filter network (outbound IPv4)",
     &FWPM_LAYER_OUTBOUND_IPPACKET_V4,
-    &WINDIVERT_SUBLAYER_OUTBOUND_IPV4_GUID,
-    windivert_outbound_network_v4_classify,
+    &CYDIVERT_SUBLAYER_OUTBOUND_IPV4_GUID,
+    cydivert_outbound_network_v4_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_OUTBOUND_NETWORK_IPV4                               \
-    (&windivert_layer_outbound_network_ipv4)
+#define CYDIVERT_LAYER_OUTBOUND_NETWORK_IPV4                               \
+    (&cydivert_layer_outbound_network_ipv4)
 
-static const struct layer_s windivert_layer_inbound_network_ipv6 =
+static const struct layer_s cydivert_layer_inbound_network_ipv6 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerInboundNetworkIPv6",
-    L"" WINDIVERT_LAYER_NAME L" sublayer network (inbound IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutInboundNetworkIPv6",
-    L"" WINDIVERT_LAYER_NAME L" callout network (inbound IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterInboundNetworkIPv6",
-    L"" WINDIVERT_LAYER_NAME L" filter network (inbound IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerInboundNetworkIPv6",
+    L"" CYDIVERT_LAYER_NAME L" sublayer network (inbound IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutInboundNetworkIPv6",
+    L"" CYDIVERT_LAYER_NAME L" callout network (inbound IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterInboundNetworkIPv6",
+    L"" CYDIVERT_LAYER_NAME L" filter network (inbound IPv6)",
     &FWPM_LAYER_INBOUND_IPPACKET_V6,
-    &WINDIVERT_SUBLAYER_INBOUND_IPV6_GUID,
-    windivert_inbound_network_v6_classify,
+    &CYDIVERT_SUBLAYER_INBOUND_IPV6_GUID,
+    cydivert_inbound_network_v6_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_INBOUND_NETWORK_IPV6                                \
-    (&windivert_layer_inbound_network_ipv6)
+#define CYDIVERT_LAYER_INBOUND_NETWORK_IPV6                                \
+    (&cydivert_layer_inbound_network_ipv6)
 
-static const struct layer_s windivert_layer_outbound_network_ipv6 =
+static const struct layer_s cydivert_layer_outbound_network_ipv6 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerOutboundNetworkIPv6",
-    L"" WINDIVERT_LAYER_NAME L" sublayer network (outbound IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutOutboundNetworkIPv6",
-    L"" WINDIVERT_LAYER_NAME L" callout network (outbound IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterOutboundNetworkIPv6",
-    L"" WINDIVERT_LAYER_NAME L" filter network (outbound IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerOutboundNetworkIPv6",
+    L"" CYDIVERT_LAYER_NAME L" sublayer network (outbound IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutOutboundNetworkIPv6",
+    L"" CYDIVERT_LAYER_NAME L" callout network (outbound IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterOutboundNetworkIPv6",
+    L"" CYDIVERT_LAYER_NAME L" filter network (outbound IPv6)",
     &FWPM_LAYER_OUTBOUND_IPPACKET_V6,
-    &WINDIVERT_SUBLAYER_OUTBOUND_IPV6_GUID,
-    windivert_outbound_network_v6_classify,
+    &CYDIVERT_SUBLAYER_OUTBOUND_IPV6_GUID,
+    cydivert_outbound_network_v6_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_OUTBOUND_NETWORK_IPV6                               \
-    (&windivert_layer_outbound_network_ipv6)
+#define CYDIVERT_LAYER_OUTBOUND_NETWORK_IPV6                               \
+    (&cydivert_layer_outbound_network_ipv6)
 
-static const struct layer_s windivert_layer_forward_network_ipv4 =
+static const struct layer_s cydivert_layer_forward_network_ipv4 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerForwardNetworkIPv4",
-    L"" WINDIVERT_LAYER_NAME L" sublayer network (forward IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutForwardNetworkIPv4",
-    L"" WINDIVERT_LAYER_NAME L" callout network (forward IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterForwardNetworkIPv4",
-    L"" WINDIVERT_LAYER_NAME L" filter network (forward IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerForwardNetworkIPv4",
+    L"" CYDIVERT_LAYER_NAME L" sublayer network (forward IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutForwardNetworkIPv4",
+    L"" CYDIVERT_LAYER_NAME L" callout network (forward IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterForwardNetworkIPv4",
+    L"" CYDIVERT_LAYER_NAME L" filter network (forward IPv4)",
     &FWPM_LAYER_IPFORWARD_V4,
-    &WINDIVERT_SUBLAYER_FORWARD_IPV4_GUID,
-    windivert_forward_network_v4_classify,
+    &CYDIVERT_SUBLAYER_FORWARD_IPV4_GUID,
+    cydivert_forward_network_v4_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_FORWARD_NETWORK_IPV4                                \
-    (&windivert_layer_forward_network_ipv4)
+#define CYDIVERT_LAYER_FORWARD_NETWORK_IPV4                                \
+    (&cydivert_layer_forward_network_ipv4)
 
-static const struct layer_s windivert_layer_forward_network_ipv6 =
+static const struct layer_s cydivert_layer_forward_network_ipv6 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerForwardNetworkIPv6",
-    L"" WINDIVERT_LAYER_NAME L" sublayer network (forward IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutForwardNetworkIPv6",
-    L"" WINDIVERT_LAYER_NAME L" callout network (forward IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterForwardNetworkIPv6",
-    L"" WINDIVERT_LAYER_NAME L" filter network (forward IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerForwardNetworkIPv6",
+    L"" CYDIVERT_LAYER_NAME L" sublayer network (forward IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutForwardNetworkIPv6",
+    L"" CYDIVERT_LAYER_NAME L" callout network (forward IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterForwardNetworkIPv6",
+    L"" CYDIVERT_LAYER_NAME L" filter network (forward IPv6)",
     &FWPM_LAYER_IPFORWARD_V6,
-    &WINDIVERT_SUBLAYER_FORWARD_IPV6_GUID,
-    windivert_forward_network_v6_classify,
+    &CYDIVERT_SUBLAYER_FORWARD_IPV6_GUID,
+    cydivert_forward_network_v6_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_FORWARD_NETWORK_IPV6                                \
-    (&windivert_layer_forward_network_ipv6)
+#define CYDIVERT_LAYER_FORWARD_NETWORK_IPV6                                \
+    (&cydivert_layer_forward_network_ipv6)
 
-static const struct layer_s windivert_layer_resource_assignment_ipv4 =
+static const struct layer_s cydivert_layer_resource_assignment_ipv4 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerResourceAssignmentIPv4",
-    L"" WINDIVERT_LAYER_NAME L" sublayer resource assignment (IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutResourceAssignmentIPv4",
-    L"" WINDIVERT_LAYER_NAME L" callout resource assignment (IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterResourceAssignmentIPv4",
-    L"" WINDIVERT_LAYER_NAME L" filter resource assignment (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerResourceAssignmentIPv4",
+    L"" CYDIVERT_LAYER_NAME L" sublayer resource assignment (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutResourceAssignmentIPv4",
+    L"" CYDIVERT_LAYER_NAME L" callout resource assignment (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterResourceAssignmentIPv4",
+    L"" CYDIVERT_LAYER_NAME L" filter resource assignment (IPv4)",
     &FWPM_LAYER_ALE_RESOURCE_ASSIGNMENT_V4,
-    &WINDIVERT_SUBLAYER_RESOURCE_ASSIGNMENT_IPV4_GUID,
-    windivert_resource_assignment_v4_classify,
+    &CYDIVERT_SUBLAYER_RESOURCE_ASSIGNMENT_IPV4_GUID,
+    cydivert_resource_assignment_v4_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_RESOURCE_ASSIGNMENT_IPV4                            \
-    (&windivert_layer_resource_assignment_ipv4)
+#define CYDIVERT_LAYER_RESOURCE_ASSIGNMENT_IPV4                            \
+    (&cydivert_layer_resource_assignment_ipv4)
 
-static const struct layer_s windivert_layer_resource_assignment_ipv6 =
+static const struct layer_s cydivert_layer_resource_assignment_ipv6 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerResourceAssignmentIPv6",
-    L"" WINDIVERT_LAYER_NAME L" sublayer resource assignment (IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutResourceAssignmentIPv6",
-    L"" WINDIVERT_LAYER_NAME L" callout resource assignment (IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterResourceAssignmentIPv6",
-    L"" WINDIVERT_LAYER_NAME L" filter resource assignment (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerResourceAssignmentIPv6",
+    L"" CYDIVERT_LAYER_NAME L" sublayer resource assignment (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutResourceAssignmentIPv6",
+    L"" CYDIVERT_LAYER_NAME L" callout resource assignment (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterResourceAssignmentIPv6",
+    L"" CYDIVERT_LAYER_NAME L" filter resource assignment (IPv6)",
     &FWPM_LAYER_ALE_RESOURCE_ASSIGNMENT_V6,
-    &WINDIVERT_SUBLAYER_RESOURCE_ASSIGNMENT_IPV6_GUID,
-    windivert_resource_assignment_v6_classify,
+    &CYDIVERT_SUBLAYER_RESOURCE_ASSIGNMENT_IPV6_GUID,
+    cydivert_resource_assignment_v6_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_RESOURCE_ASSIGNMENT_IPV6                            \
-    (&windivert_layer_resource_assignment_ipv6)
+#define CYDIVERT_LAYER_RESOURCE_ASSIGNMENT_IPV6                            \
+    (&cydivert_layer_resource_assignment_ipv6)
 
-static const struct layer_s windivert_layer_resource_release_ipv4 =
+static const struct layer_s cydivert_layer_resource_release_ipv4 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerResourceReleaseIPv4",
-    L"" WINDIVERT_LAYER_NAME L" sublayer resource release (IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutResourceReleaseIPv4",
-    L"" WINDIVERT_LAYER_NAME L" callout resource release (IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterResourceReleaseIPv4",
-    L"" WINDIVERT_LAYER_NAME L" filter resource release (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerResourceReleaseIPv4",
+    L"" CYDIVERT_LAYER_NAME L" sublayer resource release (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutResourceReleaseIPv4",
+    L"" CYDIVERT_LAYER_NAME L" callout resource release (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterResourceReleaseIPv4",
+    L"" CYDIVERT_LAYER_NAME L" filter resource release (IPv4)",
     &FWPM_LAYER_ALE_RESOURCE_RELEASE_V4,
-    &WINDIVERT_SUBLAYER_RESOURCE_RELEASE_IPV4_GUID,
-    windivert_resource_release_v4_classify,
+    &CYDIVERT_SUBLAYER_RESOURCE_RELEASE_IPV4_GUID,
+    cydivert_resource_release_v4_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_RESOURCE_RELEASE_IPV4                              \
-    (&windivert_layer_resource_release_ipv4)
+#define CYDIVERT_LAYER_RESOURCE_RELEASE_IPV4                              \
+    (&cydivert_layer_resource_release_ipv4)
 
-static const struct layer_s windivert_layer_resource_release_ipv6 =
+static const struct layer_s cydivert_layer_resource_release_ipv6 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerResourceReleaseIPv6",
-    L"" WINDIVERT_LAYER_NAME L" sublayer resource release (IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutResourceReleaseIPv6",
-    L"" WINDIVERT_LAYER_NAME L" callout resource release (IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterResourceReleaseIPv6",
-    L"" WINDIVERT_LAYER_NAME L" filter resource release (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerResourceReleaseIPv6",
+    L"" CYDIVERT_LAYER_NAME L" sublayer resource release (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutResourceReleaseIPv6",
+    L"" CYDIVERT_LAYER_NAME L" callout resource release (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterResourceReleaseIPv6",
+    L"" CYDIVERT_LAYER_NAME L" filter resource release (IPv6)",
     &FWPM_LAYER_ALE_RESOURCE_RELEASE_V6,
-    &WINDIVERT_SUBLAYER_RESOURCE_RELEASE_IPV6_GUID,
-    windivert_resource_release_v6_classify,
+    &CYDIVERT_SUBLAYER_RESOURCE_RELEASE_IPV6_GUID,
+    cydivert_resource_release_v6_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_RESOURCE_RELEASE_IPV6                              \
-    (&windivert_layer_resource_release_ipv6)
+#define CYDIVERT_LAYER_RESOURCE_RELEASE_IPV6                              \
+    (&cydivert_layer_resource_release_ipv6)
 
-static const struct layer_s windivert_layer_auth_connect_ipv4 =
+static const struct layer_s cydivert_layer_auth_connect_ipv4 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerAuthConnectIPv4",
-    L"" WINDIVERT_LAYER_NAME L" sublayer auth connect (IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutAuthConnectIPv4",
-    L"" WINDIVERT_LAYER_NAME L" callout auth connect (IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterAuthConnectIPv4",
-    L"" WINDIVERT_LAYER_NAME L" filter auth connect (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerAuthConnectIPv4",
+    L"" CYDIVERT_LAYER_NAME L" sublayer auth connect (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutAuthConnectIPv4",
+    L"" CYDIVERT_LAYER_NAME L" callout auth connect (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterAuthConnectIPv4",
+    L"" CYDIVERT_LAYER_NAME L" filter auth connect (IPv4)",
     &FWPM_LAYER_ALE_AUTH_CONNECT_V4,
-    &WINDIVERT_SUBLAYER_AUTH_CONNECT_IPV4_GUID,
-    windivert_auth_connect_v4_classify,
+    &CYDIVERT_SUBLAYER_AUTH_CONNECT_IPV4_GUID,
+    cydivert_auth_connect_v4_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_AUTH_CONNECT_IPV4                                   \
-    (&windivert_layer_auth_connect_ipv4)
+#define CYDIVERT_LAYER_AUTH_CONNECT_IPV4                                   \
+    (&cydivert_layer_auth_connect_ipv4)
 
-static const struct layer_s windivert_layer_auth_connect_ipv6 =
+static const struct layer_s cydivert_layer_auth_connect_ipv6 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerAuthConnectIPv6",
-    L"" WINDIVERT_LAYER_NAME L" sublayer auth connect (IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutAuthConnectIPv6",
-    L"" WINDIVERT_LAYER_NAME L" callout auth connect (IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterAuthConnectIPv6",
-    L"" WINDIVERT_LAYER_NAME L" filter auth connect (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerAuthConnectIPv6",
+    L"" CYDIVERT_LAYER_NAME L" sublayer auth connect (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutAuthConnectIPv6",
+    L"" CYDIVERT_LAYER_NAME L" callout auth connect (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterAuthConnectIPv6",
+    L"" CYDIVERT_LAYER_NAME L" filter auth connect (IPv6)",
     &FWPM_LAYER_ALE_AUTH_CONNECT_V6,
-    &WINDIVERT_SUBLAYER_AUTH_CONNECT_IPV6_GUID,
-    windivert_auth_connect_v6_classify,
+    &CYDIVERT_SUBLAYER_AUTH_CONNECT_IPV6_GUID,
+    cydivert_auth_connect_v6_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_AUTH_CONNECT_IPV6                                   \
-    (&windivert_layer_auth_connect_ipv6)
+#define CYDIVERT_LAYER_AUTH_CONNECT_IPV6                                   \
+    (&cydivert_layer_auth_connect_ipv6)
 
-static const struct layer_s windivert_layer_endpoint_closure_ipv4 =
+static const struct layer_s cydivert_layer_endpoint_closure_ipv4 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerEndpointClosureIPv4",
-    L"" WINDIVERT_LAYER_NAME L" sublayer endpoint closure (IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutEndpointClosureIPv4",
-    L"" WINDIVERT_LAYER_NAME L" callout endpoint closure (IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterEndpointClosureIPv4",
-    L"" WINDIVERT_LAYER_NAME L" filter endpoint closure (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerEndpointClosureIPv4",
+    L"" CYDIVERT_LAYER_NAME L" sublayer endpoint closure (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutEndpointClosureIPv4",
+    L"" CYDIVERT_LAYER_NAME L" callout endpoint closure (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterEndpointClosureIPv4",
+    L"" CYDIVERT_LAYER_NAME L" filter endpoint closure (IPv4)",
     &FWPM_LAYER_ALE_ENDPOINT_CLOSURE_V4,
-    &WINDIVERT_SUBLAYER_ENDPOINT_CLOSURE_IPV4_GUID,
-    windivert_endpoint_closure_v4_classify,
+    &CYDIVERT_SUBLAYER_ENDPOINT_CLOSURE_IPV4_GUID,
+    cydivert_endpoint_closure_v4_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_ENDPOINT_CLOSURE_IPV4                               \
-    (&windivert_layer_endpoint_closure_ipv4)
+#define CYDIVERT_LAYER_ENDPOINT_CLOSURE_IPV4                               \
+    (&cydivert_layer_endpoint_closure_ipv4)
 
-static const struct layer_s windivert_layer_endpoint_closure_ipv6 =
+static const struct layer_s cydivert_layer_endpoint_closure_ipv6 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerEndpointClosureIPv6",
-    L"" WINDIVERT_LAYER_NAME L" sublayer endpoint closure (IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutEndpointClosureIPv6",
-    L"" WINDIVERT_LAYER_NAME L" callout endpoint closure (IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterEndpointClosureIPv6",
-    L"" WINDIVERT_LAYER_NAME L" filter endpoint closure (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerEndpointClosureIPv6",
+    L"" CYDIVERT_LAYER_NAME L" sublayer endpoint closure (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutEndpointClosureIPv6",
+    L"" CYDIVERT_LAYER_NAME L" callout endpoint closure (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterEndpointClosureIPv6",
+    L"" CYDIVERT_LAYER_NAME L" filter endpoint closure (IPv6)",
     &FWPM_LAYER_ALE_ENDPOINT_CLOSURE_V6,
-    &WINDIVERT_SUBLAYER_ENDPOINT_CLOSURE_IPV6_GUID,
-    windivert_endpoint_closure_v6_classify,
+    &CYDIVERT_SUBLAYER_ENDPOINT_CLOSURE_IPV6_GUID,
+    cydivert_endpoint_closure_v6_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_ENDPOINT_CLOSURE_IPV6                               \
-    (&windivert_layer_endpoint_closure_ipv6)
+#define CYDIVERT_LAYER_ENDPOINT_CLOSURE_IPV6                               \
+    (&cydivert_layer_endpoint_closure_ipv6)
 
-static const struct layer_s windivert_layer_auth_listen_ipv4 =
+static const struct layer_s cydivert_layer_auth_listen_ipv4 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerAuthListenIPv4",
-    L"" WINDIVERT_LAYER_NAME L" sublayer auth listen (IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutAuthListenIPv4",
-    L"" WINDIVERT_LAYER_NAME L" callout auth listen (IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterAuthListenIPv4",
-    L"" WINDIVERT_LAYER_NAME L" filter auth listen (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerAuthListenIPv4",
+    L"" CYDIVERT_LAYER_NAME L" sublayer auth listen (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutAuthListenIPv4",
+    L"" CYDIVERT_LAYER_NAME L" callout auth listen (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterAuthListenIPv4",
+    L"" CYDIVERT_LAYER_NAME L" filter auth listen (IPv4)",
     &FWPM_LAYER_ALE_AUTH_LISTEN_V4,
-    &WINDIVERT_SUBLAYER_AUTH_LISTEN_IPV4_GUID,
-    windivert_auth_listen_v4_classify,
+    &CYDIVERT_SUBLAYER_AUTH_LISTEN_IPV4_GUID,
+    cydivert_auth_listen_v4_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_AUTH_LISTEN_IPV4                                    \
-    (&windivert_layer_auth_listen_ipv4)
+#define CYDIVERT_LAYER_AUTH_LISTEN_IPV4                                    \
+    (&cydivert_layer_auth_listen_ipv4)
 
-static const struct layer_s windivert_layer_auth_listen_ipv6 =
+static const struct layer_s cydivert_layer_auth_listen_ipv6 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerAuthListenIPv6",
-    L"" WINDIVERT_LAYER_NAME L" sublayer auth listen (IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutAuthListenIPv6",
-    L"" WINDIVERT_LAYER_NAME L" callout auth listen (IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterAuthListenIPv6",
-    L"" WINDIVERT_LAYER_NAME L" filter auth listen (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerAuthListenIPv6",
+    L"" CYDIVERT_LAYER_NAME L" sublayer auth listen (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutAuthListenIPv6",
+    L"" CYDIVERT_LAYER_NAME L" callout auth listen (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterAuthListenIPv6",
+    L"" CYDIVERT_LAYER_NAME L" filter auth listen (IPv6)",
     &FWPM_LAYER_ALE_AUTH_LISTEN_V6,
-    &WINDIVERT_SUBLAYER_AUTH_LISTEN_IPV6_GUID,
-    windivert_auth_listen_v6_classify,
+    &CYDIVERT_SUBLAYER_AUTH_LISTEN_IPV6_GUID,
+    cydivert_auth_listen_v6_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_AUTH_LISTEN_IPV6                                    \
-    (&windivert_layer_auth_listen_ipv6)
+#define CYDIVERT_LAYER_AUTH_LISTEN_IPV6                                    \
+    (&cydivert_layer_auth_listen_ipv6)
 
-static const struct layer_s windivert_layer_auth_recv_accept_ipv4 =
+static const struct layer_s cydivert_layer_auth_recv_accept_ipv4 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerAuthRecvAcceptIPv4",
-    L"" WINDIVERT_LAYER_NAME L" sublayer auth recv accept (IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutAuthRecvAcceptIPv4",
-    L"" WINDIVERT_LAYER_NAME L" callout auth recv accept (IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterAuthRecvAcceptIPv4",
-    L"" WINDIVERT_LAYER_NAME L" filter auth recv accept (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerAuthRecvAcceptIPv4",
+    L"" CYDIVERT_LAYER_NAME L" sublayer auth recv accept (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutAuthRecvAcceptIPv4",
+    L"" CYDIVERT_LAYER_NAME L" callout auth recv accept (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterAuthRecvAcceptIPv4",
+    L"" CYDIVERT_LAYER_NAME L" filter auth recv accept (IPv4)",
     &FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V4,
-    &WINDIVERT_SUBLAYER_AUTH_RECV_ACCEPT_IPV4_GUID,
-    windivert_auth_recv_accept_v4_classify,
+    &CYDIVERT_SUBLAYER_AUTH_RECV_ACCEPT_IPV4_GUID,
+    cydivert_auth_recv_accept_v4_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_AUTH_RECV_ACCEPT_IPV4                               \
-    (&windivert_layer_auth_recv_accept_ipv4)
+#define CYDIVERT_LAYER_AUTH_RECV_ACCEPT_IPV4                               \
+    (&cydivert_layer_auth_recv_accept_ipv4)
 
-static const struct layer_s windivert_layer_auth_recv_accept_ipv6 =
+static const struct layer_s cydivert_layer_auth_recv_accept_ipv6 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerAuthRecvAcceptIPv6",
-    L"" WINDIVERT_LAYER_NAME L" sublayer auth recv accept (IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutAuthRecvAcceptIPv6",
-    L"" WINDIVERT_LAYER_NAME L" callout auth recv accept (IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterAuthRecvAcceptIPv6",
-    L"" WINDIVERT_LAYER_NAME L" filter auth recv accept (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerAuthRecvAcceptIPv6",
+    L"" CYDIVERT_LAYER_NAME L" sublayer auth recv accept (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutAuthRecvAcceptIPv6",
+    L"" CYDIVERT_LAYER_NAME L" callout auth recv accept (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterAuthRecvAcceptIPv6",
+    L"" CYDIVERT_LAYER_NAME L" filter auth recv accept (IPv6)",
     &FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V6,
-    &WINDIVERT_SUBLAYER_AUTH_RECV_ACCEPT_IPV6_GUID,
-    windivert_auth_recv_accept_v6_classify,
+    &CYDIVERT_SUBLAYER_AUTH_RECV_ACCEPT_IPV6_GUID,
+    cydivert_auth_recv_accept_v6_classify,
     NULL,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_AUTH_RECV_ACCEPT_IPV6                               \
-    (&windivert_layer_auth_recv_accept_ipv6)
+#define CYDIVERT_LAYER_AUTH_RECV_ACCEPT_IPV6                               \
+    (&cydivert_layer_auth_recv_accept_ipv6)
 
-static const struct layer_s windivert_layer_flow_established_ipv4 =
+static const struct layer_s cydivert_layer_flow_established_ipv4 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerFlowEstablishedIPv4",
-    L"" WINDIVERT_LAYER_NAME L" sublayer flow established (IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutFlowEstablishedIPv4",
-    L"" WINDIVERT_LAYER_NAME L" callout flow established (IPv4)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterFlowEstablishedIPv4",
-    L"" WINDIVERT_LAYER_NAME L" filter flow established (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerFlowEstablishedIPv4",
+    L"" CYDIVERT_LAYER_NAME L" sublayer flow established (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutFlowEstablishedIPv4",
+    L"" CYDIVERT_LAYER_NAME L" callout flow established (IPv4)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterFlowEstablishedIPv4",
+    L"" CYDIVERT_LAYER_NAME L" filter flow established (IPv4)",
     &FWPM_LAYER_ALE_FLOW_ESTABLISHED_V4,
-    &WINDIVERT_SUBLAYER_FLOW_ESTABLISHED_IPV4_GUID,
-    windivert_flow_established_v4_classify,
-    windivert_flow_delete_notify,
+    &CYDIVERT_SUBLAYER_FLOW_ESTABLISHED_IPV4_GUID,
+    cydivert_flow_established_v4_classify,
+    cydivert_flow_delete_notify,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_FLOW_ESTABLISHED_IPV4                               \
-    (&windivert_layer_flow_established_ipv4)
+#define CYDIVERT_LAYER_FLOW_ESTABLISHED_IPV4                               \
+    (&cydivert_layer_flow_established_ipv4)
 
-static const struct layer_s windivert_layer_flow_established_ipv6 =
+static const struct layer_s cydivert_layer_flow_established_ipv6 =
 {
-    L"" WINDIVERT_LAYER_NAME L"_SubLayerFlowEstablishedIPv6",
-    L"" WINDIVERT_LAYER_NAME L" sublayer flow established (IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_CalloutFlowEstablishedIPv6",
-    L"" WINDIVERT_LAYER_NAME L" callout flow established (IPv6)",
-    L"" WINDIVERT_LAYER_NAME L"_FilterFlowEstablishedIPv6",
-    L"" WINDIVERT_LAYER_NAME L" filter flow established (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_SubLayerFlowEstablishedIPv6",
+    L"" CYDIVERT_LAYER_NAME L" sublayer flow established (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_CalloutFlowEstablishedIPv6",
+    L"" CYDIVERT_LAYER_NAME L" callout flow established (IPv6)",
+    L"" CYDIVERT_LAYER_NAME L"_FilterFlowEstablishedIPv6",
+    L"" CYDIVERT_LAYER_NAME L" filter flow established (IPv6)",
     &FWPM_LAYER_ALE_FLOW_ESTABLISHED_V6,
-    &WINDIVERT_SUBLAYER_FLOW_ESTABLISHED_IPV6_GUID,
-    windivert_flow_established_v6_classify,
-    windivert_flow_delete_notify,
+    &CYDIVERT_SUBLAYER_FLOW_ESTABLISHED_IPV6_GUID,
+    cydivert_flow_established_v6_classify,
+    cydivert_flow_delete_notify,
     UINT16_MAX
 };
-#define WINDIVERT_LAYER_FLOW_ESTABLISHED_IPV6                               \
-    (&windivert_layer_flow_established_ipv6)
+#define CYDIVERT_LAYER_FLOW_ESTABLISHED_IPV6                               \
+    (&cydivert_layer_flow_established_ipv6)
 
 /*
  * Filter interpreter config.
  */
-#define WINDIVERT_INLINE    __forceinline
-#define WINDIVERT_GET_DATA(packet, packet_len, min, max, index, data, size) \
-    windivert_get_data((PNET_BUFFER)(packet), (packet_len), (min), (max),   \
+#define CYDIVERT_INLINE    __forceinline
+#define CYDIVERT_GET_DATA(packet, packet_len, min, max, index, data, size) \
+    cydivert_get_data((PNET_BUFFER)(packet), (packet_len), (min), (max),   \
         (index), (data), (size))
 
 /*
  * Shared functions.
  */
-#include "windivert_shared.c"
+#include "cydivert_shared.c"
 
 /*
- * WinDivert malloc/free.
+ * CyDivert malloc/free.
  */
-static PVOID windivert_malloc(SIZE_T size, BOOL paged)
+static PVOID cydivert_malloc(SIZE_T size, BOOL paged)
 {
     PVOID retval = NULL;
     POOL_TYPE pool = (paged ? PagedPool : NonPagedPool);
@@ -950,23 +949,23 @@ static PVOID windivert_malloc(SIZE_T size, BOOL paged)
     }
 
 #if (NTDDI_VERSION >= NTDDI_WIN10_VB)
-    retval = ExAllocatePool2(pool, size, WINDIVERT_TAG);
+    retval = ExAllocatePool2(pool, size, CYDIVERT_TAG);
 #else
-    retval = ExAllocatePoolZero(pool, size, WINDIVERT_TAG);
+    retval = ExAllocatePoolZero(pool, size, CYDIVERT_TAG);
 #endif
 
     return retval;
 }
-static VOID windivert_free(PVOID ptr)
+static VOID cydivert_free(PVOID ptr)
 {
     if (ptr != NULL)
     {
-        ExFreePoolWithTag(ptr, WINDIVERT_TAG);
+        ExFreePoolWithTag(ptr, CYDIVERT_TAG);
     }
 }
 
 /*
- * WinDivert driver entry routine.
+ * CyDivert driver entry routine.
  */
 extern NTSTATUS DriverEntry(IN PDRIVER_OBJECT driver_obj,
     IN PUNICODE_STRING reg_path)
@@ -989,11 +988,11 @@ extern NTSTATUS DriverEntry(IN PDRIVER_OBJECT driver_obj,
     ExInitializeDriverRuntime(DrvRtPoolNxOptIn);
 
     DECLARE_CONST_UNICODE_STRING(device_name,
-        L"\\Device\\" WINDIVERT_DEVICE_NAME);
+        L"\\Device\\" CYDIVERT_DEVICE_NAME);
     DECLARE_CONST_UNICODE_STRING(dos_device_name,
-        L"\\??\\" WINDIVERT_DEVICE_NAME);
+        L"\\??\\" CYDIVERT_DEVICE_NAME);
 
-    DEBUG("LOAD: loading WinDivert driver");
+    DEBUG("LOAD: loading CyDivert driver");
 
     // Use the "no execute" pool if available:
     status = RtlGetVersion(&version);
@@ -1017,7 +1016,7 @@ extern NTSTATUS DriverEntry(IN PDRIVER_OBJECT driver_obj,
     // Configure ourself as a non-PnP driver:
     WDF_DRIVER_CONFIG_INIT(&config, WDF_NO_EVENT_CALLBACK);
     config.DriverInitFlags |= WdfDriverInitNonPnpDriver;
-    config.EvtDriverUnload = windivert_unload;
+    config.EvtDriverUnload = cydivert_unload;
     status = WdfDriverCreate(driver_obj, reg_path, WDF_NO_OBJECT_ATTRIBUTES,
         &config, &driver);
     if (!NT_SUCCESS(status))
@@ -1043,15 +1042,15 @@ extern NTSTATUS DriverEntry(IN PDRIVER_OBJECT driver_obj,
         WdfDeviceInitFree(device_init);
         goto driver_entry_exit;
     }
-    WDF_FILEOBJECT_CONFIG_INIT(&file_config, windivert_create, windivert_close,
-        windivert_cleanup);
+    WDF_FILEOBJECT_CONFIG_INIT(&file_config, cydivert_create, cydivert_close,
+        cydivert_cleanup);
     WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&obj_attrs, context_s);
     obj_attrs.ExecutionLevel = WdfExecutionLevelPassive;
     obj_attrs.SynchronizationScope = WdfSynchronizationScopeNone;
-    obj_attrs.EvtDestroyCallback = windivert_destroy;
+    obj_attrs.EvtDestroyCallback = cydivert_destroy;
     WdfDeviceInitSetFileObjectConfig(device_init, &file_config, &obj_attrs);
     WdfDeviceInitSetIoInCallerContextCallback(device_init,
-        windivert_caller_context);
+        cydivert_caller_context);
     WDF_OBJECT_ATTRIBUTES_INIT(&obj_attrs);
     status = WdfDeviceCreate(&device_init, &obj_attrs, &device);
     if (!NT_SUCCESS(status))
@@ -1064,7 +1063,7 @@ extern NTSTATUS DriverEntry(IN PDRIVER_OBJECT driver_obj,
         WdfIoQueueDispatchParallel);
     queue_config.EvtIoRead          = NULL;
     queue_config.EvtIoWrite         = NULL;
-    queue_config.EvtIoDeviceControl = windivert_ioctl;
+    queue_config.EvtIoDeviceControl = cydivert_ioctl;
     WDF_OBJECT_ATTRIBUTES_INIT(&obj_attrs);
     obj_attrs.ExecutionLevel = WdfExecutionLevelPassive;
     obj_attrs.SynchronizationScope = WdfSynchronizationScopeNone;
@@ -1145,7 +1144,7 @@ extern NTSTATUS DriverEntry(IN PDRIVER_OBJECT driver_obj,
         NET_BUFFER_LIST_POOL_PARAMETERS_REVISION_1;
     nbl_pool_params.Header.Size = sizeof(nbl_pool_params);
     nbl_pool_params.fAllocateNetBuffer = TRUE;
-    nbl_pool_params.PoolTag = WINDIVERT_TAG;
+    nbl_pool_params.PoolTag = CYDIVERT_TAG;
     nbl_pool_params.DataSize = 0;
     nbl_pool_handle = NdisAllocateNetBufferListPool(NULL, &nbl_pool_params);
     if (nbl_pool_handle == NULL)
@@ -1161,7 +1160,7 @@ extern NTSTATUS DriverEntry(IN PDRIVER_OBJECT driver_obj,
     nb_pool_params.Header.Revision = NET_BUFFER_POOL_PARAMETERS_REVISION_1;
     nb_pool_params.Header.Size =
         NDIS_SIZEOF_NET_BUFFER_POOL_PARAMETERS_REVISION_1;
-    nb_pool_params.PoolTag = WINDIVERT_TAG;
+    nb_pool_params.PoolTag = CYDIVERT_TAG;
     nb_pool_params.DataSize = 0;
     nb_pool_handle = NdisAllocateNetBufferPool(NULL, &nb_pool_params);
     if (nb_pool_handle == NULL)
@@ -1188,14 +1187,14 @@ extern NTSTATUS DriverEntry(IN PDRIVER_OBJECT driver_obj,
         FwpmTransactionAbort0(engine_handle);
         goto driver_entry_exit;
     }
-    status = windivert_install_provider();
+    status = cydivert_install_provider();
     if (!NT_SUCCESS(status))
     {
         DEBUG_ERROR("failed to install provider", status);
         FwpmTransactionAbort0(engine_handle);
         goto driver_entry_exit;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_INBOUND_NETWORK_IPV4);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_INBOUND_NETWORK_IPV4);
     if (!NT_SUCCESS(status))
     {
 driver_entry_sublayer_error:
@@ -1203,99 +1202,99 @@ driver_entry_sublayer_error:
         FwpmTransactionAbort0(engine_handle);
         goto driver_entry_exit;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_OUTBOUND_NETWORK_IPV4);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_OUTBOUND_NETWORK_IPV4);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_INBOUND_NETWORK_IPV6);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_INBOUND_NETWORK_IPV6);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_OUTBOUND_NETWORK_IPV6);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_OUTBOUND_NETWORK_IPV6);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_FORWARD_NETWORK_IPV4);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_FORWARD_NETWORK_IPV4);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_FORWARD_NETWORK_IPV6);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_FORWARD_NETWORK_IPV6);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_FLOW_ESTABLISHED_IPV4);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_FLOW_ESTABLISHED_IPV4);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_FLOW_ESTABLISHED_IPV6);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_FLOW_ESTABLISHED_IPV6);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(
-        WINDIVERT_LAYER_RESOURCE_ASSIGNMENT_IPV4);
+    status = cydivert_install_sublayer(
+        CYDIVERT_LAYER_RESOURCE_ASSIGNMENT_IPV4);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(
-        WINDIVERT_LAYER_RESOURCE_ASSIGNMENT_IPV6);
+    status = cydivert_install_sublayer(
+        CYDIVERT_LAYER_RESOURCE_ASSIGNMENT_IPV6);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_RESOURCE_RELEASE_IPV4);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_RESOURCE_RELEASE_IPV4);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_RESOURCE_RELEASE_IPV6);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_RESOURCE_RELEASE_IPV6);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_AUTH_CONNECT_IPV4);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_AUTH_CONNECT_IPV4);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_AUTH_CONNECT_IPV6);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_AUTH_CONNECT_IPV6);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_ENDPOINT_CLOSURE_IPV4);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_ENDPOINT_CLOSURE_IPV4);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_ENDPOINT_CLOSURE_IPV6);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_ENDPOINT_CLOSURE_IPV6);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_AUTH_LISTEN_IPV4);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_AUTH_LISTEN_IPV4);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_AUTH_LISTEN_IPV6);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_AUTH_LISTEN_IPV6);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_AUTH_RECV_ACCEPT_IPV4);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_AUTH_RECV_ACCEPT_IPV4);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
     }
-    status = windivert_install_sublayer(WINDIVERT_LAYER_AUTH_RECV_ACCEPT_IPV6);
+    status = cydivert_install_sublayer(CYDIVERT_LAYER_AUTH_RECV_ACCEPT_IPV6);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_sublayer_error;
@@ -1308,7 +1307,7 @@ driver_entry_sublayer_error:
         goto driver_entry_exit;
     }
 
-    status = windivert_reflect_init((WDFOBJECT)device);
+    status = cydivert_reflect_init((WDFOBJECT)device);
     if (!NT_SUCCESS(status))
     {
         goto driver_entry_exit;
@@ -1318,30 +1317,30 @@ driver_entry_exit:
 
     if (!NT_SUCCESS(status))
     {
-        windivert_driver_unload();
+        cydivert_driver_unload();
     }
 
     return status;
 }
 
 /*
- * WinDivert driver unload routine.
+ * CyDivert driver unload routine.
  */
-extern VOID windivert_unload(IN WDFDRIVER driver_0)
+extern VOID cydivert_unload(IN WDFDRIVER driver_0)
 {
     PDRIVER_OBJECT driver = WdfDriverWdmGetDriverObject(driver_0);
-    windivert_driver_unload();
-    windivert_log_event(PsGetCurrentProcess(), driver, L"UNLOAD");
+    cydivert_driver_unload();
+    cydivert_log_event(PsGetCurrentProcess(), driver, L"UNLOAD");
 }
 
 /*
- * WinDivert driver unload.
+ * CyDivert driver unload.
  */
-static void windivert_driver_unload(void)
+static void cydivert_driver_unload(void)
 {
     NTSTATUS status;
 
-    DEBUG("UNLOAD: unloading the WinDivert driver");
+    DEBUG("UNLOAD: unloading the CyDivert driver");
 
     if (inject_handle_forward != NULL)
     {
@@ -1386,48 +1385,48 @@ static void windivert_driver_unload(void)
             return;
         }
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_INBOUND_NETWORK_IPV4->sublayer_guid);
+            CYDIVERT_LAYER_INBOUND_NETWORK_IPV4->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_OUTBOUND_NETWORK_IPV4->sublayer_guid);
+            CYDIVERT_LAYER_OUTBOUND_NETWORK_IPV4->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_INBOUND_NETWORK_IPV6->sublayer_guid);
+            CYDIVERT_LAYER_INBOUND_NETWORK_IPV6->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_OUTBOUND_NETWORK_IPV6->sublayer_guid);
+            CYDIVERT_LAYER_OUTBOUND_NETWORK_IPV6->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_FORWARD_NETWORK_IPV4->sublayer_guid);
+            CYDIVERT_LAYER_FORWARD_NETWORK_IPV4->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_FORWARD_NETWORK_IPV6->sublayer_guid);
+            CYDIVERT_LAYER_FORWARD_NETWORK_IPV6->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_FLOW_ESTABLISHED_IPV4->sublayer_guid);
+            CYDIVERT_LAYER_FLOW_ESTABLISHED_IPV4->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_FLOW_ESTABLISHED_IPV6->sublayer_guid);
+            CYDIVERT_LAYER_FLOW_ESTABLISHED_IPV6->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_RESOURCE_ASSIGNMENT_IPV4->sublayer_guid);
+            CYDIVERT_LAYER_RESOURCE_ASSIGNMENT_IPV4->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_RESOURCE_ASSIGNMENT_IPV6->sublayer_guid);
+            CYDIVERT_LAYER_RESOURCE_ASSIGNMENT_IPV6->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_RESOURCE_RELEASE_IPV4->sublayer_guid);
+            CYDIVERT_LAYER_RESOURCE_RELEASE_IPV4->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_RESOURCE_RELEASE_IPV6->sublayer_guid);
+            CYDIVERT_LAYER_RESOURCE_RELEASE_IPV6->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_AUTH_CONNECT_IPV4->sublayer_guid);
+            CYDIVERT_LAYER_AUTH_CONNECT_IPV4->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_AUTH_CONNECT_IPV6->sublayer_guid);
+            CYDIVERT_LAYER_AUTH_CONNECT_IPV6->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_ENDPOINT_CLOSURE_IPV4->sublayer_guid);
+            CYDIVERT_LAYER_ENDPOINT_CLOSURE_IPV4->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_ENDPOINT_CLOSURE_IPV6->sublayer_guid);
+            CYDIVERT_LAYER_ENDPOINT_CLOSURE_IPV6->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_AUTH_LISTEN_IPV4->sublayer_guid);
+            CYDIVERT_LAYER_AUTH_LISTEN_IPV4->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_AUTH_LISTEN_IPV6->sublayer_guid);
+            CYDIVERT_LAYER_AUTH_LISTEN_IPV6->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_AUTH_RECV_ACCEPT_IPV4->sublayer_guid);
+            CYDIVERT_LAYER_AUTH_RECV_ACCEPT_IPV4->sublayer_guid);
         FwpmSubLayerDeleteByKey0(engine_handle,
-            WINDIVERT_LAYER_AUTH_RECV_ACCEPT_IPV6->sublayer_guid);
+            CYDIVERT_LAYER_AUTH_RECV_ACCEPT_IPV6->sublayer_guid);
 
         FwpmProviderDeleteByKey0(engine_handle,
-            &WINDIVERT_PROVIDER_GUID);
+            &CYDIVERT_PROVIDER_GUID);
 
         status = FwpmTransactionCommit0(engine_handle);
         if (!NT_SUCCESS(status))
@@ -1442,15 +1441,14 @@ static void windivert_driver_unload(void)
 /*
  * Register provider.
  */
-static NTSTATUS windivert_install_provider()
+static NTSTATUS cydivert_install_provider()
 {
     FWPM_PROVIDER0 provider;
-    NTSTATUS status;
 
     RtlZeroMemory(&provider, sizeof(provider));
-    provider.providerKey             = WINDIVERT_PROVIDER_GUID;
-    provider.displayData.name        = WINDIVERT_PROVIDER_NAME;
-    provider.displayData.description = WINDIVERT_PROVIDER_DESC;
+    provider.providerKey             = CYDIVERT_PROVIDER_GUID;
+    provider.displayData.name        = CYDIVERT_PROVIDER_NAME;
+    provider.displayData.description = CYDIVERT_PROVIDER_DESC;
 
     // We don't care about the install result as this provider
     // is only for passing HLK test.
@@ -1461,7 +1459,7 @@ static NTSTATUS windivert_install_provider()
 /*
  * Register a sub-layer.
  */
-static NTSTATUS windivert_install_sublayer(layer_t layer)
+static NTSTATUS cydivert_install_sublayer(layer_t layer)
 {
     FWPM_SUBLAYER0 sublayer;
     NTSTATUS status;
@@ -1482,9 +1480,9 @@ static NTSTATUS windivert_install_sublayer(layer_t layer)
 }
 
 /*
- * WinDivert create routine.
+ * CyDivert create routine.
  */
-extern VOID windivert_create(IN WDFDEVICE device, IN WDFREQUEST request,
+extern VOID cydivert_create(IN WDFDEVICE device, IN WDFREQUEST request,
     IN WDFFILEOBJECT object)
 {
     WDF_IO_QUEUE_CONFIG queue_config;
@@ -1494,23 +1492,23 @@ extern VOID windivert_create(IN WDFDEVICE device, IN WDFREQUEST request,
     PIRP irp;
     NTSTATUS status = STATUS_SUCCESS;
     UINT8 i;
-    context_t context = windivert_context_get(object);
+    context_t context = cydivert_context_get(object);
 
-    DEBUG("CREATE: creating a new WinDivert context (context=%p)", context);
+    DEBUG("CREATE: creating a new CyDivert context (context=%p)", context);
 
     // Initialise the new context:
     RtlZeroMemory(context, sizeof(struct context_s));
-    context->state  = WINDIVERT_CONTEXT_STATE_OPENING;
+    context->state  = CYDIVERT_CONTEXT_STATE_OPENING;
     context->device = device;
     context->object = object;
     context->work_queue_length = 0;
     context->packet_queue_length = 0;
-    context->packet_queue_maxlength = WINDIVERT_PARAM_QUEUE_LENGTH_DEFAULT;
+    context->packet_queue_maxlength = CYDIVERT_PARAM_QUEUE_LENGTH_DEFAULT;
     context->packet_queue_size = 0;
-    context->packet_queue_maxsize = WINDIVERT_PARAM_QUEUE_SIZE_DEFAULT;
+    context->packet_queue_maxsize = CYDIVERT_PARAM_QUEUE_SIZE_DEFAULT;
     context->packet_queue_maxcounts =
-        WINDIVERT_PARAM_QUEUE_TIME_DEFAULT * counts_per_ms;
-    context->packet_queue_maxtime = WINDIVERT_PARAM_QUEUE_TIME_DEFAULT;
+        CYDIVERT_PARAM_QUEUE_TIME_DEFAULT * counts_per_ms;
+    context->packet_queue_maxtime = CYDIVERT_PARAM_QUEUE_TIME_DEFAULT;
     context->layer = 0;
     context->flags = 0;
     context->initialized = FALSE;
@@ -1524,7 +1522,7 @@ extern VOID windivert_create(IN WDFDEVICE device, IN WDFREQUEST request,
     context->filter_flags = 0;
     context->worker = NULL;
     context->process = NULL;
-    for (i = 0; i < WINDIVERT_CONTEXT_MAXLAYERS; i++)
+    for (i = 0; i < CYDIVERT_CONTEXT_MAXLAYERS; i++)
     {
         context->installed[i] = FALSE;
     }
@@ -1534,19 +1532,19 @@ extern VOID windivert_create(IN WDFDEVICE device, IN WDFREQUEST request,
     context->flow_v6_callout_id = 0;
     InitializeListHead(&context->work_queue);
     InitializeListHead(&context->packet_queue);
-    for (i = 0; i < WINDIVERT_CONTEXT_MAXLAYERS; i++)
+    for (i = 0; i < CYDIVERT_CONTEXT_MAXLAYERS; i++)
     {
         status = ExUuidCreate(&context->callout_guid[i]);
         if (!NT_SUCCESS(status))
         {
             DEBUG_ERROR("failed to create callout GUID", status);
-            goto windivert_create_exit;
+            goto cydivert_create_exit;
         }
         status = ExUuidCreate(&context->filter_guid[i]);
         if (!NT_SUCCESS(status))
         {
             DEBUG_ERROR("failed to create filter GUID", status);
-            goto windivert_create_exit;
+            goto cydivert_create_exit;
         }
     }
     WDF_IO_QUEUE_CONFIG_INIT(&queue_config, WdfIoQueueDispatchManual);
@@ -1555,9 +1553,9 @@ extern VOID windivert_create(IN WDFDEVICE device, IN WDFREQUEST request,
     if (!NT_SUCCESS(status))
     {
         DEBUG_ERROR("failed to create I/O read queue", status);
-        goto windivert_create_exit;
+        goto cydivert_create_exit;
     }
-    WDF_WORKITEM_CONFIG_INIT(&item_config, windivert_worker);
+    WDF_WORKITEM_CONFIG_INIT(&item_config, cydivert_worker);
     item_config.AutomaticSerialization = FALSE;
     WDF_OBJECT_ATTRIBUTES_INIT(&obj_attrs);
     obj_attrs.ParentObject = (WDFOBJECT)object;
@@ -1565,7 +1563,7 @@ extern VOID windivert_create(IN WDFDEVICE device, IN WDFREQUEST request,
     if (!NT_SUCCESS(status))
     {
         DEBUG_ERROR("failed to create read service work item", status);
-        goto windivert_create_exit;
+        goto cydivert_create_exit;
     }
     RtlZeroMemory(&session, sizeof(session));
     session.flags |= FWPM_SESSION_FLAG_DYNAMIC;
@@ -1574,7 +1572,7 @@ extern VOID windivert_create(IN WDFDEVICE device, IN WDFREQUEST request,
     if (!NT_SUCCESS(status))
     {
         DEBUG_ERROR("failed to create WFP engine handle", status);
-        goto windivert_create_exit;
+        goto cydivert_create_exit;
     }
     RtlZeroMemory(&context->reflect, sizeof(context->reflect));
     irp = WdfRequestWdmGetIrp(request);
@@ -1583,16 +1581,16 @@ extern VOID windivert_create(IN WDFDEVICE device, IN WDFREQUEST request,
     {
         status = STATUS_INVALID_DEVICE_REQUEST;
         DEBUG_ERROR("no process associated with IRP", status);
-        goto windivert_create_exit;
+        goto cydivert_create_exit;
     }
     ObfReferenceObject(context->process);
 
-windivert_create_exit:
+cydivert_create_exit:
 
     // Clean-up on error:
     if (!NT_SUCCESS(status))
     {
-        context->state = WINDIVERT_CONTEXT_STATE_CLOSED;
+        context->state = CYDIVERT_CONTEXT_STATE_CLOSED;
         if (context->read_queue != NULL)
         {
             WdfObjectDelete(context->read_queue);
@@ -1601,7 +1599,7 @@ windivert_create_exit:
         {
             WdfObjectDelete(context->worker);
         }
-        // process/engine_handle handled by windivert_destroy()
+        // process/engine_handle handled by cydivert_destroy()
     }
 
     WdfRequestComplete(request, status);
@@ -1610,118 +1608,118 @@ windivert_create_exit:
 /*
  * Register all WFP callouts.
  */
-static NTSTATUS windivert_install_callouts(context_t context, UINT8 layer,
+static NTSTATUS cydivert_install_callouts(context_t context, UINT8 layer,
     UINT64 flags)
 {
     UINT8 i, j;
-    layer_t layers[WINDIVERT_CONTEXT_MAXLAYERS];
-    UINT32 *callout_ids[WINDIVERT_CONTEXT_MAXLAYERS] = {NULL};
+    layer_t layers[CYDIVERT_CONTEXT_MAXLAYERS];
+    UINT32 *callout_ids[CYDIVERT_CONTEXT_MAXLAYERS] = {NULL};
     BOOL inbound, outbound, ipv4, ipv6, bind, connect, listen,
         accept, close;
     NTSTATUS status = STATUS_SUCCESS;
 
-    inbound  = ((flags & WINDIVERT_FILTER_FLAG_INBOUND) != 0);
-    outbound = ((flags & WINDIVERT_FILTER_FLAG_OUTBOUND) != 0);
-    ipv4     = ((flags & WINDIVERT_FILTER_FLAG_IP) != 0);
-    ipv6     = ((flags & WINDIVERT_FILTER_FLAG_IPV6) != 0);
-    bind     = ((flags & WINDIVERT_FILTER_FLAG_EVENT_SOCKET_BIND) != 0);
-    connect  = ((flags & WINDIVERT_FILTER_FLAG_EVENT_SOCKET_CONNECT) != 0);
-    listen   = ((flags & WINDIVERT_FILTER_FLAG_EVENT_SOCKET_LISTEN) != 0);
-    accept   = ((flags & WINDIVERT_FILTER_FLAG_EVENT_SOCKET_ACCEPT) != 0);
-    close    = ((flags & WINDIVERT_FILTER_FLAG_EVENT_SOCKET_CLOSE) != 0);
+    inbound  = ((flags & CYDIVERT_FILTER_FLAG_INBOUND) != 0);
+    outbound = ((flags & CYDIVERT_FILTER_FLAG_OUTBOUND) != 0);
+    ipv4     = ((flags & CYDIVERT_FILTER_FLAG_IP) != 0);
+    ipv6     = ((flags & CYDIVERT_FILTER_FLAG_IPV6) != 0);
+    bind     = ((flags & CYDIVERT_FILTER_FLAG_EVENT_SOCKET_BIND) != 0);
+    connect  = ((flags & CYDIVERT_FILTER_FLAG_EVENT_SOCKET_CONNECT) != 0);
+    listen   = ((flags & CYDIVERT_FILTER_FLAG_EVENT_SOCKET_LISTEN) != 0);
+    accept   = ((flags & CYDIVERT_FILTER_FLAG_EVENT_SOCKET_ACCEPT) != 0);
+    close    = ((flags & CYDIVERT_FILTER_FLAG_EVENT_SOCKET_CLOSE) != 0);
 
     i = 0;
     switch (layer)
     {
-        case WINDIVERT_LAYER_NETWORK:
+        case CYDIVERT_LAYER_NETWORK:
             if (inbound && ipv4)
             {
-                layers[i++] = WINDIVERT_LAYER_INBOUND_NETWORK_IPV4;
+                layers[i++] = CYDIVERT_LAYER_INBOUND_NETWORK_IPV4;
             }
             if (outbound && ipv4)
             {
-                layers[i++] = WINDIVERT_LAYER_OUTBOUND_NETWORK_IPV4;
+                layers[i++] = CYDIVERT_LAYER_OUTBOUND_NETWORK_IPV4;
             }
             if (inbound && ipv6)
             {
-                layers[i++] = WINDIVERT_LAYER_INBOUND_NETWORK_IPV6;
+                layers[i++] = CYDIVERT_LAYER_INBOUND_NETWORK_IPV6;
             }
             if (outbound && ipv6)
             {
-                layers[i++] = WINDIVERT_LAYER_OUTBOUND_NETWORK_IPV6;
+                layers[i++] = CYDIVERT_LAYER_OUTBOUND_NETWORK_IPV6;
             }
             break;
 
-        case WINDIVERT_LAYER_NETWORK_FORWARD:
+        case CYDIVERT_LAYER_NETWORK_FORWARD:
             if (ipv4)
             {
-                layers[i++] = WINDIVERT_LAYER_FORWARD_NETWORK_IPV4;
+                layers[i++] = CYDIVERT_LAYER_FORWARD_NETWORK_IPV4;
             }
             if (ipv6)
             {
-                layers[i++] = WINDIVERT_LAYER_FORWARD_NETWORK_IPV6;
+                layers[i++] = CYDIVERT_LAYER_FORWARD_NETWORK_IPV6;
             }
             break;
         
-        case WINDIVERT_LAYER_FLOW:
+        case CYDIVERT_LAYER_FLOW:
             if (ipv4)
             {
                 callout_ids[i] = &context->flow_v4_callout_id;
-                layers[i++] = WINDIVERT_LAYER_FLOW_ESTABLISHED_IPV4;
+                layers[i++] = CYDIVERT_LAYER_FLOW_ESTABLISHED_IPV4;
             }
             if (ipv6)
             {
                 callout_ids[i] = &context->flow_v6_callout_id;
-                layers[i++] = WINDIVERT_LAYER_FLOW_ESTABLISHED_IPV6;
+                layers[i++] = CYDIVERT_LAYER_FLOW_ESTABLISHED_IPV6;
             }
             break;
 
-        case WINDIVERT_LAYER_SOCKET:
+        case CYDIVERT_LAYER_SOCKET:
             if (ipv4 && bind)
             {
-                layers[i++] = WINDIVERT_LAYER_RESOURCE_ASSIGNMENT_IPV4;
+                layers[i++] = CYDIVERT_LAYER_RESOURCE_ASSIGNMENT_IPV4;
             }
             if (ipv4 && connect)
             {
-                layers[i++] = WINDIVERT_LAYER_AUTH_CONNECT_IPV4;
+                layers[i++] = CYDIVERT_LAYER_AUTH_CONNECT_IPV4;
             }
             if (ipv4 && listen)
             {
-                layers[i++] = WINDIVERT_LAYER_AUTH_LISTEN_IPV4;
+                layers[i++] = CYDIVERT_LAYER_AUTH_LISTEN_IPV4;
             }
             if (ipv4 && accept)
             {
-                layers[i++] = WINDIVERT_LAYER_AUTH_RECV_ACCEPT_IPV4;
+                layers[i++] = CYDIVERT_LAYER_AUTH_RECV_ACCEPT_IPV4;
             }
             if (ipv4 && close)
             {
-                layers[i++] = WINDIVERT_LAYER_RESOURCE_RELEASE_IPV4;
-                layers[i++] = WINDIVERT_LAYER_ENDPOINT_CLOSURE_IPV4;
+                layers[i++] = CYDIVERT_LAYER_RESOURCE_RELEASE_IPV4;
+                layers[i++] = CYDIVERT_LAYER_ENDPOINT_CLOSURE_IPV4;
             }
             if (ipv6 && bind)
             {
-                layers[i++] = WINDIVERT_LAYER_RESOURCE_ASSIGNMENT_IPV6;
+                layers[i++] = CYDIVERT_LAYER_RESOURCE_ASSIGNMENT_IPV6;
             }
             if (ipv6 && connect)
             {
-                layers[i++] = WINDIVERT_LAYER_AUTH_CONNECT_IPV6;
+                layers[i++] = CYDIVERT_LAYER_AUTH_CONNECT_IPV6;
             }
             if (ipv6 && listen)
             {
-                layers[i++] = WINDIVERT_LAYER_AUTH_LISTEN_IPV6;
+                layers[i++] = CYDIVERT_LAYER_AUTH_LISTEN_IPV6;
             }
             if (ipv6 && accept)
             {
-                layers[i++] = WINDIVERT_LAYER_AUTH_RECV_ACCEPT_IPV6;
+                layers[i++] = CYDIVERT_LAYER_AUTH_RECV_ACCEPT_IPV6;
             }
             if (ipv6 && close)
             {
-                layers[i++] = WINDIVERT_LAYER_RESOURCE_RELEASE_IPV6;
-                layers[i++] = WINDIVERT_LAYER_ENDPOINT_CLOSURE_IPV6;
+                layers[i++] = CYDIVERT_LAYER_RESOURCE_RELEASE_IPV6;
+                layers[i++] = CYDIVERT_LAYER_ENDPOINT_CLOSURE_IPV6;
             }
             break;
 
-        case WINDIVERT_LAYER_REFLECT:
+        case CYDIVERT_LAYER_REFLECT:
             break;
 
         default:
@@ -1730,19 +1728,19 @@ static NTSTATUS windivert_install_callouts(context_t context, UINT8 layer,
 
     for (j = 0; j < i; j++)
     {
-        status = windivert_install_callout(context, j, layers[j],
+        status = cydivert_install_callout(context, j, layers[j],
             callout_ids[j]);
         if (!NT_SUCCESS(status))
         {
-            goto windivert_install_callouts_exit;
+            goto cydivert_install_callouts_exit;
         }
     }
 
-windivert_install_callouts_exit:
+cydivert_install_callouts_exit:
 
     if (!NT_SUCCESS(status))
     {
-        windivert_uninstall_callouts(context, WINDIVERT_CONTEXT_STATE_OPEN);
+        cydivert_uninstall_callouts(context, CYDIVERT_CONTEXT_STATE_OPEN);
     }
 
     return status;
@@ -1751,7 +1749,7 @@ windivert_install_callouts_exit:
 /*
  * Register a WFP callout.
  */
-static NTSTATUS windivert_install_callout(context_t context, UINT idx,
+static NTSTATUS cydivert_install_callout(context_t context, UINT idx,
     layer_t layer, UINT32 *callout_id_ptr)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
@@ -1767,7 +1765,7 @@ static NTSTATUS windivert_install_callout(context_t context, UINT idx,
     NTSTATUS status;
 
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-    if (context->state != WINDIVERT_CONTEXT_STATE_OPEN)
+    if (context->state != CYDIVERT_CONTEXT_STATE_OPEN)
     {
         KeReleaseInStackQueuedSpinLock(&lock_handle);
         status = STATUS_INVALID_DEVICE_STATE;
@@ -1785,7 +1783,7 @@ static NTSTATUS windivert_install_callout(context_t context, UINT idx,
     RtlZeroMemory(&scallout, sizeof(scallout));
     scallout.calloutKey              = callout_guid;
     scallout.classifyFn              = layer->classify;
-    scallout.notifyFn                = windivert_notify;
+    scallout.notifyFn                = cydivert_notify;
     scallout.flowDeleteFn            = layer->flow_delete;
     RtlZeroMemory(&mcallout, sizeof(mcallout));
     mcallout.calloutKey              = callout_guid;
@@ -1820,29 +1818,29 @@ static NTSTATUS windivert_install_callout(context_t context, UINT idx,
     if (!NT_SUCCESS(status))
     {
         DEBUG_ERROR("failed to begin WFP transaction", status);
-        goto windivert_install_callout_error;
+        goto cydivert_install_callout_error;
     }
     status = FwpmCalloutAdd0(engine, &mcallout, NULL, NULL);
     if (!NT_SUCCESS(status))
     {
         DEBUG_ERROR("failed to add WFP callout", status);
-        goto windivert_install_callout_error;
+        goto cydivert_install_callout_error;
     }
     status = FwpmFilterAdd0(engine, &filter, NULL, NULL);
     if (!NT_SUCCESS(status))
     {
         DEBUG_ERROR("failed to add WFP filter", status);
-        goto windivert_install_callout_error;
+        goto cydivert_install_callout_error;
     }
     status = FwpmTransactionCommit0(engine);
     if (!NT_SUCCESS(status))
     {
         DEBUG_ERROR("failed to commit WFP transaction", status);
-        goto windivert_install_callout_error;
+        goto cydivert_install_callout_error;
     }
 
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-    if (context->state != WINDIVERT_CONTEXT_STATE_OPEN)
+    if (context->state != CYDIVERT_CONTEXT_STATE_OPEN)
     {
         KeReleaseInStackQueuedSpinLock(&lock_handle);
         FwpsCalloutUnregisterByKey0(&callout_guid);
@@ -1854,16 +1852,16 @@ static NTSTATUS windivert_install_callout(context_t context, UINT idx,
 
     return STATUS_SUCCESS;
 
-windivert_install_callout_error:
+cydivert_install_callout_error:
     FwpmTransactionAbort0(engine);
     FwpsCalloutUnregisterByKey0(&callout_guid);
     return status;
 }
 
 /*
- * WinDivert uninstall callouts routine.
+ * CyDivert uninstall callouts routine.
  */
-static void windivert_uninstall_callouts(context_t context,
+static void cydivert_uninstall_callouts(context_t context,
     context_state_t state)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
@@ -1876,7 +1874,7 @@ static void windivert_uninstall_callouts(context_t context,
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
     if (context->state != state)
     {
-windivert_uninstall_callouts_error:
+cydivert_uninstall_callouts_error:
         KeReleaseInStackQueuedSpinLock(&lock_handle);
         status = STATUS_INVALID_DEVICE_STATE;
         DEBUG_ERROR("failed to delete filters and callouts", status);
@@ -1889,14 +1887,14 @@ windivert_uninstall_callouts_error:
     if (!NT_SUCCESS(status))
     {
         // If the userspace app closes without closing the handle to
-        // WinDivert, any actions on engine fail because the
+        // CyDivert, any actions on engine fail because the
         // RPC handle was closed first. So, this path is "normal" if
-        // the user's app crashed or never closed the WinDivert handle.
+        // the user's app crashed or never closed the CyDivert handle.
         DEBUG_ERROR("failed to begin WFP transaction", status);
         FwpmTransactionAbort0(engine);
-        goto windivert_uninstall_callouts_unregister;
+        goto cydivert_uninstall_callouts_unregister;
     }
-    for (i = 0; i < WINDIVERT_CONTEXT_MAXLAYERS; i++)
+    for (i = 0; i < CYDIVERT_CONTEXT_MAXLAYERS; i++)
     {
         KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
         if (context->state != state)
@@ -1932,7 +1930,7 @@ windivert_uninstall_callouts_error:
     if (!NT_SUCCESS(status))
     {
         FwpmTransactionAbort0(engine);
-        goto windivert_uninstall_callouts_unregister;
+        goto cydivert_uninstall_callouts_unregister;
     }
     status = FwpmTransactionCommit0(engine);
     if (!NT_SUCCESS(status))
@@ -1942,13 +1940,13 @@ windivert_uninstall_callouts_error:
         // continue
     }
 
-windivert_uninstall_callouts_unregister:
-    for (i = 0; i < WINDIVERT_CONTEXT_MAXLAYERS; i++)
+cydivert_uninstall_callouts_unregister:
+    for (i = 0; i < CYDIVERT_CONTEXT_MAXLAYERS; i++)
     {
         KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
         if (context->state != state)
         {
-            goto windivert_uninstall_callouts_error;
+            goto cydivert_uninstall_callouts_error;
         }
         installed = context->installed[i];
         callout_guid = context->callout_guid[i];
@@ -1970,11 +1968,11 @@ windivert_uninstall_callouts_unregister:
 /*
  * Divert cleanup routine.
  */
-extern VOID windivert_cleanup(IN WDFFILEOBJECT object)
+extern VOID cydivert_cleanup(IN WDFFILEOBJECT object)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
     PLIST_ENTRY entry;
-    context_t context = windivert_context_get(object);
+    context_t context = cydivert_context_get(object);
     flow_t flow;
     packet_t work, packet;
     WDFQUEUE read_queue;
@@ -1983,24 +1981,24 @@ extern VOID windivert_cleanup(IN WDFFILEOBJECT object)
     BOOL sniff_mode, timeout, forward;
     NTSTATUS status;
     
-    DEBUG("CLEANUP: cleaning up WinDivert context (context=%p)", context);
+    DEBUG("CLEANUP: cleaning up CyDivert context (context=%p)", context);
 
-    windivert_reflect_close_event(context);
+    cydivert_reflect_close_event(context);
     timestamp = KeQueryPerformanceCounter(NULL).QuadPart;
     
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-    if (context->state != WINDIVERT_CONTEXT_STATE_OPENING &&
-            context->state != WINDIVERT_CONTEXT_STATE_OPEN)
+    if (context->state != CYDIVERT_CONTEXT_STATE_OPENING &&
+            context->state != CYDIVERT_CONTEXT_STATE_OPEN)
     {
-windivert_cleanup_error:
+cydivert_cleanup_error:
         KeReleaseInStackQueuedSpinLock(&lock_handle);
         status = STATUS_INVALID_DEVICE_STATE;
         DEBUG_ERROR("failed to verify state for cleanup routine", status);
         return;
     }
-    context->state = WINDIVERT_CONTEXT_STATE_CLOSING;
-    sniff_mode = ((context->flags & WINDIVERT_FLAG_SNIFF) != 0);
-    forward = (context->layer == WINDIVERT_LAYER_NETWORK_FORWARD);
+    context->state = CYDIVERT_CONTEXT_STATE_CLOSING;
+    sniff_mode = ((context->flags & CYDIVERT_FLAG_SNIFF) != 0);
+    forward = (context->layer == CYDIVERT_LAYER_NETWORK_FORWARD);
     while (!IsListEmpty(&context->flow_set))
     {
         entry = RemoveHeadList(&context->flow_set);
@@ -2011,7 +2009,7 @@ windivert_cleanup_error:
             flow->callout_id);
         if (!NT_SUCCESS(status))
         {
-            windivert_free(flow);
+            cydivert_free(flow);
         }
         KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
     }
@@ -2022,20 +2020,20 @@ windivert_cleanup_error:
         context->packet_queue_length--;
         context->packet_queue_size -= packet->packet_size;
         KeReleaseInStackQueuedSpinLock(&lock_handle);
-        timeout = WINDIVERT_TIMEOUT(context, packet->timestamp, timestamp);
+        timeout = CYDIVERT_TIMEOUT(context, packet->timestamp, timestamp);
         if (!sniff_mode && !timeout)
         {
-            windivert_inject_packet(packet);
+            cydivert_inject_packet(packet);
         }
         else
         {
-            windivert_free_packet(packet);
+            cydivert_free_packet(packet);
         }
         timestamp = KeQueryPerformanceCounter(NULL).QuadPart;
         KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-        if (context->state != WINDIVERT_CONTEXT_STATE_CLOSING)
+        if (context->state != CYDIVERT_CONTEXT_STATE_CLOSING)
         {
-            goto windivert_cleanup_error;
+            goto cydivert_cleanup_error;
         }
     }
     while (!IsListEmpty(&context->work_queue))
@@ -2044,20 +2042,20 @@ windivert_cleanup_error:
         context->work_queue_length--;
         KeReleaseInStackQueuedSpinLock(&lock_handle);
         work = CONTAINING_RECORD(entry, struct packet_s, entry);
-        timeout = WINDIVERT_TIMEOUT(context, work->timestamp, timestamp);
+        timeout = CYDIVERT_TIMEOUT(context, work->timestamp, timestamp);
         if (!sniff_mode && !timeout)
         {
-            windivert_inject_packet(work);
+            cydivert_inject_packet(work);
         }
         else
         {
-            windivert_free_packet(work);
+            cydivert_free_packet(work);
         }
         timestamp = KeQueryPerformanceCounter(NULL).QuadPart;
         KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-        if (context->state != WINDIVERT_CONTEXT_STATE_CLOSING)
+        if (context->state != CYDIVERT_CONTEXT_STATE_CLOSING)
         {
-            goto windivert_cleanup_error;
+            goto cydivert_cleanup_error;
         }
     }
     read_queue = context->read_queue;
@@ -2065,9 +2063,9 @@ windivert_cleanup_error:
     WdfIoQueuePurge(read_queue, NULL, NULL);
     WdfObjectDelete(read_queue);
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-    if (context->state != WINDIVERT_CONTEXT_STATE_CLOSING)
+    if (context->state != CYDIVERT_CONTEXT_STATE_CLOSING)
     {
-        goto windivert_cleanup_error;
+        goto cydivert_cleanup_error;
     }
     worker = context->worker;
     KeReleaseInStackQueuedSpinLock(&lock_handle);
@@ -2076,42 +2074,42 @@ windivert_cleanup_error:
 }
 
 /*
- * WinDivert close routine.
+ * CyDivert close routine.
  */
-extern VOID windivert_close(IN WDFFILEOBJECT object)
+extern VOID cydivert_close(IN WDFFILEOBJECT object)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
-    context_t context = windivert_context_get(object);
+    context_t context = cydivert_context_get(object);
     NTSTATUS status;
     
-    DEBUG("CLOSE: closing WinDivert context (context=%p)", context);
+    DEBUG("CLOSE: closing CyDivert context (context=%p)", context);
     
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-    if (context->state != WINDIVERT_CONTEXT_STATE_CLOSING)
+    if (context->state != CYDIVERT_CONTEXT_STATE_CLOSING)
     {
         KeReleaseInStackQueuedSpinLock(&lock_handle);
         status = STATUS_INVALID_DEVICE_STATE;
         DEBUG_ERROR("failed to verify state for close routine", status);
         return;
     }
-    context->state = WINDIVERT_CONTEXT_STATE_CLOSED;
+    context->state = CYDIVERT_CONTEXT_STATE_CLOSED;
     KeReleaseInStackQueuedSpinLock(&lock_handle);
 }
 
 /*
- * WinDivert destroy routine.
+ * CyDivert destroy routine.
  */
-extern VOID windivert_destroy(IN WDFOBJECT object)
+extern VOID cydivert_destroy(IN WDFOBJECT object)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
-    context_t context = windivert_context_get((WDFFILEOBJECT)object);
-    const WINDIVERT_FILTER *filter;
+    context_t context = cydivert_context_get((WDFFILEOBJECT)object);
+    const CYDIVERT_FILTER *filter;
     NTSTATUS status;
 
-    DEBUG("DESTROY: destroying WinDivert context (context=%p)", context);
+    DEBUG("DESTROY: destroying CyDivert context (context=%p)", context);
 
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-    if (context->state != WINDIVERT_CONTEXT_STATE_CLOSED)
+    if (context->state != CYDIVERT_CONTEXT_STATE_CLOSED)
     {
         KeReleaseInStackQueuedSpinLock(&lock_handle);
         status = STATUS_INVALID_DEVICE_STATE;
@@ -2120,12 +2118,12 @@ extern VOID windivert_destroy(IN WDFOBJECT object)
     }
     filter = context->filter;
     KeReleaseInStackQueuedSpinLock(&lock_handle);
-    windivert_uninstall_callouts(context, WINDIVERT_CONTEXT_STATE_CLOSED);
+    cydivert_uninstall_callouts(context, CYDIVERT_CONTEXT_STATE_CLOSED);
     if (context->engine_handle != NULL)
     {
         FwpmEngineClose0(context->engine_handle);
     }
-    windivert_free((PVOID)filter);
+    cydivert_free((PVOID)filter);
     if (context->process != NULL)
     {
         ObDereferenceObject(context->process);
@@ -2133,9 +2131,9 @@ extern VOID windivert_destroy(IN WDFOBJECT object)
 }
 
 /*
- * WinDivert read routine.
+ * CyDivert read routine.
  */
-static NTSTATUS windivert_read(context_t context, WDFREQUEST request)
+static NTSTATUS cydivert_read(context_t context, WDFREQUEST request)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
     NTSTATUS status = STATUS_SUCCESS;
@@ -2145,12 +2143,12 @@ static NTSTATUS windivert_read(context_t context, WDFREQUEST request)
 
     // Forward the request to the pending read queue:
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-    if (context->state != WINDIVERT_CONTEXT_STATE_OPEN)
+    if (context->state != CYDIVERT_CONTEXT_STATE_OPEN)
     {
         KeReleaseInStackQueuedSpinLock(&lock_handle);
         return STATUS_INVALID_DEVICE_STATE;
     }
-    if ((context->flags & WINDIVERT_FLAG_SEND_ONLY) != 0)
+    if ((context->flags & CYDIVERT_FLAG_SEND_ONLY) != 0)
     {
         KeReleaseInStackQueuedSpinLock(&lock_handle);
         status = STATUS_INVALID_PARAMETER;
@@ -2166,15 +2164,15 @@ static NTSTATUS windivert_read(context_t context, WDFREQUEST request)
     }
 
     // Service the read request:
-    windivert_read_service(context);
+    cydivert_read_service(context);
 
     return STATUS_SUCCESS;
 }
 
 /*
- * WinDivert service a single read request.
+ * CyDivert service a single read request.
  */
-static void windivert_read_service_request(context_t context, packet_t packet,
+static void cydivert_read_service_request(context_t context, packet_t packet,
     LONGLONG timestamp, WDFREQUEST request)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
@@ -2185,7 +2183,7 @@ static void windivert_read_service_request(context_t context, packet_t packet,
     BOOL timeout;
     packet_t new_packet;
     req_context_t req_context;
-    PWINDIVERT_ADDRESS addr;
+    PCYDIVERT_ADDRESS addr;
     UINT i, addr_len, addr_len_max;
     UINT *addr_len_ptr;
     NTSTATUS status;
@@ -2193,7 +2191,7 @@ static void windivert_read_service_request(context_t context, packet_t packet,
     if (request == NULL)
     {
         // This occurs if the packet timed out.
-        windivert_free_packet(packet);
+        cydivert_free_packet(packet);
         return;
     }
 
@@ -2203,15 +2201,15 @@ static void windivert_read_service_request(context_t context, packet_t packet,
     // Get the packet and address buffers: 
     switch (packet->layer)
     {
-        case WINDIVERT_LAYER_NETWORK:
-        case WINDIVERT_LAYER_NETWORK_FORWARD:
-        case WINDIVERT_LAYER_REFLECT:
+        case CYDIVERT_LAYER_NETWORK:
+        case CYDIVERT_LAYER_NETWORK_FORWARD:
+        case CYDIVERT_LAYER_REFLECT:
 
             status = WdfRequestRetrieveOutputWdmMdl(request, &dst_mdl);
             if (!NT_SUCCESS(status))
             {
                 DEBUG_ERROR("failed to retrieve output MDL", status);
-                goto windivert_read_service_request_exit;
+                goto cydivert_read_service_request_exit;
             }
             dst = MmGetSystemAddressForMdlSafe(dst_mdl,
                 NormalPagePriority | no_exec_flag);
@@ -2219,13 +2217,13 @@ static void windivert_read_service_request(context_t context, packet_t packet,
             {
                 status = STATUS_INSUFFICIENT_RESOURCES;
                 DEBUG_ERROR("failed to get address of output MDL", status);
-                goto windivert_read_service_request_exit;
+                goto cydivert_read_service_request_exit;
             }
             dst_len = MmGetMdlByteCount(dst_mdl);
             break;
 
-        case WINDIVERT_LAYER_FLOW:
-        case WINDIVERT_LAYER_SOCKET:
+        case CYDIVERT_LAYER_FLOW:
+        case CYDIVERT_LAYER_SOCKET:
 
             status = STATUS_SUCCESS;
             dst = NULL;
@@ -2235,10 +2233,10 @@ static void windivert_read_service_request(context_t context, packet_t packet,
         default:
             status = STATUS_INVALID_DEVICE_STATE;
             DEBUG_ERROR("invalid packet layer", status);
-            goto windivert_read_service_request_exit;
+            goto cydivert_read_service_request_exit;
     }
 
-    req_context  = windivert_req_context_get(request);
+    req_context  = cydivert_req_context_get(request);
     addr         = req_context->addr;
     addr_len     = 0;
     addr_len_max = (UINT)req_context->addr_len;
@@ -2249,18 +2247,18 @@ static void windivert_read_service_request(context_t context, packet_t packet,
         // Copy the packet data:
         switch (packet->layer)
         {
-            case WINDIVERT_LAYER_NETWORK:
-            case WINDIVERT_LAYER_NETWORK_FORWARD:
-            case WINDIVERT_LAYER_REFLECT:
+            case CYDIVERT_LAYER_NETWORK:
+            case CYDIVERT_LAYER_NETWORK_FORWARD:
+            case CYDIVERT_LAYER_REFLECT:
 
-                if (packet->layer != WINDIVERT_LAYER_REFLECT)
+                if (packet->layer != CYDIVERT_LAYER_REFLECT)
                 {
-                    src = WINDIVERT_PACKET_DATA_PTR(WINDIVERT_DATA_NETWORK,
+                    src = CYDIVERT_PACKET_DATA_PTR(CYDIVERT_DATA_NETWORK,
                         packet);
                 }
                 else
                 {
-                    src = WINDIVERT_PACKET_DATA_PTR(WINDIVERT_DATA_REFLECT,
+                    src = CYDIVERT_PACKET_DATA_PTR(CYDIVERT_DATA_REFLECT,
                         packet);
                 }
                 src_len = packet->packet_len;
@@ -2301,25 +2299,25 @@ static void windivert_read_service_request(context_t context, packet_t packet,
             layer_data = (PVOID)packet->data;
             switch (packet->layer)
             {
-                case WINDIVERT_LAYER_NETWORK:
-                case WINDIVERT_LAYER_NETWORK_FORWARD:
+                case CYDIVERT_LAYER_NETWORK:
+                case CYDIVERT_LAYER_NETWORK_FORWARD:
                     RtlCopyMemory(&addr[i].Network, layer_data,
-                        sizeof(WINDIVERT_DATA_NETWORK));
+                        sizeof(CYDIVERT_DATA_NETWORK));
                     break;
 
-                case WINDIVERT_LAYER_FLOW:
+                case CYDIVERT_LAYER_FLOW:
                     RtlCopyMemory(&addr[i].Flow, layer_data,
-                        sizeof(WINDIVERT_DATA_FLOW));
+                        sizeof(CYDIVERT_DATA_FLOW));
                     break;
 
-                case WINDIVERT_LAYER_SOCKET:
+                case CYDIVERT_LAYER_SOCKET:
                     RtlCopyMemory(&addr[i].Socket, layer_data,
-                        sizeof(WINDIVERT_DATA_SOCKET));
+                        sizeof(CYDIVERT_DATA_SOCKET));
                     break;
 
-                case WINDIVERT_LAYER_REFLECT:
+                case CYDIVERT_LAYER_REFLECT:
                     RtlCopyMemory(&addr[i].Reflect, layer_data,
-                        sizeof(WINDIVERT_DATA_REFLECT));
+                        sizeof(CYDIVERT_DATA_REFLECT));
                     break;
 
                 default:
@@ -2328,9 +2326,9 @@ static void windivert_read_service_request(context_t context, packet_t packet,
         }
 
         i++;
-        addr_len += sizeof(WINDIVERT_ADDRESS);
-        if (addr_len + sizeof(WINDIVERT_ADDRESS) > addr_len_max ||
-                i >= WINDIVERT_BATCH_MAX)
+        addr_len += sizeof(CYDIVERT_ADDRESS);
+        if (addr_len + sizeof(CYDIVERT_ADDRESS) > addr_len_max ||
+                i >= CYDIVERT_BATCH_MAX)
         {
             // addr[] is full:
             break;
@@ -2339,12 +2337,12 @@ static void windivert_read_service_request(context_t context, packet_t packet,
         // Attempt to fill the buffer with more packets:
         new_packet = NULL;
         KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-        if (context->state == WINDIVERT_CONTEXT_STATE_OPEN &&
+        if (context->state == CYDIVERT_CONTEXT_STATE_OPEN &&
                 !IsListEmpty(&context->packet_queue))
         {
             entry = RemoveHeadList(&context->packet_queue);
             new_packet = CONTAINING_RECORD(entry, struct packet_s, entry);
-            timeout = WINDIVERT_TIMEOUT(context, new_packet->timestamp,
+            timeout = CYDIVERT_TIMEOUT(context, new_packet->timestamp,
                 timestamp);
             if (new_packet->packet_len > dst_len || timeout)
             {
@@ -2365,7 +2363,7 @@ static void windivert_read_service_request(context_t context, packet_t packet,
             break;
         }
 
-        windivert_free_packet(packet);
+        cydivert_free_packet(packet);
         packet = new_packet;
     }
 
@@ -2374,18 +2372,18 @@ static void windivert_read_service_request(context_t context, packet_t packet,
         *addr_len_ptr = addr_len;
     }
 
-windivert_read_service_request_exit:
+cydivert_read_service_request_exit:
 
-    windivert_free_packet(packet);
+    cydivert_free_packet(packet);
     WdfRequestCompleteWithInformation(request, status, read_len);
 }
 
 /*
  * Opportunistic read service request.
  */
-static void windivert_fast_read_service_request(PVOID packet, ULONG packet_len,
-    PNET_BUFFER_LIST buffers, WINDIVERT_LAYER layer, PVOID layer_data,
-    WINDIVERT_EVENT event, UINT64 flags, BOOL ipv4, BOOL outbound,
+static void cydivert_fast_read_service_request(PVOID packet, ULONG packet_len,
+    PNET_BUFFER_LIST buffers, CYDIVERT_LAYER layer, PVOID layer_data,
+    CYDIVERT_EVENT event, UINT64 flags, BOOL ipv4, BOOL outbound,
     BOOL loopback, BOOL impostor, LONGLONG timestamp, WDFREQUEST request)
 {
     PNET_BUFFER buffer;
@@ -2393,7 +2391,7 @@ static void windivert_fast_read_service_request(PVOID packet, ULONG packet_len,
     UINT dst_len, read_len = 0;
     UINT8 *dst;
     req_context_t req_context;
-    PWINDIVERT_ADDRESS addr;
+    PCYDIVERT_ADDRESS addr;
     UINT *addr_len_ptr;
     NDIS_TCP_IP_CHECKSUM_NET_BUFFER_LIST_INFO checksums;
     BOOL sniffed, ip_checksum, tcp_checksum, udp_checksum;
@@ -2405,27 +2403,27 @@ static void windivert_fast_read_service_request(PVOID packet, ULONG packet_len,
 
     switch (layer)
     {
-        case WINDIVERT_LAYER_NETWORK:
-        case WINDIVERT_LAYER_NETWORK_FORWARD:
-        case WINDIVERT_LAYER_REFLECT:
+        case CYDIVERT_LAYER_NETWORK:
+        case CYDIVERT_LAYER_NETWORK_FORWARD:
+        case CYDIVERT_LAYER_REFLECT:
 
             status = WdfRequestRetrieveOutputWdmMdl(request, &dst_mdl);
             if (!NT_SUCCESS(status))
             {
-                goto windivert_fast_read_service_request_exit;
+                goto cydivert_fast_read_service_request_exit;
             }
             dst = MmGetSystemAddressForMdlSafe(dst_mdl,
                 NormalPagePriority | no_exec_flag);
             if (dst == NULL)
             {
                 status = STATUS_INSUFFICIENT_RESOURCES;
-                goto windivert_fast_read_service_request_exit;
+                goto cydivert_fast_read_service_request_exit;
             }
             dst_len = MmGetMdlByteCount(dst_mdl);
             break;
 
-        case WINDIVERT_LAYER_FLOW:
-        case WINDIVERT_LAYER_SOCKET:
+        case CYDIVERT_LAYER_FLOW:
+        case CYDIVERT_LAYER_SOCKET:
             status = STATUS_SUCCESS;
             dst = NULL;
             dst_len = 0;
@@ -2433,16 +2431,16 @@ static void windivert_fast_read_service_request(PVOID packet, ULONG packet_len,
 
         default:
             status = STATUS_INVALID_DEVICE_STATE;
-            goto windivert_fast_read_service_request_exit;
+            goto cydivert_fast_read_service_request_exit;
     }
 
     switch (layer)
     {
-        case WINDIVERT_LAYER_NETWORK:
-        case WINDIVERT_LAYER_NETWORK_FORWARD:
+        case CYDIVERT_LAYER_NETWORK:
+        case CYDIVERT_LAYER_NETWORK_FORWARD:
             buffer = (PNET_BUFFER)packet;
             dst_len = (dst_len < packet_len? dst_len: packet_len);
-            if (!windivert_copy_data(buffer, dst, dst_len))
+            if (!cydivert_copy_data(buffer, dst, dst_len))
             {
                 status = STATUS_INSUFFICIENT_RESOURCES;
             }
@@ -2467,7 +2465,7 @@ static void windivert_fast_read_service_request(PVOID packet, ULONG packet_len,
             }
             break;
 
-        case WINDIVERT_LAYER_REFLECT:
+        case CYDIVERT_LAYER_REFLECT:
             dst_len = (dst_len < packet_len? dst_len: packet_len);
             RtlCopyMemory(dst, packet, dst_len);
             read_len = dst_len;
@@ -2480,14 +2478,14 @@ static void windivert_fast_read_service_request(PVOID packet, ULONG packet_len,
             break;
     }
 
-    req_context  = windivert_req_context_get(request);
+    req_context  = cydivert_req_context_get(request);
     addr         = req_context->addr;
     addr_len_ptr = req_context->addr_len_ptr;
 
     if (addr != NULL)
     {
-        sniffed = ((flags & WINDIVERT_FLAG_SNIFF) != 0 ||
-            event == WINDIVERT_EVENT_SOCKET_CLOSE);
+        sniffed = ((flags & CYDIVERT_FLAG_SNIFF) != 0 ||
+            event == CYDIVERT_EVENT_SOCKET_CLOSE);
 
         addr->Timestamp   = timestamp;
         addr->Layer       = layer;
@@ -2504,25 +2502,25 @@ static void windivert_fast_read_service_request(PVOID packet, ULONG packet_len,
         addr->Reserved2   = 0;
         switch (layer)
         {
-            case WINDIVERT_LAYER_NETWORK:
-            case WINDIVERT_LAYER_NETWORK_FORWARD:
+            case CYDIVERT_LAYER_NETWORK:
+            case CYDIVERT_LAYER_NETWORK_FORWARD:
                 RtlCopyMemory(&addr->Network, layer_data,
-                    sizeof(WINDIVERT_DATA_NETWORK));
+                    sizeof(CYDIVERT_DATA_NETWORK));
                 break;
 
-            case WINDIVERT_LAYER_FLOW:
+            case CYDIVERT_LAYER_FLOW:
                 RtlCopyMemory(&addr->Flow, layer_data,
-                    sizeof(WINDIVERT_DATA_FLOW));
+                    sizeof(CYDIVERT_DATA_FLOW));
                 break;
 
-            case WINDIVERT_LAYER_SOCKET:
+            case CYDIVERT_LAYER_SOCKET:
                 RtlCopyMemory(&addr->Socket, layer_data,
-                    sizeof(WINDIVERT_DATA_SOCKET));
+                    sizeof(CYDIVERT_DATA_SOCKET));
                 break;
 
-            case WINDIVERT_LAYER_REFLECT:
+            case CYDIVERT_LAYER_REFLECT:
                 RtlCopyMemory(&addr->Reflect, layer_data,
-                    sizeof(WINDIVERT_DATA_REFLECT));
+                    sizeof(CYDIVERT_DATA_REFLECT));
                 break;
 
             default:
@@ -2531,18 +2529,18 @@ static void windivert_fast_read_service_request(PVOID packet, ULONG packet_len,
     }
     if (addr_len_ptr != NULL)
     {
-        *addr_len_ptr = sizeof(WINDIVERT_ADDRESS);
+        *addr_len_ptr = sizeof(CYDIVERT_ADDRESS);
     }
 
-windivert_fast_read_service_request_exit:
+cydivert_fast_read_service_request_exit:
 
     WdfRequestCompleteWithInformation(request, status, read_len);
 }
 
 /*
- * WinDivert read request service.
+ * CyDivert read request service.
  */
-static void windivert_read_service(context_t context)
+static void cydivert_read_service(context_t context)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
     WDFREQUEST request;
@@ -2554,12 +2552,12 @@ static void windivert_read_service(context_t context)
 
     timestamp = KeQueryPerformanceCounter(NULL).QuadPart;
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-    while (context->state == WINDIVERT_CONTEXT_STATE_OPEN &&
+    while (context->state == CYDIVERT_CONTEXT_STATE_OPEN &&
            !IsListEmpty(&context->packet_queue))
     {
         entry = RemoveHeadList(&context->packet_queue);
         packet = CONTAINING_RECORD(entry, struct packet_s, entry);
-        timeout = WINDIVERT_TIMEOUT(context, packet->timestamp, timestamp);
+        timeout = CYDIVERT_TIMEOUT(context, packet->timestamp, timestamp);
         request = NULL;
         if (!timeout)
         {
@@ -2575,7 +2573,7 @@ static void windivert_read_service(context_t context)
         context->packet_queue_size -= packet->packet_size;
         KeReleaseInStackQueuedSpinLock(&lock_handle);
 
-        windivert_read_service_request(context, packet, timestamp, request);
+        cydivert_read_service_request(context, packet, timestamp, request);
 
         timestamp = KeQueryPerformanceCounter(NULL).QuadPart;
         KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
@@ -2587,7 +2585,7 @@ static void windivert_read_service(context_t context)
     {
         // The handle has shutdown, the queue is empty, and no more packets
         // will be queued.  Notify any remaining requests.
-        while (context->state == WINDIVERT_CONTEXT_STATE_OPEN)
+        while (context->state == CYDIVERT_CONTEXT_STATE_OPEN)
         {
             status = WdfIoQueueRetrieveNextRequest(context->read_queue,
                 &request);
@@ -2604,9 +2602,9 @@ static void windivert_read_service(context_t context)
 }
 
 /*
- * WinDivert write routine.
+ * CyDivert write routine.
  */
-static NTSTATUS windivert_write(context_t context, WDFREQUEST request,
+static NTSTATUS cydivert_write(context_t context, WDFREQUEST request,
     req_context_t req_context)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
@@ -2614,15 +2612,13 @@ static NTSTATUS windivert_write(context_t context, WDFREQUEST request,
     PVOID data, data_copy;
     packet_t packet;
     UINT data_len, packet_len, packet_size, inject_len;
-    PWINDIVERT_DATA_NETWORK network_data;
-    PWINDIVERT_IPHDR ip_header;
-    PWINDIVERT_IPV6HDR ipv6_header;
+    PCYDIVERT_DATA_NETWORK network_data;
+    PCYDIVERT_IPHDR ip_header;
+    PCYDIVERT_IPV6HDR ipv6_header;
     UINT8 layer;
     UINT32 priority;
-    UINT64 flags, checksums;
-    HANDLE handle;
-    PNET_BUFFER_LIST buffers = NULL;
-    PWINDIVERT_ADDRESS addr;
+    UINT64 flags;
+    PCYDIVERT_ADDRESS addr;
     UINT i, addr_len, addr_len_max, version;
     NTSTATUS status = STATUS_SUCCESS, status_soft_error = STATUS_SUCCESS;
 
@@ -2630,38 +2626,38 @@ static NTSTATUS windivert_write(context_t context, WDFREQUEST request,
         context, request);
     
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-    if (context->state != WINDIVERT_CONTEXT_STATE_OPEN)
+    if (context->state != CYDIVERT_CONTEXT_STATE_OPEN)
     {
         KeReleaseInStackQueuedSpinLock(&lock_handle);
         status = STATUS_INVALID_DEVICE_STATE;
-        goto windivert_write_hard_error;
+        goto cydivert_write_hard_error;
     }
     if (context->shutdown_send)
     {
         KeReleaseInStackQueuedSpinLock(&lock_handle);
         status = STATUS_PIPE_EMPTY;
-        goto windivert_write_hard_error;
+        goto cydivert_write_hard_error;
     }
     layer = context->layer;
     priority = context->priority;
     flags = context->flags;
     KeReleaseInStackQueuedSpinLock(&lock_handle);
 
-    if ((flags & WINDIVERT_FLAG_RECV_ONLY) != 0)
+    if ((flags & CYDIVERT_FLAG_RECV_ONLY) != 0)
     {
         status = STATUS_INVALID_PARAMETER;
         DEBUG_ERROR("failed to inject; recv-only flag is set", status);
-        goto windivert_write_hard_error;
+        goto cydivert_write_hard_error;
     }
 
     switch (layer)
     {
-        case WINDIVERT_LAYER_FLOW:
-        case WINDIVERT_LAYER_SOCKET:
-        case WINDIVERT_LAYER_REFLECT:
+        case CYDIVERT_LAYER_FLOW:
+        case CYDIVERT_LAYER_SOCKET:
+        case CYDIVERT_LAYER_REFLECT:
             status = STATUS_INVALID_PARAMETER;
             DEBUG_ERROR("failed to inject at layer", status);
-            goto windivert_write_hard_error;
+            goto cydivert_write_hard_error;
         default:
             break;
     }
@@ -2670,7 +2666,7 @@ static NTSTATUS windivert_write(context_t context, WDFREQUEST request,
     if (!NT_SUCCESS(status))
     {
         DEBUG_ERROR("failed to retrieve input MDL", status);
-        goto windivert_write_hard_error;
+        goto cydivert_write_hard_error;
     }
 
     data = MmGetSystemAddressForMdlSafe(mdl,
@@ -2679,7 +2675,7 @@ static NTSTATUS windivert_write(context_t context, WDFREQUEST request,
     {
         status = STATUS_INSUFFICIENT_RESOURCES;
         DEBUG_ERROR("failed to get MDL address", status);
-        goto windivert_write_hard_error;
+        goto cydivert_write_hard_error;
     }
     
     data_len     = MmGetMdlByteCount(mdl);
@@ -2688,62 +2684,62 @@ static NTSTATUS windivert_write(context_t context, WDFREQUEST request,
     addr_len_max = (ULONG)req_context->addr_len;
     addr_len     = 0;
 
-    for (i = 0; addr_len + sizeof(WINDIVERT_ADDRESS) <= addr_len_max &&
-            i < WINDIVERT_BATCH_MAX;
-            i++, addr_len += sizeof(WINDIVERT_ADDRESS))
+    for (i = 0; addr_len + sizeof(CYDIVERT_ADDRESS) <= addr_len_max &&
+            i < CYDIVERT_BATCH_MAX;
+            i++, addr_len += sizeof(CYDIVERT_ADDRESS))
     {
         // Get the packet length:
-        if (data_len < sizeof(WINDIVERT_IPHDR))
+        if (data_len < sizeof(CYDIVERT_IPHDR))
         {
-windivert_write_too_small_packet:
+cydivert_write_too_small_packet:
             status = STATUS_BUFFER_TOO_SMALL;
             DEBUG_ERROR("failed to inject partial packet", status);
-            goto windivert_write_hard_error;
+            goto cydivert_write_hard_error;
         }
-        ip_header = (PWINDIVERT_IPHDR)data;
+        ip_header = (PCYDIVERT_IPHDR)data;
         version = ip_header->Version;
         switch (version)
         {
             case 4:
                 packet_len = RtlUshortByteSwap(ip_header->Length);
-                if (packet_len < sizeof(WINDIVERT_IPHDR))
+                if (packet_len < sizeof(CYDIVERT_IPHDR))
                 {
-                    goto windivert_write_invalid_packet;
+                    goto cydivert_write_invalid_packet;
                 }
                 break;
             case 6:
-                if (data_len < sizeof(WINDIVERT_IPV6HDR))
+                if (data_len < sizeof(CYDIVERT_IPV6HDR))
                 {
-                    goto windivert_write_too_small_packet;
+                    goto cydivert_write_too_small_packet;
                 }
-                ipv6_header = (PWINDIVERT_IPV6HDR)data;
+                ipv6_header = (PCYDIVERT_IPV6HDR)data;
                 packet_len = RtlUshortByteSwap(ipv6_header->Length) +
-                    sizeof(WINDIVERT_IPV6HDR);
+                    sizeof(CYDIVERT_IPV6HDR);
                 break;
             default:
-windivert_write_invalid_packet:
+cydivert_write_invalid_packet:
                 status = STATUS_INVALID_PARAMETER;
                 DEBUG_ERROR("failed to inject invalid packet", status);
-                goto windivert_write_hard_error;
+                goto cydivert_write_hard_error;
         }
         if (data_len < packet_len)
         {
-            goto windivert_write_too_small_packet;
+            goto cydivert_write_too_small_packet;
         }
 
         // Copy packet & data:
-        packet_size = WINDIVERT_PACKET_SIZE(WINDIVERT_DATA_NETWORK,
+        packet_size = CYDIVERT_PACKET_SIZE(CYDIVERT_DATA_NETWORK,
             packet_len);
-        packet = (packet_t)windivert_malloc(packet_size, FALSE);
+        packet = (packet_t)cydivert_malloc(packet_size, FALSE);
         if (packet == NULL)
         {
             status = STATUS_INSUFFICIENT_RESOURCES;
             DEBUG_ERROR("failed to allocate memory for injected packet",
                 status);
-            goto windivert_write_hard_error;
+            goto cydivert_write_hard_error;
         }
         packet->layer         = layer;
-        packet->event         = WINDIVERT_EVENT_NETWORK_PACKET;
+        packet->event         = CYDIVERT_EVENT_NETWORK_PACKET;
         packet->sniffed       = 0;      // Unused
         packet->outbound      = addr[i].Outbound;
         packet->loopback      = 0;      // Unused
@@ -2760,29 +2756,29 @@ windivert_write_invalid_packet:
         packet->timestamp     = 0;      // Unused
         packet->object        = NULL;
         network_data =
-            (PWINDIVERT_DATA_NETWORK)WINDIVERT_LAYER_DATA_PTR(packet);
-        RtlCopyMemory(network_data, &addr[i].Network, sizeof(WINDIVERT_DATA_NETWORK));
-        data_copy = WINDIVERT_PACKET_DATA_PTR(WINDIVERT_DATA_NETWORK, packet);
+            (PCYDIVERT_DATA_NETWORK)CYDIVERT_LAYER_DATA_PTR(packet);
+        RtlCopyMemory(network_data, &addr[i].Network, sizeof(CYDIVERT_DATA_NETWORK));
+        data_copy = CYDIVERT_PACKET_DATA_PTR(CYDIVERT_DATA_NETWORK, packet);
         RtlCopyMemory(data_copy, data, packet_len);
         switch (version)
         {
             case 4:
-                ip_header = (PWINDIVERT_IPHDR)data_copy;
+                ip_header = (PCYDIVERT_IPHDR)data_copy;
                 if (ip_header->Version != 4 ||
                         packet_len != RtlUshortByteSwap(ip_header->Length))
                 {
-                    windivert_free(packet);
-                    goto windivert_write_invalid_packet;
+                    cydivert_free(packet);
+                    goto cydivert_write_invalid_packet;
                 }
                 break;
             case 6:
-                ipv6_header = (PWINDIVERT_IPV6HDR)data_copy;
+                ipv6_header = (PCYDIVERT_IPV6HDR)data_copy;
                 if (ipv6_header->Version != 6 ||
                         packet_len != RtlUshortByteSwap(ipv6_header->Length) +
-                            sizeof(WINDIVERT_IPV6HDR))
+                            sizeof(CYDIVERT_IPV6HDR))
                 {
-                    windivert_free(packet);
-                    goto windivert_write_invalid_packet;
+                    cydivert_free(packet);
+                    goto cydivert_write_invalid_packet;
                 }
                 break;
         }
@@ -2792,12 +2788,12 @@ windivert_write_invalid_packet:
             (PVOID)&addr[i], (PVOID)&addr[i+1]);
 
         // Inject packet:
-        status = windivert_inject_packet(packet);
+        status = cydivert_inject_packet(packet);
         if (!NT_SUCCESS(status))
         {
             if (status == STATUS_INSUFFICIENT_RESOURCES)
             {
-                goto windivert_write_hard_error;
+                goto cydivert_write_hard_error;
             }
             status_soft_error = status;
         }
@@ -2813,26 +2809,26 @@ windivert_write_invalid_packet:
     WdfRequestCompleteWithInformation(request, status_soft_error, inject_len);
     return STATUS_SUCCESS;
 
-windivert_write_hard_error:
+cydivert_write_hard_error:
 
-    // Request to be completed in windivert_ioctl()
+    // Request to be completed in cydivert_ioctl()
     return status;
 }
 
 
 /*
- * WinDivert caller context preprocessing.
+ * CyDivert caller context preprocessing.
  */
-VOID windivert_caller_context(IN WDFDEVICE device, IN WDFREQUEST request)
+VOID cydivert_caller_context(IN WDFDEVICE device, IN WDFREQUEST request)
 {
     PCHAR inbuf;
     size_t inbuflen;
     WDF_REQUEST_PARAMETERS params;
     WDFMEMORY memobj;
-    PWINDIVERT_ADDRESS addr = NULL;
+    PCYDIVERT_ADDRESS addr = NULL;
     UINT *addr_len_ptr = NULL;
     UINT64 addr_len = 0;
-    PWINDIVERT_IOCTL ioctl;
+    PCYDIVERT_IOCTL ioctl;
     WDF_OBJECT_ATTRIBUTES attributes;
     req_context_t req_context = NULL;
     NTSTATUS status;
@@ -2842,7 +2838,7 @@ VOID windivert_caller_context(IN WDFDEVICE device, IN WDFREQUEST request)
 
     if (params.Type != WdfRequestTypeDeviceControl)
     {
-        goto windivert_caller_context_exit;
+        goto cydivert_caller_context_exit;
     }
 
     // Get and verify the input buffer.
@@ -2850,13 +2846,13 @@ VOID windivert_caller_context(IN WDFDEVICE device, IN WDFREQUEST request)
     if (!NT_SUCCESS(status))
     {
         DEBUG_ERROR("failed to retrieve input buffer", status);
-        goto windivert_caller_context_error;
+        goto cydivert_caller_context_error;
     }
-    if (inbuflen < sizeof(WINDIVERT_IOCTL))
+    if (inbuflen < sizeof(CYDIVERT_IOCTL))
     {
         status = STATUS_INVALID_PARAMETER;
         DEBUG_ERROR("input buffer not an ioctl message header", status);
-        goto windivert_caller_context_error;
+        goto cydivert_caller_context_error;
     }
 
     // Probe and lock user buffers here (if required).
@@ -2865,15 +2861,15 @@ VOID windivert_caller_context(IN WDFDEVICE device, IN WDFREQUEST request)
     if (!NT_SUCCESS(status))
     {
         DEBUG_ERROR("failed to allocate request context for ioctl", status);
-        goto windivert_caller_context_error;
+        goto cydivert_caller_context_error;
     }
     switch (params.Parameters.DeviceIoControl.IoControlCode)
     {
-        case IOCTL_WINDIVERT_RECV:
-            ioctl        = (PWINDIVERT_IOCTL)inbuf;
-            addr         = (PWINDIVERT_ADDRESS)(ULONG_PTR)ioctl->recv.addr;
+        case IOCTL_CYDIVERT_RECV:
+            ioctl        = (PCYDIVERT_IOCTL)inbuf;
+            addr         = (PCYDIVERT_ADDRESS)(ULONG_PTR)ioctl->recv.addr;
             addr_len_ptr = (UINT *)(ULONG_PTR)ioctl->recv.addr_len_ptr;
-            addr_len     = sizeof(WINDIVERT_ADDRESS);
+            addr_len     = sizeof(CYDIVERT_ADDRESS);
             if (addr_len_ptr != NULL)
             {
                 status = WdfRequestProbeAndLockUserBufferForWrite(request,
@@ -2882,23 +2878,23 @@ VOID windivert_caller_context(IN WDFDEVICE device, IN WDFREQUEST request)
                 {
                     DEBUG_ERROR("invalid address length pointer for RECV ioctl",
                         status);
-                    goto windivert_caller_context_error;
+                    goto cydivert_caller_context_error;
                 }
                 addr_len_ptr = (UINT *)WdfMemoryGetBuffer(memobj, NULL);
                 addr_len     = *addr_len_ptr;
-                if (addr_len < sizeof(WINDIVERT_ADDRESS) ||
-                    addr_len > WINDIVERT_BATCH_MAX * sizeof(WINDIVERT_ADDRESS))
+                if (addr_len < sizeof(CYDIVERT_ADDRESS) ||
+                    addr_len > CYDIVERT_BATCH_MAX * sizeof(CYDIVERT_ADDRESS))
                 {
                     status = STATUS_INVALID_PARAMETER;
                     DEBUG_ERROR("out-of-range address length (%u) for RECV "
                         "ioctl", status, addr_len);
-                    goto windivert_caller_context_error;
+                    goto cydivert_caller_context_error;
                 }
                 if (addr == NULL)
                 {
                     status = STATUS_INVALID_PARAMETER;
                     DEBUG_ERROR("null address for RECV ioctl", status);
-                    goto windivert_caller_context_error;
+                    goto cydivert_caller_context_error;
                 }
             }
             if (addr != NULL)
@@ -2908,63 +2904,63 @@ VOID windivert_caller_context(IN WDFDEVICE device, IN WDFREQUEST request)
                 if (!NT_SUCCESS(status))
                 {
                     DEBUG_ERROR("invalid address for RECV ioctl", status);
-                    goto windivert_caller_context_error;
+                    goto cydivert_caller_context_error;
                 }
-                addr = (PWINDIVERT_ADDRESS)WdfMemoryGetBuffer(memobj, NULL);
+                addr = (PCYDIVERT_ADDRESS)WdfMemoryGetBuffer(memobj, NULL);
             }
             break;
 
-        case IOCTL_WINDIVERT_SEND:
-            ioctl    = (PWINDIVERT_IOCTL)inbuf;
-            addr     = (PWINDIVERT_ADDRESS)(ULONG_PTR)ioctl->send.addr;
+        case IOCTL_CYDIVERT_SEND:
+            ioctl    = (PCYDIVERT_IOCTL)inbuf;
+            addr     = (PCYDIVERT_ADDRESS)(ULONG_PTR)ioctl->send.addr;
             addr_len = ioctl->send.addr_len;
-            if (addr_len < sizeof(WINDIVERT_ADDRESS) ||
-                addr_len > WINDIVERT_BATCH_MAX * sizeof(WINDIVERT_ADDRESS))
+            if (addr_len < sizeof(CYDIVERT_ADDRESS) ||
+                addr_len > CYDIVERT_BATCH_MAX * sizeof(CYDIVERT_ADDRESS))
             {
                 status = STATUS_INVALID_PARAMETER;
                 DEBUG_ERROR("out-of-range address length (%u) for SEND ioctl",
                     status, addr_len);
-                goto windivert_caller_context_error;
+                goto cydivert_caller_context_error;
             }
             if (addr == NULL)
             {
                 status = STATUS_INVALID_PARAMETER;
                 DEBUG_ERROR("null address for SEND ioctl", status);
-                goto windivert_caller_context_error;
+                goto cydivert_caller_context_error;
             }
             status = WdfRequestProbeAndLockUserBufferForRead(request, addr,
                 (size_t)addr_len, &memobj);
             if (!NT_SUCCESS(status))
             {
                 DEBUG_ERROR("invalid address for SEND ioctl", status);
-                goto windivert_caller_context_error;
+                goto cydivert_caller_context_error;
             }
-            addr = (PWINDIVERT_ADDRESS)WdfMemoryGetBuffer(memobj, NULL);
+            addr = (PCYDIVERT_ADDRESS)WdfMemoryGetBuffer(memobj, NULL);
             break;
 
-        case IOCTL_WINDIVERT_INITIALIZE:
-        case IOCTL_WINDIVERT_STARTUP:
-        case IOCTL_WINDIVERT_SHUTDOWN:
-        case IOCTL_WINDIVERT_SET_PARAM:
-        case IOCTL_WINDIVERT_GET_PARAM:
+        case IOCTL_CYDIVERT_INITIALIZE:
+        case IOCTL_CYDIVERT_STARTUP:
+        case IOCTL_CYDIVERT_SHUTDOWN:
+        case IOCTL_CYDIVERT_SET_PARAM:
+        case IOCTL_CYDIVERT_GET_PARAM:
             break;
         
         default:
             status = STATUS_INVALID_DEVICE_REQUEST;
             DEBUG_ERROR("failed to complete I/O control; invalid request",
                 status);
-            goto windivert_caller_context_error;
+            goto cydivert_caller_context_error;
     }
     
     req_context->addr         = addr;
     req_context->addr_len     = (UINT)addr_len;
     req_context->addr_len_ptr = addr_len_ptr;
 
-windivert_caller_context_exit:
+cydivert_caller_context_exit:
 
     status = WdfDeviceEnqueueRequest(device, request);
     
-windivert_caller_context_error:    
+cydivert_caller_context_error:    
     
     if (!NT_SUCCESS(status))
     {
@@ -2974,20 +2970,20 @@ windivert_caller_context_error:
 }
 
 /*
- * WinDivert I/O control.
+ * CyDivert I/O control.
  */
-extern VOID windivert_ioctl(IN WDFQUEUE queue, IN WDFREQUEST request,
+extern VOID cydivert_ioctl(IN WDFQUEUE queue, IN WDFREQUEST request,
     IN size_t out_length, IN size_t in_length, IN ULONG code)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
     PCHAR inbuf, outbuf;
     size_t inbuflen, outbuflen, ioctl_filter_len;
-    PWINDIVERT_IOCTL ioctl;
-    const WINDIVERT_FILTER *ioctl_filter, *filter;
+    PCYDIVERT_IOCTL ioctl;
+    const CYDIVERT_FILTER *ioctl_filter, *filter;
     req_context_t req_context;
     NTSTATUS status = STATUS_SUCCESS;
     context_t context =
-        windivert_context_get(WdfRequestGetFileObject(request));
+        cydivert_context_get(WdfRequestGetFileObject(request));
     UINT64 *valptr;
 
     UNREFERENCED_PARAMETER(queue);
@@ -2999,23 +2995,23 @@ extern VOID windivert_ioctl(IN WDFQUEUE queue, IN WDFREQUEST request,
     // Get the buffers and do sanity checks.
     switch (code)
     {
-        case IOCTL_WINDIVERT_INITIALIZE:
-        case IOCTL_WINDIVERT_STARTUP:
-        case IOCTL_WINDIVERT_SHUTDOWN:
-        case IOCTL_WINDIVERT_SET_PARAM:
-        case IOCTL_WINDIVERT_GET_PARAM:
+        case IOCTL_CYDIVERT_INITIALIZE:
+        case IOCTL_CYDIVERT_STARTUP:
+        case IOCTL_CYDIVERT_SHUTDOWN:
+        case IOCTL_CYDIVERT_SET_PARAM:
+        case IOCTL_CYDIVERT_GET_PARAM:
             status = WdfRequestRetrieveInputBuffer(request, 0, &inbuf,
                 &inbuflen);
             if (!NT_SUCCESS(status))
             {
                 DEBUG_ERROR("failed to retrieve input buffer", status);
-                goto windivert_ioctl_exit;
+                goto cydivert_ioctl_exit;
             }
-            if (inbuflen < sizeof(WINDIVERT_IOCTL))
+            if (inbuflen < sizeof(CYDIVERT_IOCTL))
             {
                 status = STATUS_INVALID_PARAMETER;
                 DEBUG_ERROR("input buffer too small", status);
-                goto windivert_ioctl_exit;
+                goto cydivert_ioctl_exit;
             }
             break;
         default:
@@ -3025,15 +3021,15 @@ extern VOID windivert_ioctl(IN WDFQUEUE queue, IN WDFREQUEST request,
     }
     switch (code)
     {
-        case IOCTL_WINDIVERT_INITIALIZE:
-        case IOCTL_WINDIVERT_STARTUP:
-        case IOCTL_WINDIVERT_GET_PARAM:
+        case IOCTL_CYDIVERT_INITIALIZE:
+        case IOCTL_CYDIVERT_STARTUP:
+        case IOCTL_CYDIVERT_GET_PARAM:
             status = WdfRequestRetrieveOutputBuffer(request, 0, &outbuf,
                 &outbuflen);
             if (!NT_SUCCESS(status))
             {
                 DEBUG_ERROR("failed to retrieve output buffer", status);
-                goto windivert_ioctl_exit;
+                goto cydivert_ioctl_exit;
             }
             break;
         default:
@@ -3045,101 +3041,101 @@ extern VOID windivert_ioctl(IN WDFQUEUE queue, IN WDFREQUEST request,
     // Handle the ioctl:
     switch (code)
     {
-        case IOCTL_WINDIVERT_RECV:
-            status = windivert_read(context, request);
+        case IOCTL_CYDIVERT_RECV:
+            status = cydivert_read(context, request);
             if (NT_SUCCESS(status))
             {
                 return;
             }
             break;
         
-        case IOCTL_WINDIVERT_SEND:
+        case IOCTL_CYDIVERT_SEND:
             
-            req_context = windivert_req_context_get(request);
-            status = windivert_write(context, request, req_context);
+            req_context = cydivert_req_context_get(request);
+            status = cydivert_write(context, request, req_context);
             if (NT_SUCCESS(status))
             {
                 return;
             }
             break;
 
-        case IOCTL_WINDIVERT_INITIALIZE:
+        case IOCTL_CYDIVERT_INITIALIZE:
         {
-            PWINDIVERT_VERSION version;
-            WINDIVERT_LAYER layer;
+            PCYDIVERT_VERSION version;
+            CYDIVERT_LAYER layer;
             UINT32 priority;
             UINT64 flags;
             INT16 priority16;
             
-            ioctl = (PWINDIVERT_IOCTL)inbuf;
-            version = (WINDIVERT_VERSION *)outbuf;
-            if (outbuflen != sizeof(WINDIVERT_VERSION) ||
-                version->magic != WINDIVERT_MAGIC_DLL ||
-                version->major < WINDIVERT_VERSION_MAJOR_MIN ||
+            ioctl = (PCYDIVERT_IOCTL)inbuf;
+            version = (CYDIVERT_VERSION *)outbuf;
+            if (outbuflen != sizeof(CYDIVERT_VERSION) ||
+                version->magic != CYDIVERT_MAGIC_DLL ||
+                version->major != CYDIVERT_VERSION_MAJOR ||
                 (version->bits != 8 * sizeof(UINT32) &&
                  version->bits != 8 * sizeof(UINT64)))
             {
                 status = STATUS_INVALID_PARAMETER;
                 DEBUG_ERROR("failed to initialize; invalid version buffer",
                     status);
-                goto windivert_ioctl_exit;
+                goto cydivert_ioctl_exit;
             }
             
-            layer = (WINDIVERT_LAYER)ioctl->initialize.layer;
+            layer = (CYDIVERT_LAYER)ioctl->initialize.layer;
             priority = ioctl->initialize.priority;
             flags = ioctl->initialize.flags;
-            version->magic = WINDIVERT_MAGIC_SYS;
-            version->major = WINDIVERT_VERSION_MAJOR;
-            version->minor = WINDIVERT_VERSION_MINOR;
+            version->magic = CYDIVERT_MAGIC_SYS;
+            version->major = CYDIVERT_VERSION_MAJOR;
+            version->minor = CYDIVERT_VERSION_MINOR;
             version->bits  = 8 * sizeof(void *);
             
             switch ((UINT32)layer)
             {
-                case WINDIVERT_LAYER_NETWORK:
-                case WINDIVERT_LAYER_NETWORK_FORWARD:
-                case WINDIVERT_LAYER_FLOW:
-                case WINDIVERT_LAYER_SOCKET:
-                case WINDIVERT_LAYER_REFLECT:
+                case CYDIVERT_LAYER_NETWORK:
+                case CYDIVERT_LAYER_NETWORK_FORWARD:
+                case CYDIVERT_LAYER_FLOW:
+                case CYDIVERT_LAYER_SOCKET:
+                case CYDIVERT_LAYER_REFLECT:
                     break;
                 default:
                     status = STATUS_INVALID_PARAMETER;
                     DEBUG_ERROR("failed to set layer; invalid value", status);
-                    goto windivert_ioctl_exit;
+                    goto cydivert_ioctl_exit;
             }
 
-            if (priority > 2 * WINDIVERT_PRIORITY_MAX)
+            if (priority > 2 * CYDIVERT_PRIORITY_MAX)
             {
                 status = STATUS_INVALID_PARAMETER;
                 DEBUG_ERROR("failed to set priority; value out of range",
                     status);
-                goto windivert_ioctl_exit;
+                goto cydivert_ioctl_exit;
             }
-            priority16 = (INT16)priority - WINDIVERT_PRIORITY_MAX;
-            priority = windivert_context_priority(priority);
+            priority16 = (INT16)priority - CYDIVERT_PRIORITY_MAX;
+            priority = cydivert_context_priority(priority);
 
-            if (!WINDIVERT_FLAGS_VALID(flags))
+            if (!CYDIVERT_FLAGS_VALID(flags))
             {
-windivert_ioctl_bad_flags:
+cydivert_ioctl_bad_flags:
                 status = STATUS_INVALID_PARAMETER;
                 DEBUG_ERROR("failed to set flags; invalid flags value",
                     status);
-                goto windivert_ioctl_exit;
+                goto cydivert_ioctl_exit;
             }
             switch ((UINT32)layer)
             {
-                case WINDIVERT_LAYER_FLOW:
-                case WINDIVERT_LAYER_REFLECT:
-                    if ((flags & WINDIVERT_FLAG_SNIFF) == 0 ||
-                        (flags & WINDIVERT_FLAG_RECV_ONLY) == 0)
+                case CYDIVERT_LAYER_FLOW:
+                case CYDIVERT_LAYER_REFLECT:
+                    if ((flags & CYDIVERT_FLAG_SNIFF) == 0 ||
+                        (flags & CYDIVERT_FLAG_RECV_ONLY) == 0)
                     {
-                        goto windivert_ioctl_bad_flags;
+                        goto cydivert_ioctl_bad_flags;
                     }
                     break;
 
-                case WINDIVERT_LAYER_SOCKET:
-                    if ((flags & WINDIVERT_FLAG_RECV_ONLY) == 0)
+                case CYDIVERT_LAYER_SOCKET:
+                    if ((flags & CYDIVERT_FLAG_RECV_ONLY) == 0)
                     {
-                        goto windivert_ioctl_bad_flags;
+                        goto cydivert_ioctl_bad_flags;
                     }
                     break;
 
@@ -3148,14 +3144,14 @@ windivert_ioctl_bad_flags:
             }
 
             KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-            if (context->state != WINDIVERT_CONTEXT_STATE_OPENING ||
+            if (context->state != CYDIVERT_CONTEXT_STATE_OPENING ||
                     context->initialized)
             {
                 KeReleaseInStackQueuedSpinLock(&lock_handle);
                 status = STATUS_INVALID_DEVICE_STATE;
-                goto windivert_ioctl_exit;
+                goto cydivert_ioctl_exit;
             }
-            context->layer = (WINDIVERT_LAYER)layer;
+            context->layer = (CYDIVERT_LAYER)layer;
             context->priority16 = priority16;
             context->priority = priority;
             context->flags = flags;
@@ -3165,59 +3161,59 @@ windivert_ioctl_bad_flags:
             break;
         }
 
-        case IOCTL_WINDIVERT_STARTUP:
+        case IOCTL_CYDIVERT_STARTUP:
         {
             PEPROCESS process;
             LONGLONG timestamp;
             UINT64 filter_flags;
             UINT32 process_id;
-            WINDIVERT_LAYER layer;
+            CYDIVERT_LAYER layer;
             UINT8 filter_len;
             WDFDEVICE device;
 
-            ioctl = (PWINDIVERT_IOCTL)inbuf;
+            ioctl = (PCYDIVERT_IOCTL)inbuf;
             filter_flags = ioctl->startup.flags;
-            if ((filter_flags & ~WINDIVERT_FILTER_FLAGS_ALL) != 0)
+            if ((filter_flags & ~CYDIVERT_FILTER_FLAGS_ALL) != 0)
             {
                 status = STATUS_INVALID_PARAMETER;
                 DEBUG_ERROR("failed to start filter; invalid flags", status);
-                goto windivert_ioctl_exit;
+                goto cydivert_ioctl_exit;
             }
  
             KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-            if (context->state != WINDIVERT_CONTEXT_STATE_OPENING ||
+            if (context->state != CYDIVERT_CONTEXT_STATE_OPENING ||
                     !context->initialized)
             {
                 KeReleaseInStackQueuedSpinLock(&lock_handle);
                 status = STATUS_INVALID_DEVICE_STATE;
-                goto windivert_ioctl_exit;
+                goto cydivert_ioctl_exit;
             }
-            context->state = WINDIVERT_CONTEXT_STATE_OPEN;
+            context->state = CYDIVERT_CONTEXT_STATE_OPEN;
             layer = context->layer;
             process = context->process;
             KeReleaseInStackQueuedSpinLock(&lock_handle);
 
-            ioctl_filter = (const WINDIVERT_FILTER *)outbuf;
+            ioctl_filter = (const CYDIVERT_FILTER *)outbuf;
             ioctl_filter_len = outbuflen;
-            filter = windivert_filter_compile(ioctl_filter, ioctl_filter_len,
+            filter = cydivert_filter_compile(ioctl_filter, ioctl_filter_len,
                 layer);
             if (filter == NULL)
             {
                 status = STATUS_INVALID_PARAMETER;
                 DEBUG_ERROR("failed to compile filter", status);
-                goto windivert_ioctl_exit;
+                goto cydivert_ioctl_exit;
             }
-            filter_len = (UINT8)(ioctl_filter_len / sizeof(WINDIVERT_FILTER));
+            filter_len = (UINT8)(ioctl_filter_len / sizeof(CYDIVERT_FILTER));
             process_id = (UINT32)(ULONG_PTR)PsGetProcessId(process);
             timestamp = KeQueryPerformanceCounter(NULL).QuadPart;
 
             KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-            if (context->state != WINDIVERT_CONTEXT_STATE_OPEN)
+            if (context->state != CYDIVERT_CONTEXT_STATE_OPEN)
             {
                 KeReleaseInStackQueuedSpinLock(&lock_handle);
-                windivert_free((PVOID)filter);
+                cydivert_free((PVOID)filter);
                 status = STATUS_INVALID_DEVICE_STATE;
-                goto windivert_ioctl_exit;
+                goto cydivert_ioctl_exit;
             }
             context->filter                 = filter;
             context->filter_len             = filter_len;
@@ -3229,7 +3225,7 @@ windivert_ioctl_bad_flags:
             context->reflect.data.Priority  = context->priority16;
             context->reflect.open           = FALSE;
             context->shutdown_recv_enabled  =
-                (layer != WINDIVERT_LAYER_REFLECT);
+                (layer != CYDIVERT_LAYER_REFLECT);
             device = context->device;
             KeReleaseInStackQueuedSpinLock(&lock_handle);
 
@@ -3237,37 +3233,37 @@ windivert_ioctl_bad_flags:
             {
                 PDRIVER_OBJECT driver = WdfDriverWdmGetDriverObject(
                     WdfDeviceGetDriver(device));
-                windivert_log_event(process, driver, L"LOAD");
+                cydivert_log_event(process, driver, L"LOAD");
             }
-            windivert_reflect_open_event(context);
+            cydivert_reflect_open_event(context);
 
-            status = windivert_install_callouts(context, layer, filter_flags);
+            status = cydivert_install_callouts(context, layer, filter_flags);
 
             break;
         }
 
-        case IOCTL_WINDIVERT_SHUTDOWN:
+        case IOCTL_CYDIVERT_SHUTDOWN:
         {
-            WINDIVERT_SHUTDOWN how;
+            CYDIVERT_SHUTDOWN how;
 
-            ioctl = (PWINDIVERT_IOCTL)inbuf;
-            how = (WINDIVERT_SHUTDOWN)ioctl->shutdown.how;
+            ioctl = (PCYDIVERT_IOCTL)inbuf;
+            how = (CYDIVERT_SHUTDOWN)ioctl->shutdown.how;
             KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-            if (context->state != WINDIVERT_CONTEXT_STATE_OPEN)
+            if (context->state != CYDIVERT_CONTEXT_STATE_OPEN)
             {
                 KeReleaseInStackQueuedSpinLock(&lock_handle);
                 status = STATUS_INVALID_DEVICE_STATE;
-                goto windivert_ioctl_exit;
+                goto cydivert_ioctl_exit;
             }
             switch ((UINT32)how)
             {
-                case WINDIVERT_SHUTDOWN_RECV:
+                case CYDIVERT_SHUTDOWN_RECV:
                     context->shutdown_recv = TRUE;
                     break;
-                case WINDIVERT_SHUTDOWN_SEND:
+                case CYDIVERT_SHUTDOWN_SEND:
                     context->shutdown_send = TRUE;
                     break;
-                case WINDIVERT_SHUTDOWN_BOTH:
+                case CYDIVERT_SHUTDOWN_BOTH:
                     context->shutdown_recv = context->shutdown_send = TRUE;
                     break;
                 default:
@@ -3275,67 +3271,67 @@ windivert_ioctl_bad_flags:
                     status = STATUS_INVALID_PARAMETER;
                     DEBUG_ERROR("failed to shutdown handle; invalid how",
                         status);
-                    goto windivert_ioctl_exit;
+                    goto cydivert_ioctl_exit;
             }
             KeReleaseInStackQueuedSpinLock(&lock_handle);
-            windivert_read_service(context);
+            cydivert_read_service(context);
             break;
         }
  
-        case IOCTL_WINDIVERT_SET_PARAM:
+        case IOCTL_CYDIVERT_SET_PARAM:
         {
-            WINDIVERT_PARAM param;
+            CYDIVERT_PARAM param;
             UINT64 value;
 
-            ioctl = (PWINDIVERT_IOCTL)inbuf;
-            param = (WINDIVERT_PARAM)ioctl->set_param.param;
+            ioctl = (PCYDIVERT_IOCTL)inbuf;
+            param = (CYDIVERT_PARAM)ioctl->set_param.param;
             value = ioctl->set_param.val;
             KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-            if (context->state != WINDIVERT_CONTEXT_STATE_OPEN)
+            if (context->state != CYDIVERT_CONTEXT_STATE_OPEN)
             {
                 KeReleaseInStackQueuedSpinLock(&lock_handle);
                 status = STATUS_INVALID_DEVICE_STATE;
-                goto windivert_ioctl_exit;
+                goto cydivert_ioctl_exit;
             }
             switch ((UINT32)param)
             {
-                case WINDIVERT_PARAM_QUEUE_LENGTH:
-                    if (value < WINDIVERT_PARAM_QUEUE_LENGTH_MIN ||
-                        value > WINDIVERT_PARAM_QUEUE_LENGTH_MAX)
+                case CYDIVERT_PARAM_QUEUE_LENGTH:
+                    if (value < CYDIVERT_PARAM_QUEUE_LENGTH_MIN ||
+                        value > CYDIVERT_PARAM_QUEUE_LENGTH_MAX)
                     {
                         KeReleaseInStackQueuedSpinLock(&lock_handle);
                         status = STATUS_INVALID_PARAMETER;
                         DEBUG_ERROR("failed to set queue length; invalid "
                             "value", status);
-                        goto windivert_ioctl_exit;
+                        goto cydivert_ioctl_exit;
                     }
                     context->packet_queue_maxlength = (ULONG)value;
                     break;
 
-                case WINDIVERT_PARAM_QUEUE_TIME:
-                    if (value < WINDIVERT_PARAM_QUEUE_TIME_MIN ||
-                        value > WINDIVERT_PARAM_QUEUE_TIME_MAX)
+                case CYDIVERT_PARAM_QUEUE_TIME:
+                    if (value < CYDIVERT_PARAM_QUEUE_TIME_MIN ||
+                        value > CYDIVERT_PARAM_QUEUE_TIME_MAX)
                     {
                         KeReleaseInStackQueuedSpinLock(&lock_handle);
                         status = STATUS_INVALID_PARAMETER;
                         DEBUG_ERROR("failed to set queue time; invalid "
                             "value", status);
-                        goto windivert_ioctl_exit;
+                        goto cydivert_ioctl_exit;
                     }
                     context->packet_queue_maxcounts =
                         (LONGLONG)value * counts_per_ms;
                     context->packet_queue_maxtime = (ULONG)value;
                     break;
 
-                case WINDIVERT_PARAM_QUEUE_SIZE:
-                    if (value < WINDIVERT_PARAM_QUEUE_SIZE_MIN ||
-                        value > WINDIVERT_PARAM_QUEUE_SIZE_MAX)
+                case CYDIVERT_PARAM_QUEUE_SIZE:
+                    if (value < CYDIVERT_PARAM_QUEUE_SIZE_MIN ||
+                        value > CYDIVERT_PARAM_QUEUE_SIZE_MAX)
                     {
                         KeReleaseInStackQueuedSpinLock(&lock_handle);
                         status = STATUS_INVALID_PARAMETER;
                         DEBUG_ERROR("failed to set queue size; invalid "
                             "value", status);
-                        goto windivert_ioctl_exit;
+                        goto cydivert_ioctl_exit;
                     }
                     context->packet_queue_maxsize = (ULONG)value;
                     break;
@@ -3345,56 +3341,56 @@ windivert_ioctl_bad_flags:
                     status = STATUS_INVALID_PARAMETER;
                     DEBUG_ERROR("failed to set parameter; invalid parameter",
                         status);
-                    goto windivert_ioctl_exit;
+                    goto cydivert_ioctl_exit;
             }
             KeReleaseInStackQueuedSpinLock(&lock_handle);
             break;
         }
 
-        case IOCTL_WINDIVERT_GET_PARAM:
+        case IOCTL_CYDIVERT_GET_PARAM:
         {
-            WINDIVERT_PARAM param;
+            CYDIVERT_PARAM param;
 
-            ioctl = (PWINDIVERT_IOCTL)inbuf;
-            param = (WINDIVERT_PARAM)ioctl->get_param.param;
+            ioctl = (PCYDIVERT_IOCTL)inbuf;
+            param = (CYDIVERT_PARAM)ioctl->get_param.param;
             if (outbuflen != sizeof(UINT64))
             {
                 status = STATUS_INVALID_PARAMETER;
                 DEBUG_ERROR("failed to get parameter; invalid output "
                     "buffer size", status);
-                goto windivert_ioctl_exit;
+                goto cydivert_ioctl_exit;
             }
             valptr = (UINT64 *)outbuf;
             KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-            if (context->state != WINDIVERT_CONTEXT_STATE_OPEN)
+            if (context->state != CYDIVERT_CONTEXT_STATE_OPEN)
             {
                 KeReleaseInStackQueuedSpinLock(&lock_handle);
                 status = STATUS_INVALID_DEVICE_STATE;
-                goto windivert_ioctl_exit;
+                goto cydivert_ioctl_exit;
             }
             switch ((UINT32)param)
             {
-                case WINDIVERT_PARAM_QUEUE_LENGTH:
+                case CYDIVERT_PARAM_QUEUE_LENGTH:
                     *valptr = context->packet_queue_maxlength;
                     break;
-                case WINDIVERT_PARAM_QUEUE_TIME:
+                case CYDIVERT_PARAM_QUEUE_TIME:
                     *valptr = context->packet_queue_maxtime;
                     break;
-                case WINDIVERT_PARAM_QUEUE_SIZE:
+                case CYDIVERT_PARAM_QUEUE_SIZE:
                     *valptr = context->packet_queue_maxsize;
                     break;
-                case WINDIVERT_PARAM_VERSION_MAJOR:
-                    *valptr = WINDIVERT_VERSION_MAJOR;
+                case CYDIVERT_PARAM_VERSION_MAJOR:
+                    *valptr = CYDIVERT_VERSION_MAJOR;
                     break;
-                case WINDIVERT_PARAM_VERSION_MINOR:
-                    *valptr = WINDIVERT_VERSION_MINOR;
+                case CYDIVERT_PARAM_VERSION_MINOR:
+                    *valptr = CYDIVERT_VERSION_MINOR;
                     break;
                 default:
                     KeReleaseInStackQueuedSpinLock(&lock_handle);
                     status = STATUS_INVALID_PARAMETER;
                     DEBUG_ERROR("failed to get parameter; invalid parameter",
                         status);
-                    goto windivert_ioctl_exit;
+                    goto cydivert_ioctl_exit;
             }
             KeReleaseInStackQueuedSpinLock(&lock_handle);
             break;
@@ -3407,14 +3403,14 @@ windivert_ioctl_bad_flags:
             break;
     }
 
-windivert_ioctl_exit:
+cydivert_ioctl_exit:
     WdfRequestComplete(request, status);
 }
 
 /*
- * WinDivert notify function.
+ * CyDivert notify function.
  */
-static NTSTATUS windivert_notify(IN FWPS_CALLOUT_NOTIFY_TYPE type,
+static NTSTATUS cydivert_notify(IN FWPS_CALLOUT_NOTIFY_TYPE type,
     IN const GUID *filter_key, IN const FWPS_FILTER0 *filter)
 {
     UNREFERENCED_PARAMETER(type);
@@ -3424,27 +3420,27 @@ static NTSTATUS windivert_notify(IN FWPS_CALLOUT_NOTIFY_TYPE type,
 }
 
 /*
- * WinDivert get fixed values.
+ * CyDivert get fixed values.
  */
-static UINT8 windivert_get_val8(const FWPS_INCOMING_VALUES0 *fixed_vals,
+static UINT8 cydivert_get_val8(const FWPS_INCOMING_VALUES0 *fixed_vals,
     int idx)
 {
     FWP_VALUE0 value = fixed_vals->incomingValue[idx].value;
     return (value.type != FWP_UINT8? 0: value.uint8);
 }
-static UINT16 windivert_get_val16(const FWPS_INCOMING_VALUES0 *fixed_vals,
+static UINT16 cydivert_get_val16(const FWPS_INCOMING_VALUES0 *fixed_vals,
     int idx)
 {
     FWP_VALUE0 value = fixed_vals->incomingValue[idx].value;
     return (value.type != FWP_UINT16? 0: value.uint16);
 }
-static UINT32 windivert_get_val32(const FWPS_INCOMING_VALUES0 *fixed_vals,
+static UINT32 cydivert_get_val32(const FWPS_INCOMING_VALUES0 *fixed_vals,
     int idx)
 {
     FWP_VALUE0 value = fixed_vals->incomingValue[idx].value;
     return (value.type != FWP_UINT32? 0: value.uint32);
 }
-static void windivert_get_ipv4_addr(const FWPS_INCOMING_VALUES0 *fixed_vals,
+static void cydivert_get_ipv4_addr(const FWPS_INCOMING_VALUES0 *fixed_vals,
     int idx, UINT32 *addr)
 {
     FWP_VALUE0 value = fixed_vals->incomingValue[idx].value;
@@ -3459,7 +3455,7 @@ static void windivert_get_ipv4_addr(const FWPS_INCOMING_VALUES0 *fixed_vals,
         addr[1] = 0x0000FFFF;
     }
 }
-static void windivert_get_ipv6_addr(const FWPS_INCOMING_VALUES0 *fixed_vals,
+static void cydivert_get_ipv6_addr(const FWPS_INCOMING_VALUES0 *fixed_vals,
     int idx, UINT32 *addr)
 {
     UINT8 *addr8 = (UINT8 *)addr;
@@ -3477,15 +3473,15 @@ static void windivert_get_ipv6_addr(const FWPS_INCOMING_VALUES0 *fixed_vals,
 }
 
 /*
- * WinDivert classify outbound IPv4 function.
+ * CyDivert classify outbound IPv4 function.
  */
-static void windivert_outbound_network_v4_classify(
+static void cydivert_outbound_network_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_NETWORK network_data;
+    CYDIVERT_DATA_NETWORK network_data;
     BOOL loopback;
     context_t context = (context_t)(ULONG_PTR)filter->context;
 
@@ -3498,29 +3494,29 @@ static void windivert_outbound_network_v4_classify(
         return;
     }
 
-    network_data.IfIdx = windivert_get_val32(fixed_vals,
+    network_data.IfIdx = cydivert_get_val32(fixed_vals,
         FWPS_FIELD_OUTBOUND_IPPACKET_V4_INTERFACE_INDEX);
-    network_data.SubIfIdx = windivert_get_val32(fixed_vals,
+    network_data.SubIfIdx = cydivert_get_val32(fixed_vals,
         FWPS_FIELD_OUTBOUND_IPPACKET_V4_SUB_INTERFACE_INDEX);
-    loopback = ((windivert_get_val32(fixed_vals,
+    loopback = ((cydivert_get_val32(fixed_vals,
         FWPS_FIELD_OUTBOUND_IPPACKET_V4_FLAGS) &
             FWP_CONDITION_FLAG_IS_LOOPBACK) != 0);
 
-    windivert_network_classify(context, &network_data, /*ipv4=*/TRUE,
+    cydivert_network_classify(context, &network_data, /*ipv4=*/TRUE,
         /*outbound=*/TRUE, loopback, /*reassembled=*/FALSE, /*advance=*/0,
         data, result);
 }
 
 /*
- * WinDivert classify outbound IPv6 function.
+ * CyDivert classify outbound IPv6 function.
  */
-static void windivert_outbound_network_v6_classify(
+static void cydivert_outbound_network_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_NETWORK network_data;
+    CYDIVERT_DATA_NETWORK network_data;
     BOOL loopback;
     context_t context = (context_t)(ULONG_PTR)filter->context;
  
@@ -3533,29 +3529,29 @@ static void windivert_outbound_network_v6_classify(
         return;
     }
 
-    network_data.IfIdx = windivert_get_val32(fixed_vals,
+    network_data.IfIdx = cydivert_get_val32(fixed_vals,
         FWPS_FIELD_OUTBOUND_IPPACKET_V6_INTERFACE_INDEX);
-    network_data.SubIfIdx = windivert_get_val32(fixed_vals,
+    network_data.SubIfIdx = cydivert_get_val32(fixed_vals,
         FWPS_FIELD_OUTBOUND_IPPACKET_V6_SUB_INTERFACE_INDEX);
-    loopback = ((windivert_get_val32(fixed_vals,
+    loopback = ((cydivert_get_val32(fixed_vals,
         FWPS_FIELD_OUTBOUND_IPPACKET_V6_FLAGS) &
             FWP_CONDITION_FLAG_IS_LOOPBACK) != 0);
 
-    windivert_network_classify(context, &network_data, /*ipv4=*/FALSE,
+    cydivert_network_classify(context, &network_data, /*ipv4=*/FALSE,
         /*outbound=*/TRUE, loopback, /*reassembled=*/FALSE, /*advance=*/0,
         data, result);
 }
 
 /*
- * WinDivert classify inbound IPv4 function.
+ * CyDivert classify inbound IPv4 function.
  */
-static void windivert_inbound_network_v4_classify(
+static void cydivert_inbound_network_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_NETWORK network_data;
+    CYDIVERT_DATA_NETWORK network_data;
     UINT advance;
     UINT32 flags;
     BOOL fragment, loopback, reassembled;
@@ -3569,7 +3565,7 @@ static void windivert_inbound_network_v4_classify(
         return;
     }
 
-    flags = windivert_get_val32(fixed_vals,
+    flags = cydivert_get_val32(fixed_vals,
         FWPS_FIELD_INBOUND_IPPACKET_V4_FLAGS);
     fragment = ((flags & FWP_CONDITION_FLAG_IS_FRAGMENT) != 0);
     if (fragment)
@@ -3585,26 +3581,26 @@ static void windivert_inbound_network_v4_classify(
     }
     reassembled = ((flags & FWP_CONDITION_FLAG_IS_REASSEMBLED) != 0);
 
-    network_data.IfIdx = windivert_get_val32(fixed_vals,
+    network_data.IfIdx = cydivert_get_val32(fixed_vals,
         FWPS_FIELD_INBOUND_IPPACKET_V4_INTERFACE_INDEX);
-    network_data.SubIfIdx = windivert_get_val32(fixed_vals,
+    network_data.SubIfIdx = cydivert_get_val32(fixed_vals,
         FWPS_FIELD_INBOUND_IPPACKET_V4_SUB_INTERFACE_INDEX);
     advance = meta_vals->ipHeaderSize;
     
-    windivert_network_classify(context, &network_data, /*ipv4=*/TRUE,
+    cydivert_network_classify(context, &network_data, /*ipv4=*/TRUE,
         /*outbound=*/FALSE, loopback, reassembled, advance, data, result);
 }
 
 /*
- * WinDivert classify inbound IPv6 function.
+ * CyDivert classify inbound IPv6 function.
  */
-static void windivert_inbound_network_v6_classify(
+static void cydivert_inbound_network_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_NETWORK network_data;
+    CYDIVERT_DATA_NETWORK network_data;
     UINT advance;
     UINT32 flags;
     BOOL fragment, loopback, reassembled;
@@ -3618,7 +3614,7 @@ static void windivert_inbound_network_v6_classify(
         return;
     }
 
-    flags = windivert_get_val32(fixed_vals,
+    flags = cydivert_get_val32(fixed_vals,
         FWPS_FIELD_INBOUND_IPPACKET_V6_FLAGS);
     fragment = ((flags & FWP_CONDITION_FLAG_IS_FRAGMENT) != 0);
     if (fragment)
@@ -3634,26 +3630,26 @@ static void windivert_inbound_network_v6_classify(
     }
     reassembled = ((flags & FWP_CONDITION_FLAG_IS_REASSEMBLED) != 0);
 
-    network_data.IfIdx = windivert_get_val32(fixed_vals,
+    network_data.IfIdx = cydivert_get_val32(fixed_vals,
         FWPS_FIELD_INBOUND_IPPACKET_V6_INTERFACE_INDEX);
-    network_data.SubIfIdx = windivert_get_val32(fixed_vals,
+    network_data.SubIfIdx = cydivert_get_val32(fixed_vals,
         FWPS_FIELD_INBOUND_IPPACKET_V6_SUB_INTERFACE_INDEX);
     advance = meta_vals->ipHeaderSize;
     
-    windivert_network_classify(context, &network_data, /*ipv4=*/FALSE,
+    cydivert_network_classify(context, &network_data, /*ipv4=*/FALSE,
         /*outbound=*/FALSE, loopback, reassembled, advance, data, result);
 }
 
 /*
- * WinDivert classify forward IPv4 function.
+ * CyDivert classify forward IPv4 function.
  */
-static void windivert_forward_network_v4_classify(
+static void cydivert_forward_network_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_NETWORK network_data;
+    CYDIVERT_DATA_NETWORK network_data;
     UINT32 flags;
     BOOL group;
     context_t context = (context_t)(ULONG_PTR)filter->context;
@@ -3666,7 +3662,7 @@ static void windivert_forward_network_v4_classify(
     {
         return;
     }
-    flags = windivert_get_val32(fixed_vals, FWPS_FIELD_IPFORWARD_V4_FLAGS);
+    flags = cydivert_get_val32(fixed_vals, FWPS_FIELD_IPFORWARD_V4_FLAGS);
     group = ((flags & FWP_CONDITION_FLAG_IS_FRAGMENT_GROUP) != 0);
     if (group)
     {
@@ -3674,25 +3670,25 @@ static void windivert_forward_network_v4_classify(
         return;
     }
  
-    network_data.IfIdx = windivert_get_val32(fixed_vals,
+    network_data.IfIdx = cydivert_get_val32(fixed_vals,
         FWPS_FIELD_IPFORWARD_V4_DESTINATION_INTERFACE_INDEX);
     network_data.SubIfIdx = 0;
 
-    windivert_network_classify(context, &network_data, /*ipv4=*/TRUE,
+    cydivert_network_classify(context, &network_data, /*ipv4=*/TRUE,
         /*outbound=*/TRUE, /*loopback=*/FALSE, /*reassembled=*/FALSE,
         /*advance=*/0, data, result);
 }
 
 /*
- * WinDivert classify forward IPv6 function.
+ * CyDivert classify forward IPv6 function.
  */
-static void windivert_forward_network_v6_classify(
+static void cydivert_forward_network_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_NETWORK network_data;
+    CYDIVERT_DATA_NETWORK network_data;
     UINT32 flags;
     BOOL group;
     context_t context = (context_t)(ULONG_PTR)filter->context;
@@ -3705,7 +3701,7 @@ static void windivert_forward_network_v6_classify(
     {
         return;
     }
-    flags = windivert_get_val32(fixed_vals, FWPS_FIELD_IPFORWARD_V6_FLAGS);
+    flags = cydivert_get_val32(fixed_vals, FWPS_FIELD_IPFORWARD_V6_FLAGS);
     group = ((flags & FWP_CONDITION_FLAG_IS_FRAGMENT_GROUP) != 0);
     if (group)
     {
@@ -3713,20 +3709,20 @@ static void windivert_forward_network_v6_classify(
         return;
     }
 
-    network_data.IfIdx = windivert_get_val32(fixed_vals,
+    network_data.IfIdx = cydivert_get_val32(fixed_vals,
         FWPS_FIELD_IPFORWARD_V6_DESTINATION_INTERFACE_INDEX);
     network_data.SubIfIdx = 0;
 
-    windivert_network_classify(context, &network_data, /*ipv4=*/FALSE,
+    cydivert_network_classify(context, &network_data, /*ipv4=*/FALSE,
         /*outbound=*/TRUE, /*loopback=*/FALSE, /*reassembled=*/FALSE,
         /*advance=*/0, data, result);
 }
 
 /*
- * WinDivert network classify function.
+ * CyDivert network classify function.
  */
-static void windivert_network_classify(context_t context,
-    IN PWINDIVERT_DATA_NETWORK network_data, IN BOOL ipv4, IN BOOL outbound,
+static void cydivert_network_classify(context_t context,
+    IN PCYDIVERT_DATA_NETWORK network_data, IN BOOL ipv4, IN BOOL outbound,
     IN BOOL loopback, IN BOOL reassembled, IN UINT advance, IN OUT void *data,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
@@ -3735,12 +3731,12 @@ static void windivert_network_classify(context_t context,
     HANDLE packet_context;
     UINT32 priority, packet_priority;
     UINT64 flags;
-    WINDIVERT_LAYER layer;
+    CYDIVERT_LAYER layer;
     PNET_BUFFER_LIST buffers;
     PNET_BUFFER buffer, buffer_fst, buffer_itr;
     BOOL impostor, sniff_mode, frag_mode, ok;
     WDFOBJECT object;
-    const WINDIVERT_FILTER *filter;
+    const CYDIVERT_FILTER *filter;
     LONGLONG timestamp;
     NTSTATUS status;
 
@@ -3755,7 +3751,7 @@ static void windivert_network_classify(context_t context,
     }
     if (ipv4)
     {
-        if (context->layer == WINDIVERT_LAYER_NETWORK_FORWARD)
+        if (context->layer == CYDIVERT_LAYER_NETWORK_FORWARD)
         {
             packet_state = FwpsQueryPacketInjectionState0(inject_handle_forward,
                 buffers, &packet_context);
@@ -3773,7 +3769,7 @@ static void windivert_network_classify(context_t context,
     }
     else
     {
-        if (context->layer == WINDIVERT_LAYER_NETWORK_FORWARD)
+        if (context->layer == CYDIVERT_LAYER_NETWORK_FORWARD)
         {
             packet_state = FwpsQueryPacketInjectionState0(
                 injectv6_handle_forward, buffers, &packet_context);
@@ -3791,7 +3787,7 @@ static void windivert_network_classify(context_t context,
     }
 
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-    if (context->state != WINDIVERT_CONTEXT_STATE_OPEN ||
+    if (context->state != CYDIVERT_CONTEXT_STATE_OPEN ||
         context->shutdown_recv)
     {
         KeReleaseInStackQueuedSpinLock(&lock_handle);
@@ -3819,7 +3815,7 @@ static void windivert_network_classify(context_t context,
     else if (packet_state == FWPS_PACKET_INJECTED_BY_OTHER)
     {
         // This is a packet injected by another driver, possibly an older
-        // version of WinDivert.  To prevent block-clone-reinject infinite
+        // version of CyDivert.  To prevent block-clone-reinject infinite
         // loops, we mark this packet as an "impostor".
         impostor = TRUE;
     }
@@ -3829,8 +3825,8 @@ static void windivert_network_classify(context_t context,
 
     // Filter fragments or reassembled packets.
     frag_mode =
-        (outbound || layer == WINDIVERT_LAYER_NETWORK_FORWARD? TRUE:
-            (flags & WINDIVERT_FLAG_FRAGMENTS) != 0);
+        (outbound || layer == CYDIVERT_LAYER_NETWORK_FORWARD? TRUE:
+            (flags & CYDIVERT_FLAG_FRAGMENTS) != 0);
     if (frag_mode && reassembled)
     {
         WdfObjectDereference(object);
@@ -3864,8 +3860,8 @@ static void windivert_network_classify(context_t context,
     buffer_fst = buffer;
     do
     {
-        BOOL match = windivert_filter(buffer_fst, layer, (PVOID)network_data,
-            timestamp, /*event=*/WINDIVERT_EVENT_NETWORK_PACKET, ipv4,
+        BOOL match = cydivert_filter(buffer_fst, layer, (PVOID)network_data,
+            timestamp, /*event=*/CYDIVERT_EVENT_NETWORK_PACKET, ipv4,
             outbound, loopback, impostor, frag_mode, filter);
         if (match)
         {
@@ -3891,25 +3887,25 @@ static void windivert_network_classify(context_t context,
 
     // STEP (1): Queue all non-matching packets up to buffer_fst.
     buffer_itr = buffer;
-    sniff_mode = ((flags & WINDIVERT_FLAG_SNIFF) != 0);
+    sniff_mode = ((flags & CYDIVERT_FLAG_SNIFF) != 0);
     while (!sniff_mode && buffer_itr != buffer_fst)
     {
-        ok = windivert_queue_work(context, (PVOID)buffer_itr,
+        ok = cydivert_queue_work(context, (PVOID)buffer_itr,
             NET_BUFFER_DATA_LENGTH(buffer_itr), buffers, /*object=*/NULL, layer,
-            (PVOID)network_data, /*event=*/WINDIVERT_EVENT_NETWORK_PACKET,
+            (PVOID)network_data, /*event=*/CYDIVERT_EVENT_NETWORK_PACKET,
             flags, priority, ipv4, outbound, loopback, impostor,
             /*match=*/FALSE, timestamp);
         if (!ok)
         {
-            goto windivert_network_classify_exit;
+            goto cydivert_network_classify_exit;
         }
         buffer_itr = NET_BUFFER_NEXT_NB(buffer_itr);
     }
 
     // STEP (2): Queue the first matching packet buffer_fst:
-    ok = windivert_queue_work(context, (PVOID)buffer_itr,
+    ok = cydivert_queue_work(context, (PVOID)buffer_itr,
         NET_BUFFER_DATA_LENGTH(buffer_itr), buffers, /*object=*/NULL, layer,
-        (PVOID)network_data, /*event=*/WINDIVERT_EVENT_NETWORK_PACKET,
+        (PVOID)network_data, /*event=*/CYDIVERT_EVENT_NETWORK_PACKET,
         flags, priority, ipv4, outbound, loopback, impostor, /*match=*/TRUE,
         timestamp);
     if (advance != 0)
@@ -3922,29 +3918,29 @@ static void windivert_network_classify(context_t context,
     }
     if (!ok)
     {
-        goto windivert_network_classify_exit;
+        goto cydivert_network_classify_exit;
     }
 
     // STEP (3): Queue all remaining packets:
     buffer_itr = NET_BUFFER_NEXT_NB(buffer_fst);
     while (buffer_itr != NULL)
     {
-        BOOL match = windivert_filter(buffer_itr, layer, (PVOID)network_data,
-            timestamp, /*event=*/WINDIVERT_EVENT_NETWORK_PACKET, ipv4,
+        BOOL match = cydivert_filter(buffer_itr, layer, (PVOID)network_data,
+            timestamp, /*event=*/CYDIVERT_EVENT_NETWORK_PACKET, ipv4,
             outbound, loopback, impostor, frag_mode, filter);
-        ok = windivert_queue_work(context, (PVOID)buffer_itr,
+        ok = cydivert_queue_work(context, (PVOID)buffer_itr,
             NET_BUFFER_DATA_LENGTH(buffer_itr), buffers, /*object=*/NULL, layer,
-            (PVOID)network_data, /*event=*/WINDIVERT_EVENT_NETWORK_PACKET,
+            (PVOID)network_data, /*event=*/CYDIVERT_EVENT_NETWORK_PACKET,
             flags, priority, ipv4, outbound, loopback, impostor, match,
             timestamp);
         if (!ok)
         {
-            goto windivert_network_classify_exit;
+            goto cydivert_network_classify_exit;
         }
         buffer_itr = NET_BUFFER_NEXT_NB(buffer_itr);
     }
 
-windivert_network_classify_exit:
+cydivert_network_classify_exit:
 
     WdfObjectDereference(object);
     if (!sniff_mode)
@@ -3956,15 +3952,15 @@ windivert_network_classify_exit:
 }
 
 /*
- * WinDivert classify flow established IPv4 function.
+ * CyDivert classify flow established IPv4 function.
  */
-static void windivert_flow_established_v4_classify(
+static void cydivert_flow_established_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_FLOW flow_data;
+    CYDIVERT_DATA_FLOW flow_data;
     BOOL outbound, loopback;
     UINT64 flow_id;
     context_t context = (context_t)(ULONG_PTR)filter->context;
@@ -3975,41 +3971,41 @@ static void windivert_flow_established_v4_classify(
     flow_data.EndpointId = meta_vals->transportEndpointHandle;
     flow_data.ParentEndpointId = meta_vals->parentEndpointHandle;
     flow_data.ProcessId = (UINT32)meta_vals->processId;
-    windivert_get_ipv4_addr(fixed_vals,
+    cydivert_get_ipv4_addr(fixed_vals,
         FWPS_FIELD_ALE_FLOW_ESTABLISHED_V4_IP_LOCAL_ADDRESS,
         flow_data.LocalAddr);
-    windivert_get_ipv4_addr(fixed_vals,
+    cydivert_get_ipv4_addr(fixed_vals,
         FWPS_FIELD_ALE_FLOW_ESTABLISHED_V4_IP_REMOTE_ADDRESS,
         flow_data.RemoteAddr);
-    flow_data.LocalPort = windivert_get_val16(fixed_vals,
+    flow_data.LocalPort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_FLOW_ESTABLISHED_V4_IP_LOCAL_PORT);
-    flow_data.RemotePort = windivert_get_val16(fixed_vals,
+    flow_data.RemotePort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_FLOW_ESTABLISHED_V4_IP_REMOTE_PORT);
-    flow_data.Protocol = windivert_get_val8(fixed_vals,
+    flow_data.Protocol = cydivert_get_val8(fixed_vals,
         FWPS_FIELD_ALE_FLOW_ESTABLISHED_V4_IP_PROTOCOL);
 
-    outbound = (windivert_get_val32(fixed_vals,
+    outbound = (cydivert_get_val32(fixed_vals,
         FWPS_FIELD_ALE_FLOW_ESTABLISHED_V4_DIRECTION) ==
         FWP_DIRECTION_OUTBOUND);
-    loopback = ((windivert_get_val32(fixed_vals,
+    loopback = ((cydivert_get_val32(fixed_vals,
         FWPS_FIELD_ALE_FLOW_ESTABLISHED_V4_FLAGS) &
         FWP_CONDITION_FLAG_IS_LOOPBACK) != 0);
     flow_id = meta_vals->flowHandle;
 
-    windivert_flow_established_classify(context, flow_id, &flow_data,
+    cydivert_flow_established_classify(context, flow_id, &flow_data,
         /*ipv4=*/TRUE, outbound, loopback, result);
 }
 
 /*
- * WinDivert classify flow established IPv6 function.
+ * CyDivert classify flow established IPv6 function.
  */
-static void windivert_flow_established_v6_classify(
+static void cydivert_flow_established_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_FLOW flow_data;
+    CYDIVERT_DATA_FLOW flow_data;
     BOOL outbound, loopback;
     UINT64 flow_id;
     context_t context = (context_t)(ULONG_PTR)filter->context;
@@ -4020,36 +4016,36 @@ static void windivert_flow_established_v6_classify(
     flow_data.EndpointId = meta_vals->transportEndpointHandle;
     flow_data.ParentEndpointId = meta_vals->parentEndpointHandle;
     flow_data.ProcessId = (UINT32)meta_vals->processId;
-    windivert_get_ipv6_addr(fixed_vals,
+    cydivert_get_ipv6_addr(fixed_vals,
         FWPS_FIELD_ALE_FLOW_ESTABLISHED_V6_IP_LOCAL_ADDRESS,
         flow_data.LocalAddr);
-    windivert_get_ipv6_addr(fixed_vals,
+    cydivert_get_ipv6_addr(fixed_vals,
         FWPS_FIELD_ALE_FLOW_ESTABLISHED_V6_IP_REMOTE_ADDRESS,
         flow_data.RemoteAddr);
-    flow_data.LocalPort = windivert_get_val16(fixed_vals,
+    flow_data.LocalPort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_FLOW_ESTABLISHED_V6_IP_LOCAL_PORT);
-    flow_data.RemotePort = windivert_get_val16(fixed_vals,
+    flow_data.RemotePort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_FLOW_ESTABLISHED_V6_IP_REMOTE_PORT);
-    flow_data.Protocol = windivert_get_val8(fixed_vals,
+    flow_data.Protocol = cydivert_get_val8(fixed_vals,
         FWPS_FIELD_ALE_FLOW_ESTABLISHED_V6_IP_PROTOCOL);
     
-    outbound = (windivert_get_val32(fixed_vals,
+    outbound = (cydivert_get_val32(fixed_vals,
         FWPS_FIELD_ALE_FLOW_ESTABLISHED_V6_DIRECTION) ==
         FWP_DIRECTION_OUTBOUND);
-    loopback = ((windivert_get_val32(fixed_vals,
+    loopback = ((cydivert_get_val32(fixed_vals,
         FWPS_FIELD_ALE_FLOW_ESTABLISHED_V6_FLAGS) &
         FWP_CONDITION_FLAG_IS_LOOPBACK) != 0);
     flow_id = meta_vals->flowHandle;
     
-    windivert_flow_established_classify(context, flow_id, &flow_data,
+    cydivert_flow_established_classify(context, flow_id, &flow_data,
         /*ipv4=*/FALSE, outbound, loopback, result);
 }
 
 /*
- * WinDivert flow established classify function.
+ * CyDivert flow established classify function.
  */
-static void windivert_flow_established_classify(context_t context,
-    IN UINT64 flow_id, IN PWINDIVERT_DATA_FLOW flow_data, IN BOOL ipv4,
+static void cydivert_flow_established_classify(context_t context,
+    IN UINT64 flow_id, IN PCYDIVERT_DATA_FLOW flow_data, IN BOOL ipv4,
     IN BOOL outbound, IN BOOL loopback, OUT FWPS_CLASSIFY_OUT0 *result)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
@@ -4058,7 +4054,7 @@ static void windivert_flow_established_classify(context_t context,
     UINT16 layer_id;
     BOOL match, ok;
     WDFOBJECT object;
-    const WINDIVERT_FILTER *filter;
+    const CYDIVERT_FILTER *filter;
     LONGLONG timestamp;
     flow_t flow;
     NTSTATUS status;
@@ -4075,7 +4071,7 @@ static void windivert_flow_established_classify(context_t context,
     result->actionType = FWP_ACTION_CONTINUE;
 
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-    if (context->state != WINDIVERT_CONTEXT_STATE_OPEN ||
+    if (context->state != CYDIVERT_CONTEXT_STATE_OPEN ||
         context->shutdown_recv)
     {
         KeReleaseInStackQueuedSpinLock(&lock_handle);
@@ -4094,15 +4090,15 @@ static void windivert_flow_established_classify(context_t context,
     WdfObjectReference(object);
     KeReleaseInStackQueuedSpinLock(&lock_handle);
 
-    match = windivert_filter(/*buffer=*/NULL, /*layer=*/WINDIVERT_LAYER_FLOW,
+    match = cydivert_filter(/*buffer=*/NULL, /*layer=*/CYDIVERT_LAYER_FLOW,
         (PVOID)flow_data, timestamp,
-        /*event=*/WINDIVERT_EVENT_FLOW_ESTABLISHED, ipv4, outbound, loopback,
+        /*event=*/CYDIVERT_EVENT_FLOW_ESTABLISHED, ipv4, outbound, loopback,
         /*impostor=*/FALSE, /*frag_mode=*/FALSE, filter);
     if (match)
     {
-        ok = windivert_queue_work(context, /*packet=*/NULL, /*packet_len=*/0,
-            /*buffers=*/NULL, /*object=*/NULL, /*layer=*/WINDIVERT_LAYER_FLOW,
-            (PVOID)flow_data, /*event=*/WINDIVERT_EVENT_FLOW_ESTABLISHED,
+        ok = cydivert_queue_work(context, /*packet=*/NULL, /*packet_len=*/0,
+            /*buffers=*/NULL, /*object=*/NULL, /*layer=*/CYDIVERT_LAYER_FLOW,
+            (PVOID)flow_data, /*event=*/CYDIVERT_EVENT_FLOW_ESTABLISHED,
             flags, /*priority=*/0, ipv4, outbound, loopback, /*impostor=*/FALSE,
             match, timestamp);
         if (!ok)
@@ -4114,13 +4110,13 @@ static void windivert_flow_established_classify(context_t context,
 
     // Associate a context with the flow.  This is so we can detect the
     // FLOW_DELETED event.
-    if ((filter_flags & WINDIVERT_FILTER_FLAG_EVENT_FLOW_DELETED) == 0)
+    if ((filter_flags & CYDIVERT_FILTER_FLAG_EVENT_FLOW_DELETED) == 0)
     {
         // We don't care about FLOW_DELETED.
         WdfObjectDereference(object);
         return;
     }
-    flow = windivert_malloc(sizeof(struct flow_s), FALSE);
+    flow = cydivert_malloc(sizeof(struct flow_s), FALSE);
     if (flow == NULL)
     {
         WdfObjectDereference(object);
@@ -4143,17 +4139,17 @@ static void windivert_flow_established_classify(context_t context,
         (UINT64)flow);
     if (!NT_SUCCESS(status))
     {
-        windivert_free(flow);
+        cydivert_free(flow);
         WdfObjectDereference(object);
         return;
     }
 
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-    if (context->state != WINDIVERT_CONTEXT_STATE_OPEN ||
+    if (context->state != CYDIVERT_CONTEXT_STATE_OPEN ||
         context->shutdown_recv)
     {
         KeReleaseInStackQueuedSpinLock(&lock_handle);
-        windivert_free(flow);
+        cydivert_free(flow);
         WdfObjectDereference(object);
         return;
     }
@@ -4166,7 +4162,7 @@ static void windivert_flow_established_classify(context_t context,
     {
         // Flow was deleted before insertion; we are responsible for cleanup.
         KeReleaseInStackQueuedSpinLock(&lock_handle);
-        windivert_free(flow);
+        cydivert_free(flow);
         WdfObjectDereference(object);
         return;
     }
@@ -4174,9 +4170,9 @@ static void windivert_flow_established_classify(context_t context,
 }
 
 /*
- * WinDivert flow delete notify function.
+ * CyDivert flow delete notify function.
  */
-static void windivert_flow_delete_notify(UINT16 layer_id, UINT32 callout_id,
+static void cydivert_flow_delete_notify(UINT16 layer_id, UINT32 callout_id,
     UINT64 flow_context)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
@@ -4184,7 +4180,7 @@ static void windivert_flow_delete_notify(UINT16 layer_id, UINT32 callout_id,
     BOOL match, cleanup;
     WDFOBJECT object;
     context_t context;
-    const WINDIVERT_FILTER *filter;
+    const CYDIVERT_FILTER *filter;
     LONGLONG timestamp;
     flow_t flow;
 
@@ -4208,48 +4204,48 @@ static void windivert_flow_delete_notify(UINT16 layer_id, UINT32 callout_id,
     }
     flow->deleted = TRUE;
     cleanup = flow->inserted;
-    if (context->state != WINDIVERT_CONTEXT_STATE_OPEN ||
+    if (context->state != CYDIVERT_CONTEXT_STATE_OPEN ||
         context->shutdown_recv)
     {
         KeReleaseInStackQueuedSpinLock(&lock_handle);
-        goto windivert_flow_delete_notify_exit;
+        goto cydivert_flow_delete_notify_exit;
     }
     filter = context->filter;
     flags = context->flags;
     KeReleaseInStackQueuedSpinLock(&lock_handle);
 
-    match = windivert_filter(/*buffer=*/NULL, /*layer=*/WINDIVERT_LAYER_FLOW,
-        (PVOID)&flow->data, timestamp, /*event=*/WINDIVERT_EVENT_FLOW_DELETED,
+    match = cydivert_filter(/*buffer=*/NULL, /*layer=*/CYDIVERT_LAYER_FLOW,
+        (PVOID)&flow->data, timestamp, /*event=*/CYDIVERT_EVENT_FLOW_DELETED,
         !flow->ipv6, flow->outbound, flow->loopback, /*impostor=*/FALSE,
         /*frag_mode=*/FALSE, filter);
     if (match)
     {
-        (VOID)windivert_queue_work(context, /*packet=*/NULL, /*packet_len=*/0,
-            /*buffers=*/NULL, /*object=*/NULL, /*layer=*/WINDIVERT_LAYER_FLOW,
-            (PVOID)&flow->data, /*event=*/WINDIVERT_EVENT_FLOW_DELETED, flags,
+        (VOID)cydivert_queue_work(context, /*packet=*/NULL, /*packet_len=*/0,
+            /*buffers=*/NULL, /*object=*/NULL, /*layer=*/CYDIVERT_LAYER_FLOW,
+            (PVOID)&flow->data, /*event=*/CYDIVERT_EVENT_FLOW_DELETED, flags,
             /*priority=*/0, !flow->ipv6, flow->outbound, flow->loopback,
             /*impostor=*/FALSE, match, timestamp);
     }
 
-windivert_flow_delete_notify_exit:
+cydivert_flow_delete_notify_exit:
 
     if (cleanup)
     {
-        windivert_free(flow);
+        cydivert_free(flow);
         WdfObjectDereference(object);
     }
 }
 
 /*
- * WinDivert classify resource assignment IPv4 function.
+ * CyDivert classify resource assignment IPv4 function.
  */
-static void windivert_resource_assignment_v4_classify(
+static void cydivert_resource_assignment_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_SOCKET socket_data;
+    CYDIVERT_DATA_SOCKET socket_data;
     BOOL loopback;
     context_t context = (context_t)(ULONG_PTR)filter->context;
 
@@ -4264,35 +4260,35 @@ static void windivert_resource_assignment_v4_classify(
     socket_data.EndpointId = meta_vals->transportEndpointHandle;
     socket_data.ParentEndpointId = 0;
     socket_data.ProcessId = (UINT32)meta_vals->processId;
-    windivert_get_ipv4_addr(fixed_vals,
+    cydivert_get_ipv4_addr(fixed_vals,
         FWPS_FIELD_ALE_RESOURCE_ASSIGNMENT_V4_IP_LOCAL_ADDRESS,
         socket_data.LocalAddr);
     RtlZeroMemory(&socket_data.RemoteAddr, sizeof(socket_data.RemoteAddr));
-    socket_data.LocalPort = windivert_get_val16(fixed_vals,
+    socket_data.LocalPort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_RESOURCE_ASSIGNMENT_V4_IP_LOCAL_PORT);
     socket_data.RemotePort = 0;
-    socket_data.Protocol = windivert_get_val8(fixed_vals,
+    socket_data.Protocol = cydivert_get_val8(fixed_vals,
         FWPS_FIELD_ALE_RESOURCE_ASSIGNMENT_V4_IP_PROTOCOL);
 
-    loopback = ((windivert_get_val32(fixed_vals,
+    loopback = ((cydivert_get_val32(fixed_vals,
         FWPS_FIELD_ALE_RESOURCE_ASSIGNMENT_V4_FLAGS) &
         FWP_CONDITION_FLAG_IS_LOOPBACK) != 0);
 
-    windivert_socket_classify(context, &socket_data,
-        /*event=*/WINDIVERT_EVENT_SOCKET_BIND, /*ipv4=*/TRUE,
+    cydivert_socket_classify(context, &socket_data,
+        /*event=*/CYDIVERT_EVENT_SOCKET_BIND, /*ipv4=*/TRUE,
         /*outbound=*/TRUE, loopback, result);
 }
 
 /*
- * WinDivert classify resource assignment IPv6 function.
+ * CyDivert classify resource assignment IPv6 function.
  */
-static void windivert_resource_assignment_v6_classify(
+static void cydivert_resource_assignment_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_SOCKET socket_data;
+    CYDIVERT_DATA_SOCKET socket_data;
     BOOL loopback;
     context_t context = (context_t)(ULONG_PTR)filter->context;
 
@@ -4307,35 +4303,35 @@ static void windivert_resource_assignment_v6_classify(
     socket_data.EndpointId = meta_vals->transportEndpointHandle;
     socket_data.ParentEndpointId = 0;
     socket_data.ProcessId = (UINT32)meta_vals->processId;
-    windivert_get_ipv6_addr(fixed_vals,
+    cydivert_get_ipv6_addr(fixed_vals,
         FWPS_FIELD_ALE_RESOURCE_ASSIGNMENT_V6_IP_LOCAL_ADDRESS,
         socket_data.LocalAddr);
     RtlZeroMemory(&socket_data.RemoteAddr, sizeof(socket_data.RemoteAddr));
-    socket_data.LocalPort = windivert_get_val16(fixed_vals,
+    socket_data.LocalPort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_RESOURCE_ASSIGNMENT_V6_IP_LOCAL_PORT);
     socket_data.RemotePort = 0;
-    socket_data.Protocol = windivert_get_val8(fixed_vals,
+    socket_data.Protocol = cydivert_get_val8(fixed_vals,
         FWPS_FIELD_ALE_RESOURCE_ASSIGNMENT_V6_IP_PROTOCOL);
 
-    loopback = ((windivert_get_val32(fixed_vals,
+    loopback = ((cydivert_get_val32(fixed_vals,
         FWPS_FIELD_ALE_RESOURCE_ASSIGNMENT_V6_FLAGS) &
         FWP_CONDITION_FLAG_IS_LOOPBACK) != 0);
 
-    windivert_socket_classify(context, &socket_data,
-        /*event=*/WINDIVERT_EVENT_SOCKET_BIND, /*ipv4=*/FALSE,
+    cydivert_socket_classify(context, &socket_data,
+        /*event=*/CYDIVERT_EVENT_SOCKET_BIND, /*ipv4=*/FALSE,
         /*outbound=*/TRUE, loopback, result);
 }
 
 /*
- * WinDivert classify resource release IPv4 function.
+ * CyDivert classify resource release IPv4 function.
  */
-static void windivert_resource_release_v4_classify(
+static void cydivert_resource_release_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_SOCKET socket_data;
+    CYDIVERT_DATA_SOCKET socket_data;
     BOOL loopback;
     context_t context = (context_t)(ULONG_PTR)filter->context;
 
@@ -4345,35 +4341,35 @@ static void windivert_resource_release_v4_classify(
     socket_data.EndpointId = meta_vals->transportEndpointHandle;
     socket_data.ParentEndpointId = 0;
     socket_data.ProcessId = (UINT32)meta_vals->processId;
-    windivert_get_ipv4_addr(fixed_vals,
+    cydivert_get_ipv4_addr(fixed_vals,
         FWPS_FIELD_ALE_RESOURCE_RELEASE_V4_IP_LOCAL_ADDRESS,
         socket_data.LocalAddr);
     RtlZeroMemory(&socket_data.RemoteAddr, sizeof(socket_data.RemoteAddr));
-    socket_data.LocalPort = windivert_get_val16(fixed_vals,
+    socket_data.LocalPort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_RESOURCE_RELEASE_V4_IP_LOCAL_PORT);
     socket_data.RemotePort = 0;
-    socket_data.Protocol = windivert_get_val8(fixed_vals,
+    socket_data.Protocol = cydivert_get_val8(fixed_vals,
         FWPS_FIELD_ALE_RESOURCE_RELEASE_V4_IP_PROTOCOL);
 
-    loopback = ((windivert_get_val32(fixed_vals,
+    loopback = ((cydivert_get_val32(fixed_vals,
         FWPS_FIELD_ALE_RESOURCE_RELEASE_V4_FLAGS) &
         FWP_CONDITION_FLAG_IS_LOOPBACK) != 0);
 
-    windivert_socket_classify(context, &socket_data,
-        /*event=*/WINDIVERT_EVENT_SOCKET_CLOSE, /*ipv4=*/TRUE,
+    cydivert_socket_classify(context, &socket_data,
+        /*event=*/CYDIVERT_EVENT_SOCKET_CLOSE, /*ipv4=*/TRUE,
         /*outbound=*/TRUE, loopback, result);
 }
 
 /*
- * WinDivert classify resource release IPv6 function.
+ * CyDivert classify resource release IPv6 function.
  */
-static void windivert_resource_release_v6_classify(
+static void cydivert_resource_release_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_SOCKET socket_data;
+    CYDIVERT_DATA_SOCKET socket_data;
     BOOL loopback;
     context_t context = (context_t)(ULONG_PTR)filter->context;
 
@@ -4383,35 +4379,35 @@ static void windivert_resource_release_v6_classify(
     socket_data.EndpointId = meta_vals->transportEndpointHandle;
     socket_data.ParentEndpointId = 0;
     socket_data.ProcessId = (UINT32)meta_vals->processId;
-    windivert_get_ipv6_addr(fixed_vals,
+    cydivert_get_ipv6_addr(fixed_vals,
         FWPS_FIELD_ALE_RESOURCE_RELEASE_V6_IP_LOCAL_ADDRESS,
         socket_data.LocalAddr);
     RtlZeroMemory(&socket_data.RemoteAddr, sizeof(socket_data.RemoteAddr));
-    socket_data.LocalPort = windivert_get_val16(fixed_vals,
+    socket_data.LocalPort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_RESOURCE_RELEASE_V6_IP_LOCAL_PORT);
     socket_data.RemotePort = 0;
-    socket_data.Protocol = windivert_get_val8(fixed_vals,
+    socket_data.Protocol = cydivert_get_val8(fixed_vals,
         FWPS_FIELD_ALE_RESOURCE_RELEASE_V6_IP_PROTOCOL);
 
-    loopback = ((windivert_get_val32(fixed_vals,
+    loopback = ((cydivert_get_val32(fixed_vals,
         FWPS_FIELD_ALE_RESOURCE_RELEASE_V6_FLAGS) &
         FWP_CONDITION_FLAG_IS_LOOPBACK) != 0);
 
-    windivert_socket_classify(context, &socket_data,
-        /*event=*/WINDIVERT_EVENT_SOCKET_CLOSE, /*ipv4=*/FALSE,
+    cydivert_socket_classify(context, &socket_data,
+        /*event=*/CYDIVERT_EVENT_SOCKET_CLOSE, /*ipv4=*/FALSE,
         /*outbound=*/TRUE, loopback, result);
 }
 
 /*
- * WinDivert classify auth connect IPv4 function.
+ * CyDivert classify auth connect IPv4 function.
  */
-static void windivert_auth_connect_v4_classify(
+static void cydivert_auth_connect_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_SOCKET socket_data;
+    CYDIVERT_DATA_SOCKET socket_data;
     UINT32 flags;
     BOOL loopback;
     context_t context = (context_t)(ULONG_PTR)filter->context;
@@ -4423,7 +4419,7 @@ static void windivert_auth_connect_v4_classify(
     {
         return;
     }
-    flags = windivert_get_val32(fixed_vals,
+    flags = cydivert_get_val32(fixed_vals,
         FWPS_FIELD_ALE_AUTH_CONNECT_V4_FLAGS);
     if ((flags & FWP_CONDITION_FLAG_IS_REAUTHORIZE) != 0)
     {
@@ -4434,36 +4430,36 @@ static void windivert_auth_connect_v4_classify(
     socket_data.EndpointId = meta_vals->transportEndpointHandle;
     socket_data.ParentEndpointId = meta_vals->parentEndpointHandle;
     socket_data.ProcessId = (UINT32)meta_vals->processId;
-    windivert_get_ipv4_addr(fixed_vals,
+    cydivert_get_ipv4_addr(fixed_vals,
         FWPS_FIELD_ALE_AUTH_CONNECT_V4_IP_LOCAL_ADDRESS,
         socket_data.LocalAddr);
-    windivert_get_ipv4_addr(fixed_vals,
+    cydivert_get_ipv4_addr(fixed_vals,
         FWPS_FIELD_ALE_AUTH_CONNECT_V4_IP_REMOTE_ADDRESS,
         socket_data.RemoteAddr);
-    socket_data.LocalPort = windivert_get_val16(fixed_vals,
+    socket_data.LocalPort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_AUTH_CONNECT_V4_IP_LOCAL_PORT);
-    socket_data.RemotePort = windivert_get_val16(fixed_vals,
+    socket_data.RemotePort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_AUTH_CONNECT_V4_IP_REMOTE_PORT);
-    socket_data.Protocol = windivert_get_val8(fixed_vals,
+    socket_data.Protocol = cydivert_get_val8(fixed_vals,
         FWPS_FIELD_ALE_AUTH_CONNECT_V4_IP_PROTOCOL);
 
     loopback = ((flags & FWP_CONDITION_FLAG_IS_LOOPBACK) != 0);
 
-    windivert_socket_classify(context, &socket_data,
-        /*event=*/WINDIVERT_EVENT_SOCKET_CONNECT, /*ipv4=*/TRUE,
+    cydivert_socket_classify(context, &socket_data,
+        /*event=*/CYDIVERT_EVENT_SOCKET_CONNECT, /*ipv4=*/TRUE,
         /*outbound=*/TRUE, loopback, result);
 }
 
 /*
- * WinDivert classify auth connect IPv6 function.
+ * CyDivert classify auth connect IPv6 function.
  */
-static void windivert_auth_connect_v6_classify(
+static void cydivert_auth_connect_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_SOCKET socket_data;
+    CYDIVERT_DATA_SOCKET socket_data;
     UINT32 flags;
     BOOL loopback;
     context_t context = (context_t)(ULONG_PTR)filter->context;
@@ -4475,7 +4471,7 @@ static void windivert_auth_connect_v6_classify(
     {
         return;
     }
-    flags = windivert_get_val32(fixed_vals,
+    flags = cydivert_get_val32(fixed_vals,
         FWPS_FIELD_ALE_AUTH_CONNECT_V6_FLAGS);
     if ((flags & FWP_CONDITION_FLAG_IS_REAUTHORIZE) != 0)
     {
@@ -4486,36 +4482,36 @@ static void windivert_auth_connect_v6_classify(
     socket_data.EndpointId = meta_vals->transportEndpointHandle;
     socket_data.ParentEndpointId = meta_vals->parentEndpointHandle;
     socket_data.ProcessId = (UINT32)meta_vals->processId;
-    windivert_get_ipv6_addr(fixed_vals,
+    cydivert_get_ipv6_addr(fixed_vals,
         FWPS_FIELD_ALE_AUTH_CONNECT_V6_IP_LOCAL_ADDRESS,
         socket_data.LocalAddr);
-    windivert_get_ipv6_addr(fixed_vals,
+    cydivert_get_ipv6_addr(fixed_vals,
         FWPS_FIELD_ALE_AUTH_CONNECT_V6_IP_REMOTE_ADDRESS,
         socket_data.RemoteAddr);
-    socket_data.LocalPort = windivert_get_val16(fixed_vals,
+    socket_data.LocalPort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_AUTH_CONNECT_V6_IP_LOCAL_PORT);
-    socket_data.RemotePort = windivert_get_val16(fixed_vals,
+    socket_data.RemotePort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_AUTH_CONNECT_V6_IP_REMOTE_PORT);
-    socket_data.Protocol = windivert_get_val8(fixed_vals,
+    socket_data.Protocol = cydivert_get_val8(fixed_vals,
         FWPS_FIELD_ALE_AUTH_CONNECT_V6_IP_PROTOCOL);
 
     loopback = ((flags & FWP_CONDITION_FLAG_IS_LOOPBACK) != 0);
 
-    windivert_socket_classify(context, &socket_data,
-        /*event=*/WINDIVERT_EVENT_SOCKET_CONNECT, /*ipv4=*/FALSE,
+    cydivert_socket_classify(context, &socket_data,
+        /*event=*/CYDIVERT_EVENT_SOCKET_CONNECT, /*ipv4=*/FALSE,
         /*outbound=*/TRUE, loopback, result);
 }
 
 /*
- * WinDivert classify endpoint closure IPv4 function.
+ * CyDivert classify endpoint closure IPv4 function.
  */
-static void windivert_endpoint_closure_v4_classify(
+static void cydivert_endpoint_closure_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_SOCKET socket_data;
+    CYDIVERT_DATA_SOCKET socket_data;
     BOOL loopback;
     context_t context = (context_t)(ULONG_PTR)filter->context;
 
@@ -4525,38 +4521,38 @@ static void windivert_endpoint_closure_v4_classify(
     socket_data.EndpointId = meta_vals->transportEndpointHandle;
     socket_data.ParentEndpointId = meta_vals->parentEndpointHandle;
     socket_data.ProcessId = (UINT32)meta_vals->processId;
-    windivert_get_ipv4_addr(fixed_vals,
+    cydivert_get_ipv4_addr(fixed_vals,
         FWPS_FIELD_ALE_ENDPOINT_CLOSURE_V4_IP_LOCAL_ADDRESS,
         socket_data.LocalAddr);
-    windivert_get_ipv4_addr(fixed_vals,
+    cydivert_get_ipv4_addr(fixed_vals,
         FWPS_FIELD_ALE_ENDPOINT_CLOSURE_V4_IP_REMOTE_ADDRESS,
         socket_data.RemoteAddr);
-    socket_data.LocalPort = windivert_get_val16(fixed_vals,
+    socket_data.LocalPort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_ENDPOINT_CLOSURE_V4_IP_LOCAL_PORT);
-    socket_data.RemotePort = windivert_get_val16(fixed_vals,
+    socket_data.RemotePort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_ENDPOINT_CLOSURE_V4_IP_REMOTE_PORT);
-    socket_data.Protocol = windivert_get_val8(fixed_vals,
+    socket_data.Protocol = cydivert_get_val8(fixed_vals,
         FWPS_FIELD_ALE_ENDPOINT_CLOSURE_V4_IP_PROTOCOL);
 
-    loopback = ((windivert_get_val32(fixed_vals,
+    loopback = ((cydivert_get_val32(fixed_vals,
         FWPS_FIELD_ALE_ENDPOINT_CLOSURE_V4_FLAGS) &
         FWP_CONDITION_FLAG_IS_LOOPBACK) != 0);
 
-    windivert_socket_classify(context, &socket_data,
-        /*event=*/WINDIVERT_EVENT_SOCKET_CLOSE, /*ipv4=*/TRUE,
+    cydivert_socket_classify(context, &socket_data,
+        /*event=*/CYDIVERT_EVENT_SOCKET_CLOSE, /*ipv4=*/TRUE,
         /*outbound=*/TRUE, loopback, result);
 }
 
 /*
- * WinDivert classify endpoint closure IPv6 function.
+ * CyDivert classify endpoint closure IPv6 function.
  */
-static void windivert_endpoint_closure_v6_classify(
+static void cydivert_endpoint_closure_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_SOCKET socket_data;
+    CYDIVERT_DATA_SOCKET socket_data;
     BOOL loopback;
     context_t context = (context_t)(ULONG_PTR)filter->context;
 
@@ -4566,38 +4562,38 @@ static void windivert_endpoint_closure_v6_classify(
     socket_data.EndpointId = meta_vals->transportEndpointHandle;
     socket_data.ParentEndpointId = meta_vals->parentEndpointHandle;
     socket_data.ProcessId = (UINT32)meta_vals->processId;
-    windivert_get_ipv6_addr(fixed_vals,
+    cydivert_get_ipv6_addr(fixed_vals,
         FWPS_FIELD_ALE_ENDPOINT_CLOSURE_V6_IP_LOCAL_ADDRESS,
         socket_data.LocalAddr);
-    windivert_get_ipv6_addr(fixed_vals,
+    cydivert_get_ipv6_addr(fixed_vals,
         FWPS_FIELD_ALE_ENDPOINT_CLOSURE_V6_IP_REMOTE_ADDRESS,
         socket_data.RemoteAddr);
-    socket_data.LocalPort = windivert_get_val16(fixed_vals,
+    socket_data.LocalPort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_ENDPOINT_CLOSURE_V6_IP_LOCAL_PORT);
-    socket_data.RemotePort = windivert_get_val16(fixed_vals,
+    socket_data.RemotePort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_ENDPOINT_CLOSURE_V6_IP_REMOTE_PORT);
-    socket_data.Protocol = windivert_get_val8(fixed_vals,
+    socket_data.Protocol = cydivert_get_val8(fixed_vals,
         FWPS_FIELD_ALE_ENDPOINT_CLOSURE_V6_IP_PROTOCOL);
 
-    loopback = ((windivert_get_val32(fixed_vals,
+    loopback = ((cydivert_get_val32(fixed_vals,
         FWPS_FIELD_ALE_ENDPOINT_CLOSURE_V6_FLAGS) &
         FWP_CONDITION_FLAG_IS_LOOPBACK) != 0);
 
-    windivert_socket_classify(context, &socket_data,
-        /*event=*/WINDIVERT_EVENT_SOCKET_CLOSE, /*ipv4=*/FALSE,
+    cydivert_socket_classify(context, &socket_data,
+        /*event=*/CYDIVERT_EVENT_SOCKET_CLOSE, /*ipv4=*/FALSE,
         /*outbound=*/TRUE, loopback, result);
 }
 
 /*
- * WinDivert classify auth listen IPv4 function.
+ * CyDivert classify auth listen IPv4 function.
  */
-static void windivert_auth_listen_v4_classify(
+static void cydivert_auth_listen_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_SOCKET socket_data;
+    CYDIVERT_DATA_SOCKET socket_data;
     BOOL loopback;
     context_t context = (context_t)(ULONG_PTR)filter->context;
 
@@ -4612,34 +4608,34 @@ static void windivert_auth_listen_v4_classify(
     socket_data.EndpointId = meta_vals->transportEndpointHandle;
     socket_data.ParentEndpointId = 0;
     socket_data.ProcessId = (UINT32)meta_vals->processId;
-    windivert_get_ipv4_addr(fixed_vals,
+    cydivert_get_ipv4_addr(fixed_vals,
         FWPS_FIELD_ALE_AUTH_LISTEN_V4_IP_LOCAL_ADDRESS,
         socket_data.LocalAddr);
     RtlZeroMemory(&socket_data.RemoteAddr, sizeof(socket_data.RemoteAddr));
-    socket_data.LocalPort = windivert_get_val16(fixed_vals,
+    socket_data.LocalPort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_AUTH_LISTEN_V4_IP_LOCAL_PORT);
     socket_data.RemotePort = 0;
     socket_data.Protocol = IPPROTO_TCP;
 
-    loopback = ((windivert_get_val32(fixed_vals,
+    loopback = ((cydivert_get_val32(fixed_vals,
         FWPS_FIELD_ALE_AUTH_LISTEN_V4_FLAGS) &
         FWP_CONDITION_FLAG_IS_LOOPBACK) != 0);
 
-    windivert_socket_classify(context, &socket_data,
-        /*event=*/WINDIVERT_EVENT_SOCKET_LISTEN, /*ipv4=*/TRUE,
+    cydivert_socket_classify(context, &socket_data,
+        /*event=*/CYDIVERT_EVENT_SOCKET_LISTEN, /*ipv4=*/TRUE,
         /*outbound=*/TRUE, loopback, result);
 }
 
 /*
- * WinDivert classify auth listen IPv6 function.
+ * CyDivert classify auth listen IPv6 function.
  */
-static void windivert_auth_listen_v6_classify(
+static void cydivert_auth_listen_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_SOCKET socket_data;
+    CYDIVERT_DATA_SOCKET socket_data;
     BOOL loopback;
     context_t context = (context_t)(ULONG_PTR)filter->context;
 
@@ -4654,34 +4650,34 @@ static void windivert_auth_listen_v6_classify(
     socket_data.EndpointId = meta_vals->transportEndpointHandle;
     socket_data.ParentEndpointId = 0;
     socket_data.ProcessId = (UINT32)meta_vals->processId;
-    windivert_get_ipv6_addr(fixed_vals,
+    cydivert_get_ipv6_addr(fixed_vals,
         FWPS_FIELD_ALE_AUTH_LISTEN_V6_IP_LOCAL_ADDRESS,
         socket_data.LocalAddr);
     RtlZeroMemory(&socket_data.RemoteAddr, sizeof(socket_data.RemoteAddr));
-    socket_data.LocalPort = windivert_get_val16(fixed_vals,
+    socket_data.LocalPort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_AUTH_LISTEN_V6_IP_LOCAL_PORT);
     socket_data.RemotePort = 0;
     socket_data.Protocol = IPPROTO_TCP;
 
-    loopback = ((windivert_get_val32(fixed_vals,
+    loopback = ((cydivert_get_val32(fixed_vals,
         FWPS_FIELD_ALE_AUTH_LISTEN_V6_FLAGS) &
         FWP_CONDITION_FLAG_IS_LOOPBACK) != 0);
 
-    windivert_socket_classify(context, &socket_data,
-        /*event=*/WINDIVERT_EVENT_SOCKET_LISTEN, /*ipv4=*/FALSE,
+    cydivert_socket_classify(context, &socket_data,
+        /*event=*/CYDIVERT_EVENT_SOCKET_LISTEN, /*ipv4=*/FALSE,
         /*outbound=*/TRUE, loopback, result);
 }
 
 /*
- * WinDivert classify auth recv accept IPv4 function.
+ * CyDivert classify auth recv accept IPv4 function.
  */
-static void windivert_auth_recv_accept_v4_classify(
+static void cydivert_auth_recv_accept_v4_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_SOCKET socket_data;
+    CYDIVERT_DATA_SOCKET socket_data;
     UINT32 flags;
     BOOL loopback;
     context_t context = (context_t)(ULONG_PTR)filter->context;
@@ -4693,7 +4689,7 @@ static void windivert_auth_recv_accept_v4_classify(
     {
         return;
     }
-    flags = windivert_get_val32(fixed_vals,
+    flags = cydivert_get_val32(fixed_vals,
         FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V4_FLAGS);
     if ((flags & FWP_CONDITION_FLAG_IS_REAUTHORIZE) != 0)
     {
@@ -4704,36 +4700,36 @@ static void windivert_auth_recv_accept_v4_classify(
     socket_data.EndpointId = meta_vals->transportEndpointHandle;
     socket_data.ParentEndpointId = meta_vals->parentEndpointHandle;
     socket_data.ProcessId = (UINT32)meta_vals->processId;
-    windivert_get_ipv4_addr(fixed_vals,
+    cydivert_get_ipv4_addr(fixed_vals,
         FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V4_IP_LOCAL_ADDRESS,
         socket_data.LocalAddr);
-    windivert_get_ipv4_addr(fixed_vals,
+    cydivert_get_ipv4_addr(fixed_vals,
         FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V4_IP_REMOTE_ADDRESS,
         socket_data.RemoteAddr);
-    socket_data.LocalPort = windivert_get_val16(fixed_vals,
+    socket_data.LocalPort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V4_IP_LOCAL_PORT);
-    socket_data.RemotePort = windivert_get_val16(fixed_vals,
+    socket_data.RemotePort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V4_IP_REMOTE_PORT);
-    socket_data.Protocol = windivert_get_val8(fixed_vals,
+    socket_data.Protocol = cydivert_get_val8(fixed_vals,
         FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V4_IP_PROTOCOL);
 
     loopback = ((flags & FWP_CONDITION_FLAG_IS_LOOPBACK) != 0);
 
-    windivert_socket_classify(context, &socket_data,
-        /*event=*/WINDIVERT_EVENT_SOCKET_ACCEPT, /*ipv4=*/TRUE,
+    cydivert_socket_classify(context, &socket_data,
+        /*event=*/CYDIVERT_EVENT_SOCKET_ACCEPT, /*ipv4=*/TRUE,
         /*outbound=*/FALSE, loopback, result);
 }
 
 /*
- * WinDivert classify auth recv accept IPv6 function.
+ * CyDivert classify auth recv accept IPv6 function.
  */
-static void windivert_auth_recv_accept_v6_classify(
+static void cydivert_auth_recv_accept_v6_classify(
     IN const FWPS_INCOMING_VALUES0 *fixed_vals,
     IN const FWPS_INCOMING_METADATA_VALUES0 *meta_vals, IN OUT void *data,
     const FWPS_FILTER0 *filter, IN UINT64 flow_context,
     OUT FWPS_CLASSIFY_OUT0 *result)
 {
-    WINDIVERT_DATA_SOCKET socket_data;
+    CYDIVERT_DATA_SOCKET socket_data;
     UINT32 flags;
     BOOL loopback;
     context_t context = (context_t)(ULONG_PTR)filter->context;
@@ -4745,7 +4741,7 @@ static void windivert_auth_recv_accept_v6_classify(
     {
         return;
     }
-    flags = windivert_get_val32(fixed_vals,
+    flags = cydivert_get_val32(fixed_vals,
         FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V6_FLAGS);
     if ((flags & FWP_CONDITION_FLAG_IS_REAUTHORIZE) != 0)
     {
@@ -4756,38 +4752,38 @@ static void windivert_auth_recv_accept_v6_classify(
     socket_data.EndpointId = meta_vals->transportEndpointHandle;
     socket_data.ParentEndpointId = meta_vals->parentEndpointHandle;
     socket_data.ProcessId = (UINT32)meta_vals->processId;
-    windivert_get_ipv6_addr(fixed_vals,
+    cydivert_get_ipv6_addr(fixed_vals,
         FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V6_IP_LOCAL_ADDRESS,
         socket_data.LocalAddr);
-    windivert_get_ipv6_addr(fixed_vals,
+    cydivert_get_ipv6_addr(fixed_vals,
         FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V6_IP_REMOTE_ADDRESS,
         socket_data.RemoteAddr);
-    socket_data.LocalPort = windivert_get_val16(fixed_vals,
+    socket_data.LocalPort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V6_IP_LOCAL_PORT);
-    socket_data.RemotePort = windivert_get_val16(fixed_vals,
+    socket_data.RemotePort = cydivert_get_val16(fixed_vals,
         FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V6_IP_REMOTE_PORT);
-    socket_data.Protocol = windivert_get_val8(fixed_vals,
+    socket_data.Protocol = cydivert_get_val8(fixed_vals,
         FWPS_FIELD_ALE_AUTH_RECV_ACCEPT_V6_IP_PROTOCOL);
 
     loopback = ((flags & FWP_CONDITION_FLAG_IS_LOOPBACK) != 0);
 
-    windivert_socket_classify(context, &socket_data,
-        /*event=*/WINDIVERT_EVENT_SOCKET_ACCEPT, /*ipv4=*/FALSE,
+    cydivert_socket_classify(context, &socket_data,
+        /*event=*/CYDIVERT_EVENT_SOCKET_ACCEPT, /*ipv4=*/FALSE,
         /*outbound=*/FALSE, loopback, result);
 }
 
 /*
- * WinDivert socket classify function.
+ * CyDivert socket classify function.
  */
-static void windivert_socket_classify(context_t context,
-    PWINDIVERT_DATA_SOCKET socket_data, WINDIVERT_EVENT event, BOOL ipv4,
+static void cydivert_socket_classify(context_t context,
+    PCYDIVERT_DATA_SOCKET socket_data, CYDIVERT_EVENT event, BOOL ipv4,
     BOOL outbound, BOOL loopback, FWPS_CLASSIFY_OUT0 *result)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
     UINT64 flags;
     BOOL match, ok;
     WDFOBJECT object;
-    const WINDIVERT_FILTER *filter;
+    const CYDIVERT_FILTER *filter;
     LONGLONG timestamp;
 
     // Get the timestamp.
@@ -4799,7 +4795,7 @@ static void windivert_socket_classify(context_t context,
     }
 
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-    if (context->state != WINDIVERT_CONTEXT_STATE_OPEN ||
+    if (context->state != CYDIVERT_CONTEXT_STATE_OPEN ||
         context->shutdown_recv)
     {
         KeReleaseInStackQueuedSpinLock(&lock_handle);
@@ -4811,13 +4807,13 @@ static void windivert_socket_classify(context_t context,
     WdfObjectReference(object);
     KeReleaseInStackQueuedSpinLock(&lock_handle);
 
-    match = windivert_filter(/*buffer=*/NULL, /*layer=*/WINDIVERT_LAYER_SOCKET,
+    match = cydivert_filter(/*buffer=*/NULL, /*layer=*/CYDIVERT_LAYER_SOCKET,
         (PVOID)socket_data, timestamp, event, ipv4, outbound, loopback,
         /*impostor=*/FALSE, /*frag_mode=*/FALSE, filter);
     if (match)
     {
-        ok = windivert_queue_work(context, /*packet=*/NULL, /*packet_len=*/0,
-            /*buffers=*/NULL, /*object=*/NULL, /*layer=*/WINDIVERT_LAYER_SOCKET,
+        ok = cydivert_queue_work(context, /*packet=*/NULL, /*packet_len=*/0,
+            /*buffers=*/NULL, /*object=*/NULL, /*layer=*/CYDIVERT_LAYER_SOCKET,
             (PVOID)socket_data, event, flags, /*priority=*/0, ipv4, outbound,
             loopback, /*impostor=*/FALSE, match, timestamp);
         if (!ok)
@@ -4829,8 +4825,8 @@ static void windivert_socket_classify(context_t context,
 
     WdfObjectDereference(object);
     if (match && (result->rights & FWPS_RIGHT_ACTION_WRITE) != 0 &&
-        event != WINDIVERT_EVENT_SOCKET_CLOSE &&
-        (flags & WINDIVERT_FLAG_SNIFF) == 0)
+        event != CYDIVERT_EVENT_SOCKET_CLOSE &&
+        (flags & CYDIVERT_FLAG_SNIFF) == 0)
     {
         result->actionType = FWP_ACTION_BLOCK;
         result->flags |= FWPS_CLASSIFY_OUT_FLAG_ABSORB;
@@ -4839,18 +4835,18 @@ static void windivert_socket_classify(context_t context,
 }
 
 /*
- * WinDivert work item routine for out-of-band filtering.
+ * CyDivert work item routine for out-of-band filtering.
  */
-VOID windivert_worker(IN WDFWORKITEM item)
+VOID cydivert_worker(IN WDFWORKITEM item)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
     WDFFILEOBJECT object = (WDFFILEOBJECT)WdfWorkItemGetParentObject(item);
-    context_t context = windivert_context_get(object);
+    context_t context = cydivert_context_get(object);
     PLIST_ENTRY entry;
     packet_t work;
 
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-    while (context->state == WINDIVERT_CONTEXT_STATE_OPEN &&
+    while (context->state == CYDIVERT_CONTEXT_STATE_OPEN &&
             !IsListEmpty(&context->work_queue))
     {
         entry = RemoveHeadList(&context->work_queue);
@@ -4860,26 +4856,26 @@ VOID windivert_worker(IN WDFWORKITEM item)
         work = CONTAINING_RECORD(entry, struct packet_s, entry);
         if (work->match)
         {
-            windivert_queue_packet(context, work);
+            cydivert_queue_packet(context, work);
         }
         else
         {
-            windivert_inject_packet(work);
+            cydivert_inject_packet(work);
         }
 
         KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
     }
     KeReleaseInStackQueuedSpinLock(&lock_handle);
 
-    windivert_read_service(context);
+    cydivert_read_service(context);
 }
 
 /*
  * Queue work.
  */
-static BOOL windivert_queue_work(context_t context, PVOID packet,
+static BOOL cydivert_queue_work(context_t context, PVOID packet,
     ULONG packet_len, PNET_BUFFER_LIST buffers, PVOID object,
-    WINDIVERT_LAYER layer, PVOID layer_data, WINDIVERT_EVENT event,
+    CYDIVERT_LAYER layer, PVOID layer_data, CYDIVERT_EVENT event,
     UINT64 flags, UINT32 priority, BOOL ipv4, BOOL outbound, BOOL loopback,
     BOOL impostor, BOOL match, LONGLONG timestamp)
 {
@@ -4890,22 +4886,22 @@ static BOOL windivert_queue_work(context_t context, PVOID packet,
     UINT8 *data;
     PLIST_ENTRY old_entry;
     NDIS_TCP_IP_CHECKSUM_NET_BUFFER_LIST_INFO checksums;
-    PWINDIVERT_DATA_NETWORK network_data;
-    PWINDIVERT_DATA_FLOW flow_data;
-    PWINDIVERT_DATA_SOCKET socket_data;
-    PWINDIVERT_DATA_REFLECT reflect_data;
+    PCYDIVERT_DATA_NETWORK network_data;
+    PCYDIVERT_DATA_FLOW flow_data;
+    PCYDIVERT_DATA_SOCKET socket_data;
+    PCYDIVERT_DATA_REFLECT reflect_data;
     BOOL sniffed, ip_checksum, tcp_checksum, udp_checksum;
     WDFREQUEST request = NULL;
     NTSTATUS status;
 
-    sniffed = ((flags & WINDIVERT_FLAG_SNIFF) != 0 ||
-        event == WINDIVERT_EVENT_SOCKET_CLOSE);
+    sniffed = ((flags & CYDIVERT_FLAG_SNIFF) != 0 ||
+        event == CYDIVERT_EVENT_SOCKET_CLOSE);
 
     if (!match && sniffed)
     {
         return TRUE;
     }
-    if (match && (flags & WINDIVERT_FLAG_DROP) != 0)
+    if (match && (flags & CYDIVERT_FLAG_DROP) != 0)
     {
         return TRUE;
     }
@@ -4914,7 +4910,7 @@ static BOOL windivert_queue_work(context_t context, PVOID packet,
     if (match)
     {
         KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-        if (context->state == WINDIVERT_CONTEXT_STATE_OPEN &&
+        if (context->state == CYDIVERT_CONTEXT_STATE_OPEN &&
             !context->shutdown_recv && IsListEmpty(&context->packet_queue) &&
             IsListEmpty(&context->work_queue))
         {
@@ -4925,7 +4921,7 @@ static BOOL windivert_queue_work(context_t context, PVOID packet,
         KeReleaseInStackQueuedSpinLock(&lock_handle);
         if (request != NULL)
         {
-            windivert_fast_read_service_request(packet, packet_len, buffers,
+            cydivert_fast_read_service_request(packet, packet_len, buffers,
                 layer, layer_data, event, flags, ipv4, outbound, loopback,
                 impostor, timestamp, request);
             return TRUE;
@@ -4935,29 +4931,29 @@ static BOOL windivert_queue_work(context_t context, PVOID packet,
     // Copy the packet & layer data.
     switch (layer)
     {
-        case WINDIVERT_LAYER_NETWORK:
-        case WINDIVERT_LAYER_NETWORK_FORWARD:
+        case CYDIVERT_LAYER_NETWORK:
+        case CYDIVERT_LAYER_NETWORK_FORWARD:
             buffer = (PNET_BUFFER)packet;
-            network_data = (PWINDIVERT_DATA_NETWORK)layer_data;
-            if (packet_len > WINDIVERT_MTU_MAX)
+            network_data = (PCYDIVERT_DATA_NETWORK)layer_data;
+            if (packet_len > CYDIVERT_MTU_MAX)
             {
                 // Cannot handle oversized packet
                 return TRUE;
             }
-            packet_size = WINDIVERT_PACKET_SIZE(WINDIVERT_DATA_NETWORK,
+            packet_size = CYDIVERT_PACKET_SIZE(CYDIVERT_DATA_NETWORK,
                 packet_len);
-            work = (packet_t)windivert_malloc(packet_size, FALSE);
+            work = (packet_t)cydivert_malloc(packet_size, FALSE);
             if (work == NULL)
             {
                 return TRUE;
             }
             work->packet_len = (UINT32)packet_len;
-            data = WINDIVERT_LAYER_DATA_PTR(work);
-            RtlCopyMemory(data, network_data, sizeof(WINDIVERT_DATA_NETWORK));
-            data = WINDIVERT_PACKET_DATA_PTR(WINDIVERT_DATA_NETWORK, work);
-            if (!windivert_copy_data(buffer, data, packet_len))
+            data = CYDIVERT_LAYER_DATA_PTR(work);
+            RtlCopyMemory(data, network_data, sizeof(CYDIVERT_DATA_NETWORK));
+            data = CYDIVERT_PACKET_DATA_PTR(CYDIVERT_DATA_NETWORK, work);
+            if (!cydivert_copy_data(buffer, data, packet_len))
             {
-                windivert_free(work);
+                cydivert_free(work);
                 return TRUE;
             }
             checksums.Value = NET_BUFFER_LIST_INFO(buffers,
@@ -4976,47 +4972,47 @@ static BOOL windivert_queue_work(context_t context, PVOID packet,
             }
             break;
 
-        case WINDIVERT_LAYER_FLOW:
-            flow_data = (PWINDIVERT_DATA_FLOW)layer_data;
-            packet_size = WINDIVERT_PACKET_SIZE(WINDIVERT_DATA_FLOW, 0);
-            work = (packet_t)windivert_malloc(packet_size, FALSE);
+        case CYDIVERT_LAYER_FLOW:
+            flow_data = (PCYDIVERT_DATA_FLOW)layer_data;
+            packet_size = CYDIVERT_PACKET_SIZE(CYDIVERT_DATA_FLOW, 0);
+            work = (packet_t)cydivert_malloc(packet_size, FALSE);
             if (work == NULL)
             {
                 return TRUE;
             }
             work->packet_len = 0;
-            data = WINDIVERT_LAYER_DATA_PTR(work);
-            RtlCopyMemory(data, flow_data, sizeof(WINDIVERT_DATA_FLOW));
+            data = CYDIVERT_LAYER_DATA_PTR(work);
+            RtlCopyMemory(data, flow_data, sizeof(CYDIVERT_DATA_FLOW));
             ip_checksum = tcp_checksum = udp_checksum = FALSE;
             break;
  
-        case WINDIVERT_LAYER_SOCKET:
-            socket_data = (PWINDIVERT_DATA_SOCKET)layer_data;
-            packet_size = WINDIVERT_PACKET_SIZE(WINDIVERT_DATA_SOCKET, 0);
-            work = (packet_t)windivert_malloc(packet_size, FALSE);
+        case CYDIVERT_LAYER_SOCKET:
+            socket_data = (PCYDIVERT_DATA_SOCKET)layer_data;
+            packet_size = CYDIVERT_PACKET_SIZE(CYDIVERT_DATA_SOCKET, 0);
+            work = (packet_t)cydivert_malloc(packet_size, FALSE);
             if (work == NULL)
             {
                 return TRUE;
             }
             work->packet_len = 0;
-            data = WINDIVERT_LAYER_DATA_PTR(work);
-            RtlCopyMemory(data, socket_data, sizeof(WINDIVERT_DATA_SOCKET));
+            data = CYDIVERT_LAYER_DATA_PTR(work);
+            RtlCopyMemory(data, socket_data, sizeof(CYDIVERT_DATA_SOCKET));
             ip_checksum = tcp_checksum = udp_checksum = FALSE;
             break;
 
-        case WINDIVERT_LAYER_REFLECT:
-            reflect_data = (PWINDIVERT_DATA_REFLECT)layer_data;
-            packet_size = WINDIVERT_PACKET_SIZE(WINDIVERT_DATA_REFLECT,
+        case CYDIVERT_LAYER_REFLECT:
+            reflect_data = (PCYDIVERT_DATA_REFLECT)layer_data;
+            packet_size = CYDIVERT_PACKET_SIZE(CYDIVERT_DATA_REFLECT,
                 packet_len);
-            work = (packet_t)windivert_malloc(packet_size, FALSE);
+            work = (packet_t)cydivert_malloc(packet_size, FALSE);
             if (work == NULL)
             {
                 return TRUE;
             }
             work->packet_len = packet_len;
-            data = WINDIVERT_LAYER_DATA_PTR(work);
-            RtlCopyMemory(data, reflect_data, sizeof(WINDIVERT_DATA_REFLECT));
-            data = WINDIVERT_PACKET_DATA_PTR(WINDIVERT_DATA_REFLECT, work);
+            data = CYDIVERT_LAYER_DATA_PTR(work);
+            RtlCopyMemory(data, reflect_data, sizeof(CYDIVERT_DATA_REFLECT));
+            data = CYDIVERT_PACKET_DATA_PTR(CYDIVERT_DATA_REFLECT, work);
             RtlCopyMemory(data, packet, packet_len);
             ip_checksum = tcp_checksum = udp_checksum = FALSE;
             break;
@@ -5048,24 +5044,24 @@ static BOOL windivert_queue_work(context_t context, PVOID packet,
 
     old_entry = NULL;
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-    if (context->state != WINDIVERT_CONTEXT_STATE_OPEN)
+    if (context->state != CYDIVERT_CONTEXT_STATE_OPEN)
     {
         KeReleaseInStackQueuedSpinLock(&lock_handle);
-        windivert_free_packet(work);
+        cydivert_free_packet(work);
         return FALSE;
     }
     if (context->shutdown_recv && context->shutdown_recv_enabled)
     {
-        if ((flags & WINDIVERT_FLAG_SNIFF) != 0)
+        if ((flags & CYDIVERT_FLAG_SNIFF) != 0)
         {
             KeReleaseInStackQueuedSpinLock(&lock_handle);
-            windivert_free_packet(work);
+            cydivert_free_packet(work);
             return FALSE;
         }
         work->match = FALSE;
     }
     context->work_queue_length++;
-    if (context->work_queue_length > WINDIVERT_WORK_QUEUE_LENGTH_MAX)
+    if (context->work_queue_length > CYDIVERT_WORK_QUEUE_LENGTH_MAX)
     {
         // The work queue is full; as an emergency we drop packets.
         old_entry = RemoveHeadList(&context->work_queue);
@@ -5078,7 +5074,7 @@ static BOOL windivert_queue_work(context_t context, PVOID packet,
     if (old_entry != NULL)
     {
         work = CONTAINING_RECORD(old_entry, struct packet_s, entry);
-        windivert_free_packet(work);
+        cydivert_free_packet(work);
     }
 
     return TRUE;
@@ -5087,7 +5083,7 @@ static BOOL windivert_queue_work(context_t context, PVOID packet,
 /*
  * Queue a packet.
  */
-static void windivert_queue_packet(context_t context, packet_t packet)
+static void cydivert_queue_packet(context_t context, packet_t packet)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
     PLIST_ENTRY old_entry;
@@ -5099,25 +5095,25 @@ static void windivert_queue_packet(context_t context, packet_t packet)
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
     while (TRUE)
     {
-        if (context->state != WINDIVERT_CONTEXT_STATE_OPEN)
+        if (context->state != CYDIVERT_CONTEXT_STATE_OPEN)
         {
             KeReleaseInStackQueuedSpinLock(&lock_handle);
-            windivert_inject_packet(packet);
+            cydivert_inject_packet(packet);
             return;
         }
         if (packet->packet_size > context->packet_queue_maxsize)
         {
             // (Corner case) the packet is larger than the max queue size:
             KeReleaseInStackQueuedSpinLock(&lock_handle);
-            windivert_free_packet(packet);
+            cydivert_free_packet(packet);
             return;
         }
-        timeout = WINDIVERT_TIMEOUT(context, packet->timestamp, timestamp);
+        timeout = CYDIVERT_TIMEOUT(context, packet->timestamp, timestamp);
         if (timeout)
         {
             // (Corner case) the packet has already expired:
             KeReleaseInStackQueuedSpinLock(&lock_handle);
-            windivert_free_packet(packet);
+            cydivert_free_packet(packet);
             return;
         }
 
@@ -5132,7 +5128,7 @@ static void windivert_queue_packet(context_t context, packet_t packet)
             context->packet_queue_size -= old_packet->packet_size;
             KeReleaseInStackQueuedSpinLock(&lock_handle);
             DEBUG("DROP: packet queue is full, dropping packet");
-            windivert_free_packet(old_packet);
+            cydivert_free_packet(old_packet);
             timestamp = KeQueryPerformanceCounter(NULL).QuadPart;
             KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
             continue;
@@ -5156,45 +5152,45 @@ static void windivert_queue_packet(context_t context, packet_t packet)
 /*
  * Inject a packet.
  */
-static NTSTATUS windivert_inject_packet(packet_t packet)
+static NTSTATUS cydivert_inject_packet(packet_t packet)
 {
     UINT8 *packet_data;
     UINT32 packet_len;
     UINT64 checksums;
-    PWINDIVERT_DATA_NETWORK network_data;
+    PCYDIVERT_DATA_NETWORK network_data;
     PMDL mdl;
     PNET_BUFFER_LIST buffers;
     HANDLE handle;
     UINT32 priority;
     NTSTATUS status;
 
-    if (packet->layer != WINDIVERT_LAYER_NETWORK &&
-        packet->layer != WINDIVERT_LAYER_NETWORK_FORWARD)
+    if (packet->layer != CYDIVERT_LAYER_NETWORK &&
+        packet->layer != CYDIVERT_LAYER_NETWORK_FORWARD)
     {
-        windivert_free_packet(packet);
+        cydivert_free_packet(packet);
         return STATUS_INVALID_PARAMETER;
     }
 
-    network_data = (PWINDIVERT_DATA_NETWORK)WINDIVERT_LAYER_DATA_PTR(packet);
-    packet_data = WINDIVERT_PACKET_DATA_PTR(WINDIVERT_DATA_NETWORK, packet);
+    network_data = (PCYDIVERT_DATA_NETWORK)CYDIVERT_LAYER_DATA_PTR(packet);
+    packet_data = CYDIVERT_PACKET_DATA_PTR(CYDIVERT_DATA_NETWORK, packet);
     packet_len = packet->packet_len;
 
     // Fix checksums:
     checksums =
-        (packet->ip_checksum == 0?   0: WINDIVERT_HELPER_NO_IP_CHECKSUM) |
-        (packet->tcp_checksum == 0?  0: WINDIVERT_HELPER_NO_TCP_CHECKSUM) |
-        (packet->udp_checksum == 0?  0: WINDIVERT_HELPER_NO_UDP_CHECKSUM) |
-        (packet->icmp_checksum == 0? 0: WINDIVERT_HELPER_NO_ICMP_CHECKSUM |
-                                        WINDIVERT_HELPER_NO_ICMPV6_CHECKSUM);
-    WinDivertHelperCalcChecksums(packet_data, packet_len, NULL, checksums);
+        (packet->ip_checksum == 0?   0: CYDIVERT_HELPER_NO_IP_CHECKSUM) |
+        (packet->tcp_checksum == 0?  0: CYDIVERT_HELPER_NO_TCP_CHECKSUM) |
+        (packet->udp_checksum == 0?  0: CYDIVERT_HELPER_NO_UDP_CHECKSUM) |
+        (packet->icmp_checksum == 0? 0: CYDIVERT_HELPER_NO_ICMP_CHECKSUM |
+                                        CYDIVERT_HELPER_NO_ICMPV6_CHECKSUM);
+    CyDivertHelperCalcChecksums(packet_data, packet_len, NULL, checksums);
 
     // Decrement TTL for impostor packets:
     if (packet->impostor != 0 &&
-            !WinDivertHelperDecrementTTL(packet_data, packet_len))
+            !CyDivertHelperDecrementTTL(packet_data, packet_len))
     {
         status = STATUS_HOPLIMIT_EXCEEDED;
         DEBUG_ERROR("failed to inject ttl-exceeded impostor packet", status);
-        windivert_free_packet(packet);
+        cydivert_free_packet(packet);
         return status;
     }
 
@@ -5204,7 +5200,7 @@ static NTSTATUS windivert_inject_packet(packet_t packet)
     {
         status = STATUS_INSUFFICIENT_RESOURCES;
         DEBUG_ERROR("failed to allocate MDL for injected packet", status);
-        windivert_free_packet(packet);
+        cydivert_free_packet(packet);
         return status;
     }
     MmBuildMdlForNonPagedPool(mdl);
@@ -5215,23 +5211,23 @@ static NTSTATUS windivert_inject_packet(packet_t packet)
         DEBUG_ERROR("failed to create NET_BUFFER_LIST for injected packet",
             status);
         IoFreeMdl(mdl);
-        windivert_free_packet(packet);
+        cydivert_free_packet(packet);
         return status;
     }
     priority = packet->priority;
-    if (packet->layer == WINDIVERT_LAYER_NETWORK_FORWARD)
+    if (packet->layer == CYDIVERT_LAYER_NETWORK_FORWARD)
     {
         handle = (packet->ipv6? injectv6_handle_forward: inject_handle_forward);
         status = FwpsInjectForwardAsync0(handle, (HANDLE)priority, 0,
             (packet->ipv6? AF_INET6: AF_INET), UNSPECIFIED_COMPARTMENT_ID,
-            network_data->IfIdx, buffers, windivert_inject_complete,
+            network_data->IfIdx, buffers, cydivert_inject_complete,
             (HANDLE)packet);
     }
     else if (packet->outbound)
     {
         handle = (packet->ipv6? injectv6_handle_out: inject_handle_out);
         status = FwpsInjectNetworkSendAsync0(handle, (HANDLE)priority, 0,
-            UNSPECIFIED_COMPARTMENT_ID, buffers, windivert_inject_complete,
+            UNSPECIFIED_COMPARTMENT_ID, buffers, cydivert_inject_complete,
             (HANDLE)packet);
     }
     else
@@ -5239,7 +5235,7 @@ static NTSTATUS windivert_inject_packet(packet_t packet)
         handle = (packet->ipv6? injectv6_handle_in: inject_handle_in);
         status = FwpsInjectNetworkReceiveAsync0(handle, (HANDLE)priority, 0,
             UNSPECIFIED_COMPARTMENT_ID, network_data->IfIdx,
-            network_data->SubIfIdx, buffers, windivert_inject_complete,
+            network_data->SubIfIdx, buffers, cydivert_inject_complete,
             (HANDLE)packet);
     }
 
@@ -5248,7 +5244,7 @@ static NTSTATUS windivert_inject_packet(packet_t packet)
         DEBUG_ERROR("failed to inject (packet=%p)", status, packet);
         FwpsFreeNetBufferList0(buffers);
         IoFreeMdl(mdl);
-        windivert_free_packet(packet);
+        cydivert_free_packet(packet);
     }
     return status;
 }
@@ -5256,19 +5252,19 @@ static NTSTATUS windivert_inject_packet(packet_t packet)
 /*
  * Free a packet.
  */
-static void windivert_free_packet(packet_t packet)
+static void cydivert_free_packet(packet_t packet)
 {
     if (packet->object != NULL)
     {
         ObDereferenceObject(packet->object);
     }
-    windivert_free(packet);
+    cydivert_free(packet);
 }
 
 /*
- * WinDivert inject complete routine.
+ * CyDivert inject complete routine.
  */
-static void NTAPI windivert_inject_complete(VOID *context,
+static void NTAPI cydivert_inject_complete(VOID *context,
     NET_BUFFER_LIST *buffers, BOOLEAN dispatch_level)
 {
     PMDL mdl;
@@ -5283,30 +5279,30 @@ static void NTAPI windivert_inject_complete(VOID *context,
         // the packet was larger than the MTU.  We generate an ICMP
         // Fragmentation Needed (for IPv4) or an ICMPV6 Packet Too Big (for
         // IPv6) message to allow for PMTU discovery.
-        windivert_inject_packet_too_big(packet);
+        cydivert_inject_packet_too_big(packet);
     }
 
     buffer = NET_BUFFER_LIST_FIRST_NB(buffers);
     mdl = NET_BUFFER_FIRST_MDL(buffer);
     IoFreeMdl(mdl);
     FwpsFreeNetBufferList0(buffers);
-    windivert_free_packet(packet);
+    cydivert_free_packet(packet);
 }
 
 /*
- * WinDivert inject an ICMP(V6) Packet Too Big message.
+ * CyDivert inject an ICMP(V6) Packet Too Big message.
  */
-static void windivert_inject_packet_too_big(packet_t packet)
+static void cydivert_inject_packet_too_big(packet_t packet)
 {
     const UINT mtus[] =
     {
         568, 768, 1024, 1192, 1280, 1372, 1452, 1500, 4096, UINT16_MAX,
             UINT32_MAX
     };
-    PWINDIVERT_IPHDR ip_header, ip_header_2;
-    PWINDIVERT_IPV6HDR ipv6_header, ipv6_header_2;
-    PWINDIVERT_ICMPHDR icmp_header;
-    PWINDIVERT_ICMPV6HDR icmpv6_header;
+    PCYDIVERT_IPHDR ip_header, ip_header_2;
+    PCYDIVERT_IPV6HDR ipv6_header = NULL, ipv6_header_2;
+    PCYDIVERT_ICMPHDR icmp_header;
+    PCYDIVERT_ICMPV6HDR icmpv6_header;
     packet_t icmp;
     UINT version, packet_len, copy_len, icmp_len;
     UINT icmp_size;
@@ -5314,13 +5310,13 @@ static void windivert_inject_packet_too_big(packet_t packet)
     UINT32 flowlabel;
     UINT8 *data;
 
-    if (packet->layer != WINDIVERT_LAYER_NETWORK || !packet->outbound ||
+    if (packet->layer != CYDIVERT_LAYER_NETWORK || !packet->outbound ||
             packet->loopback)
     {
         return;
     }
-    ip_header = (PWINDIVERT_IPHDR)WINDIVERT_PACKET_DATA_PTR(
-        WINDIVERT_DATA_NETWORK, packet);
+    ip_header = (PCYDIVERT_IPHDR)CYDIVERT_PACKET_DATA_PTR(
+        CYDIVERT_DATA_NETWORK, packet);
     version = ip_header->Version;
     switch (version)
     {
@@ -5328,19 +5324,19 @@ static void windivert_inject_packet_too_big(packet_t packet)
             packet_len = RtlUshortByteSwap(ip_header->Length);
             copy_len = ip_header->HdrLength * sizeof(UINT32) + 8;
             copy_len = (packet_len < copy_len? packet_len: copy_len);
-            icmp_len = sizeof(WINDIVERT_IPHDR) + sizeof(WINDIVERT_ICMPHDR) +
+            icmp_len = sizeof(CYDIVERT_IPHDR) + sizeof(CYDIVERT_ICMPHDR) +
                 copy_len;
             break;
         case 6:
-            ipv6_header = (PWINDIVERT_IPV6HDR)ip_header;
+            ipv6_header = (PCYDIVERT_IPV6HDR)ip_header;
             packet_len = RtlUshortByteSwap(ipv6_header->Length) +
-                sizeof(WINDIVERT_IPV6HDR);
+                sizeof(CYDIVERT_IPV6HDR);
             min_mtu = /*ipv6 min MTU=*/1280;
-            copy_len = min_mtu - sizeof(WINDIVERT_IPV6HDR) -
-                sizeof(WINDIVERT_ICMPV6HDR);
+            copy_len = min_mtu - sizeof(CYDIVERT_IPV6HDR) -
+                sizeof(CYDIVERT_ICMPV6HDR);
             copy_len = (packet_len < copy_len? packet_len: copy_len);
-            icmp_len = sizeof(WINDIVERT_IPV6HDR) +
-                sizeof(WINDIVERT_ICMPV6HDR) + copy_len;
+            icmp_len = sizeof(CYDIVERT_IPV6HDR) +
+                sizeof(CYDIVERT_ICMPV6HDR) + copy_len;
             break;
         default:
             return;
@@ -5356,14 +5352,14 @@ static void windivert_inject_packet_too_big(packet_t packet)
     mtu = (i == 0? min_mtu: mtus[i-1]);
     mtu = (mtu < min_mtu? min_mtu: mtu);
 
-    icmp_size = WINDIVERT_PACKET_SIZE(WINDIVERT_DATA_NETWORK, icmp_len);
-    icmp = (packet_t)windivert_malloc(icmp_size, FALSE);
+    icmp_size = CYDIVERT_PACKET_SIZE(CYDIVERT_DATA_NETWORK, icmp_len);
+    icmp = (packet_t)cydivert_malloc(icmp_size, FALSE);
     if (icmp == NULL)
     {
         return;
     }
-    icmp->layer         = WINDIVERT_LAYER_NETWORK;
-    icmp->event         = WINDIVERT_EVENT_NETWORK_PACKET;
+    icmp->layer         = CYDIVERT_LAYER_NETWORK;
+    icmp->event         = CYDIVERT_EVENT_NETWORK_PACKET;
     icmp->sniffed       = 0;        // Unused
     icmp->outbound      = 0;        // Inbound
     icmp->loopback      = 0;        // Unused
@@ -5379,15 +5375,15 @@ static void windivert_inject_packet_too_big(packet_t packet)
     icmp->priority      = packet->priority;
     icmp->timestamp     = 0;        // Unused
     icmp->object        = NULL;
-    RtlCopyMemory(WINDIVERT_LAYER_DATA_PTR(icmp),
-        WINDIVERT_LAYER_DATA_PTR(packet), sizeof(WINDIVERT_DATA_NETWORK));
-    data = WINDIVERT_PACKET_DATA_PTR(WINDIVERT_DATA_NETWORK, icmp);
+    RtlCopyMemory(CYDIVERT_LAYER_DATA_PTR(icmp),
+        CYDIVERT_LAYER_DATA_PTR(packet), sizeof(CYDIVERT_DATA_NETWORK));
+    data = CYDIVERT_PACKET_DATA_PTR(CYDIVERT_DATA_NETWORK, icmp);
     switch (version)
     {
         case 4:
-            ip_header_2 = (PWINDIVERT_IPHDR)data;
+            ip_header_2 = (PCYDIVERT_IPHDR)data;
             ip_header_2->Version   = 4;
-            ip_header_2->HdrLength = sizeof(WINDIVERT_IPHDR) / sizeof(UINT32);
+            ip_header_2->HdrLength = sizeof(CYDIVERT_IPHDR) / sizeof(UINT32);
             ip_header_2->TOS       = 0x0;
             ip_header_2->Length    = RtlUshortByteSwap(icmp_len);
             ip_header_2->Id        = 0x0;
@@ -5395,11 +5391,11 @@ static void windivert_inject_packet_too_big(packet_t packet)
             ip_header_2->Protocol  = IPPROTO_ICMP;
             ip_header_2->SrcAddr   = ip_header->DstAddr;
             ip_header_2->DstAddr   = ip_header->SrcAddr;
-            WINDIVERT_IPHDR_SET_FRAGOFF(ip_header_2, 0x0);
-            WINDIVERT_IPHDR_SET_MF(ip_header_2, 0);
-            WINDIVERT_IPHDR_SET_DF(ip_header_2, 1);
-            WINDIVERT_IPHDR_SET_RESERVED(ip_header_2, 0x0);
-            icmp_header = (PWINDIVERT_ICMPHDR)(ip_header_2 + 1);
+            CYDIVERT_IPHDR_SET_FRAGOFF(ip_header_2, 0x0);
+            CYDIVERT_IPHDR_SET_MF(ip_header_2, 0);
+            CYDIVERT_IPHDR_SET_DF(ip_header_2, 1);
+            CYDIVERT_IPHDR_SET_RESERVED(ip_header_2, 0x0);
+            icmp_header = (PCYDIVERT_ICMPHDR)(ip_header_2 + 1);
             icmp_header->Type      = /*Destination Unreachable=*/3;
             icmp_header->Code      = /*Fragmentation required=*/4;
             icmp_header->Body      = ((UINT32)RtlUshortByteSwap(mtu)) << 16;
@@ -5407,8 +5403,8 @@ static void windivert_inject_packet_too_big(packet_t packet)
             RtlCopyMemory(data, ip_header, copy_len);
             break;
         case 6:
-            icmp_len -= sizeof(WINDIVERT_IPV6HDR);
-            ipv6_header_2 = (PWINDIVERT_IPV6HDR)data;
+            icmp_len -= sizeof(CYDIVERT_IPV6HDR);
+            ipv6_header_2 = (PCYDIVERT_IPV6HDR)data;
             ipv6_header_2->Version  = 6;
             ipv6_header_2->Length   = RtlUshortByteSwap(icmp_len);
             ipv6_header_2->NextHdr  = IPPROTO_ICMPV6;
@@ -5417,10 +5413,10 @@ static void windivert_inject_packet_too_big(packet_t packet)
                 sizeof(ipv6_header_2->SrcAddr));
             RtlCopyMemory(ipv6_header_2->DstAddr, ipv6_header->SrcAddr,
                 sizeof(ipv6_header_2->DstAddr));
-            WINDIVERT_IPV6HDR_SET_TRAFFICCLASS(ipv6_header_2, 0x0);
-            flowlabel = WINDIVERT_IPV6HDR_GET_FLOWLABEL(ipv6_header);
-            WINDIVERT_IPV6HDR_SET_FLOWLABEL(ipv6_header_2, flowlabel);
-            icmpv6_header = (PWINDIVERT_ICMPV6HDR)(ipv6_header_2 + 1);
+            CYDIVERT_IPV6HDR_SET_TRAFFICCLASS(ipv6_header_2, 0x0);
+            flowlabel = CYDIVERT_IPV6HDR_GET_FLOWLABEL(ipv6_header);
+            CYDIVERT_IPV6HDR_SET_FLOWLABEL(ipv6_header_2, flowlabel);
+            icmpv6_header = (PCYDIVERT_ICMPV6HDR)(ipv6_header_2 + 1);
             icmpv6_header->Type = /*Packet Too Big=*/2;
             icmpv6_header->Code = 0;
             icmpv6_header->Body = RtlUlongByteSwap(mtu);
@@ -5428,13 +5424,13 @@ static void windivert_inject_packet_too_big(packet_t packet)
             RtlCopyMemory(data, ipv6_header, copy_len);
             break;
     }
-    windivert_inject_packet(icmp);
+    cydivert_inject_packet(icmp);
 }
 
 /*
  * Copy data from a NET_BUFFER.
  */
-static BOOL windivert_copy_data(PNET_BUFFER buffer, PVOID data, UINT size)
+static BOOL cydivert_copy_data(PNET_BUFFER buffer, PVOID data, UINT size)
 {
     PVOID ptr;
 
@@ -5460,7 +5456,7 @@ static BOOL windivert_copy_data(PNET_BUFFER buffer, PVOID data, UINT size)
 /*
  * Lookup packet/payload data at given index.
  */
-static BOOL windivert_get_data(PNET_BUFFER buffer, UINT length, INT min,
+static BOOL cydivert_get_data(PNET_BUFFER buffer, UINT length, INT min,
     INT max, INT idx, PVOID data, UINT size)
 {
     BOOL success;
@@ -5476,7 +5472,7 @@ static BOOL windivert_get_data(PNET_BUFFER buffer, UINT length, INT min,
     {
         NdisAdvanceNetBufferDataStart(buffer, idx, FALSE, NULL);
     }
-    success = windivert_copy_data(buffer, data, size);
+    success = cydivert_copy_data(buffer, data, size);
     if (idx > 0)
     {
         (VOID)NdisRetreatNetBufferDataStart(buffer, idx, 0, NULL);
@@ -5487,21 +5483,21 @@ static BOOL windivert_get_data(PNET_BUFFER buffer, UINT length, INT min,
 /*
  * Parse packet headers.
  */
-static WINDIVERT_INLINE BOOL windivert_parse_headers(PNET_BUFFER buffer,
-    BOOL ipv4, BOOL *fragment_ptr, PWINDIVERT_IPHDR *ip_header_ptr,
-    PWINDIVERT_IPV6HDR *ipv6_header_ptr, PWINDIVERT_ICMPHDR *icmp_header_ptr,
-    PWINDIVERT_ICMPV6HDR *icmpv6_header_ptr, PWINDIVERT_TCPHDR *tcp_header_ptr,
-    PWINDIVERT_UDPHDR *udp_header_ptr, UINT8 *proto_ptr, UINT *header_len_ptr,
+static CYDIVERT_INLINE BOOL cydivert_parse_headers(PNET_BUFFER buffer,
+    BOOL ipv4, BOOL *fragment_ptr, PCYDIVERT_IPHDR *ip_header_ptr,
+    PCYDIVERT_IPV6HDR *ipv6_header_ptr, PCYDIVERT_ICMPHDR *icmp_header_ptr,
+    PCYDIVERT_ICMPV6HDR *icmpv6_header_ptr, PCYDIVERT_TCPHDR *tcp_header_ptr,
+    PCYDIVERT_UDPHDR *udp_header_ptr, UINT8 *proto_ptr, UINT *header_len_ptr,
     UINT *payload_len_ptr)
 {
     UINT total_len, ip_header_len = 0;
-    PWINDIVERT_IPHDR ip_header = NULL;
-    PWINDIVERT_IPV6HDR ipv6_header = NULL;
-    PWINDIVERT_ICMPHDR icmp_header = NULL;
-    PWINDIVERT_ICMPV6HDR icmpv6_header = NULL;
-    PWINDIVERT_TCPHDR tcp_header = NULL;
-    PWINDIVERT_UDPHDR udp_header = NULL;
-    PWINDIVERT_IPV6FRAGHDR frag_header;
+    PCYDIVERT_IPHDR ip_header = NULL;
+    PCYDIVERT_IPV6HDR ipv6_header = NULL;
+    PCYDIVERT_ICMPHDR icmp_header = NULL;
+    PCYDIVERT_ICMPV6HDR icmpv6_header = NULL;
+    PCYDIVERT_TCPHDR tcp_header = NULL;
+    PCYDIVERT_UDPHDR udp_header = NULL;
+    PCYDIVERT_IPV6FRAGHDR frag_header;
     BOOL fragment = FALSE;
     UINT8 protocol = 0;
     UINT16 frag_off = 0;
@@ -5515,7 +5511,7 @@ static WINDIVERT_INLINE BOOL windivert_parse_headers(PNET_BUFFER buffer,
         return FALSE;
     }
     total_len = NET_BUFFER_DATA_LENGTH(buffer);
-    if (total_len < sizeof(WINDIVERT_IPHDR))
+    if (total_len < sizeof(CYDIVERT_IPHDR))
     {
         DEBUG("FILTER: REJECT (packet length too small)");
         return FALSE;
@@ -5525,13 +5521,13 @@ static WINDIVERT_INLINE BOOL windivert_parse_headers(PNET_BUFFER buffer,
     if (ipv4)
     {
         // IPv4:
-        if (total_len < sizeof(WINDIVERT_IPHDR))
+        if (total_len < sizeof(CYDIVERT_IPHDR))
         {
             DEBUG("FILTER: REJECT (packet length too small)");
             return FALSE;
         }
-        ip_header = (PWINDIVERT_IPHDR)NdisGetDataBuffer(buffer,
-            sizeof(WINDIVERT_IPHDR), NULL, 1, 0);
+        ip_header = (PCYDIVERT_IPHDR)NdisGetDataBuffer(buffer,
+            sizeof(CYDIVERT_IPHDR), NULL, 1, 0);
         if (ip_header == NULL)
         {
             DEBUG("FILTER: REJECT (failed to get IPv4 header)");
@@ -5546,31 +5542,31 @@ static WINDIVERT_INLINE BOOL windivert_parse_headers(PNET_BUFFER buffer,
             DEBUG("FILTER: REJECT (bad IPv4 packet)");
             return FALSE;
         }
-        frag_off = RtlUshortByteSwap(WINDIVERT_IPHDR_GET_FRAGOFF(ip_header));
-        fragment = (frag_off != 0 || WINDIVERT_IPHDR_GET_MF(ip_header) != 0);
+        frag_off = RtlUshortByteSwap(CYDIVERT_IPHDR_GET_FRAGOFF(ip_header));
+        fragment = (frag_off != 0 || CYDIVERT_IPHDR_GET_MF(ip_header) != 0);
         protocol = ip_header->Protocol;
         NdisAdvanceNetBufferDataStart(buffer, ip_header_len, FALSE, NULL);
     }
     else
     {
         // IPv6:
-        if (total_len < sizeof(WINDIVERT_IPV6HDR))
+        if (total_len < sizeof(CYDIVERT_IPV6HDR))
         {
             DEBUG("FILTER: REJECT (packet length too small)");
             return FALSE;
         }
-        ipv6_header = (PWINDIVERT_IPV6HDR)NdisGetDataBuffer(buffer,
-            sizeof(WINDIVERT_IPV6HDR), NULL, 1, 0);
+        ipv6_header = (PCYDIVERT_IPV6HDR)NdisGetDataBuffer(buffer,
+            sizeof(CYDIVERT_IPV6HDR), NULL, 1, 0);
         if (ipv6_header == NULL)
         {
             DEBUG("FILTER: REJECT (failed to get IPv6 header)");
             return FALSE;
         }
-        ip_header_len = sizeof(WINDIVERT_IPV6HDR);
+        ip_header_len = sizeof(CYDIVERT_IPV6HDR);
         if (ipv6_header->Version != 6 ||
             ip_header_len > total_len ||
             RtlUshortByteSwap(ipv6_header->Length) +
-                sizeof(WINDIVERT_IPV6HDR) != total_len)
+                sizeof(CYDIVERT_IPV6HDR) != total_len)
         {
             DEBUG("FILTER: REJECT (bad IPv6 packet)");
             return FALSE;
@@ -5587,7 +5583,7 @@ static WINDIVERT_INLINE BOOL windivert_parse_headers(PNET_BUFFER buffer,
             switch (protocol)
             {
                 case IPPROTO_FRAGMENT:
-                    frag_header = (PWINDIVERT_IPV6FRAGHDR)
+                    frag_header = (PCYDIVERT_IPV6FRAGHDR)
                         NdisGetDataBuffer(buffer, 8, NULL, 1, 0);
                     ext_header = (UINT8 *)frag_header;
                     if (fragment || frag_header == NULL)
@@ -5597,7 +5593,7 @@ static WINDIVERT_INLINE BOOL windivert_parse_headers(PNET_BUFFER buffer,
                     }
                     fragment = TRUE;
                     frag_off = RtlUshortByteSwap(
-                        WINDIVERT_IPV6FRAGHDR_GET_FRAGOFF(frag_header));
+                        CYDIVERT_IPV6FRAGHDR_GET_FRAGOFF(frag_header));
                     ext_header_len = 8;
                     is_ext_header  = TRUE;
                     break;
@@ -5654,10 +5650,10 @@ static WINDIVERT_INLINE BOOL windivert_parse_headers(PNET_BUFFER buffer,
                 {
                     break;
                 }
-                icmp_header = (PWINDIVERT_ICMPHDR)NdisGetDataBuffer(buffer,
-                    sizeof(WINDIVERT_ICMPHDR), NULL, 1, 0);
+                icmp_header = (PCYDIVERT_ICMPHDR)NdisGetDataBuffer(buffer,
+                    sizeof(CYDIVERT_ICMPHDR), NULL, 1, 0);
                 header_len +=
-                    (icmp_header == NULL? 0: sizeof(WINDIVERT_ICMPHDR));
+                    (icmp_header == NULL? 0: sizeof(CYDIVERT_ICMPHDR));
                 break;
 
             case IPPROTO_ICMPV6:
@@ -5665,15 +5661,15 @@ static WINDIVERT_INLINE BOOL windivert_parse_headers(PNET_BUFFER buffer,
                 {
                     break;
                 }
-                icmpv6_header = (PWINDIVERT_ICMPV6HDR)NdisGetDataBuffer(buffer,
-                    sizeof(WINDIVERT_ICMPV6HDR), NULL, 1, 0);
+                icmpv6_header = (PCYDIVERT_ICMPV6HDR)NdisGetDataBuffer(buffer,
+                    sizeof(CYDIVERT_ICMPV6HDR), NULL, 1, 0);
                 header_len +=
-                    (icmpv6_header == NULL? 0: sizeof(WINDIVERT_ICMPV6HDR));
+                    (icmpv6_header == NULL? 0: sizeof(CYDIVERT_ICMPV6HDR));
                 break;
 
             case IPPROTO_TCP:
-                tcp_header = (PWINDIVERT_TCPHDR)NdisGetDataBuffer(buffer,
-                    sizeof(WINDIVERT_TCPHDR), NULL, 1, 0);
+                tcp_header = (PCYDIVERT_TCPHDR)NdisGetDataBuffer(buffer,
+                    sizeof(CYDIVERT_TCPHDR), NULL, 1, 0);
                 if (tcp_header != NULL)
                 {
                     if (tcp_header->HdrLength < 5)
@@ -5693,10 +5689,10 @@ static WINDIVERT_INLINE BOOL windivert_parse_headers(PNET_BUFFER buffer,
                 break;
 
             case IPPROTO_UDP:
-                udp_header = (PWINDIVERT_UDPHDR)NdisGetDataBuffer(buffer,
-                    sizeof(WINDIVERT_UDPHDR), NULL, 1, 0);
+                udp_header = (PCYDIVERT_UDPHDR)NdisGetDataBuffer(buffer,
+                    sizeof(CYDIVERT_UDPHDR), NULL, 1, 0);
                 header_len +=
-                    (udp_header == NULL? 0: sizeof(WINDIVERT_UDPHDR));
+                    (udp_header == NULL? 0: sizeof(CYDIVERT_UDPHDR));
                 break;
             default:
                 break;
@@ -5728,31 +5724,31 @@ static WINDIVERT_INLINE BOOL windivert_parse_headers(PNET_BUFFER buffer,
 /*
  * Checks if the given network packet is of interest.
  */
-static BOOL windivert_filter(PNET_BUFFER buffer, WINDIVERT_LAYER layer,
-    const VOID *layer_data, LONGLONG timestamp, WINDIVERT_EVENT event,
+static BOOL cydivert_filter(PNET_BUFFER buffer, CYDIVERT_LAYER layer,
+    const VOID *layer_data, LONGLONG timestamp, CYDIVERT_EVENT event,
     BOOL ipv4, BOOL outbound, BOOL loopback, BOOL impostor, BOOL frag_mode,
-    const WINDIVERT_FILTER *filter)
+    const CYDIVERT_FILTER *filter)
 {
-    PWINDIVERT_IPHDR ip_header = NULL;
-    PWINDIVERT_IPV6HDR ipv6_header = NULL;
-    PWINDIVERT_ICMPHDR icmp_header = NULL;
-    PWINDIVERT_ICMPV6HDR icmpv6_header = NULL;
-    PWINDIVERT_TCPHDR tcp_header = NULL;
-    PWINDIVERT_UDPHDR udp_header = NULL;
+    PCYDIVERT_IPHDR ip_header = NULL;
+    PCYDIVERT_IPV6HDR ipv6_header = NULL;
+    PCYDIVERT_ICMPHDR icmp_header = NULL;
+    PCYDIVERT_ICMPV6HDR icmpv6_header = NULL;
+    PCYDIVERT_TCPHDR tcp_header = NULL;
+    PCYDIVERT_UDPHDR udp_header = NULL;
     BOOL fragment = FALSE;
     UINT8 protocol = 0;
-    UINT header_len = 0, payload_len = 0, total_len = 0;
-    PWINDIVERT_DATA_NETWORK network_data = NULL;
-    PWINDIVERT_DATA_FLOW flow_data = NULL;
-    PWINDIVERT_DATA_SOCKET socket_data = NULL;
-    PWINDIVERT_DATA_REFLECT reflect_data = NULL;
+    UINT header_len = 0, payload_len = 0;
+    PCYDIVERT_DATA_NETWORK network_data = NULL;
+    PCYDIVERT_DATA_FLOW flow_data = NULL;
+    PCYDIVERT_DATA_SOCKET socket_data = NULL;
+    PCYDIVERT_DATA_REFLECT reflect_data = NULL;
     int result;
 
     switch (layer)
     {
-        case WINDIVERT_LAYER_NETWORK:
-        case WINDIVERT_LAYER_NETWORK_FORWARD:
-            if (!windivert_parse_headers(buffer, ipv4, &fragment, &ip_header,
+        case CYDIVERT_LAYER_NETWORK:
+        case CYDIVERT_LAYER_NETWORK_FORWARD:
+            if (!cydivert_parse_headers(buffer, ipv4, &fragment, &ip_header,
                     &ipv6_header, &icmp_header, &icmpv6_header, &tcp_header,
                     &udp_header, &protocol, &header_len, &payload_len))
             {
@@ -5762,23 +5758,23 @@ static BOOL windivert_filter(PNET_BUFFER buffer, WINDIVERT_LAYER layer,
             {
                 return FALSE;
             }
-            network_data = (PWINDIVERT_DATA_NETWORK)layer_data;
+            network_data = (PCYDIVERT_DATA_NETWORK)layer_data;
             break;
-        case WINDIVERT_LAYER_FLOW:
-            flow_data = (PWINDIVERT_DATA_FLOW)layer_data;
+        case CYDIVERT_LAYER_FLOW:
+            flow_data = (PCYDIVERT_DATA_FLOW)layer_data;
             break;
-        case WINDIVERT_LAYER_SOCKET:
-            socket_data = (PWINDIVERT_DATA_SOCKET)layer_data;
+        case CYDIVERT_LAYER_SOCKET:
+            socket_data = (PCYDIVERT_DATA_SOCKET)layer_data;
             break;
-        case WINDIVERT_LAYER_REFLECT:
-            reflect_data = (PWINDIVERT_DATA_REFLECT)layer_data;
+        case CYDIVERT_LAYER_REFLECT:
+            reflect_data = (PCYDIVERT_DATA_REFLECT)layer_data;
             break;
         default:
             DEBUG("FILTER: REJECT (invalid parameter)");
             return FALSE;
     }
 
-    result = WinDivertExecuteFilter(
+    result = CyDivertExecuteFilter(
         filter,
         layer,
         timestamp,
@@ -5808,75 +5804,75 @@ static BOOL windivert_filter(PNET_BUFFER buffer, WINDIVERT_LAYER layer,
 }
 
 /*
- * Compile a WinDivert filter from an IOCTL.
+ * Compile a CyDivert filter from an IOCTL.
  */
-static const WINDIVERT_FILTER *windivert_filter_compile(
-    const WINDIVERT_FILTER *ioctl_filter, size_t ioctl_filter_len,
-    WINDIVERT_LAYER layer)
+static const CYDIVERT_FILTER *cydivert_filter_compile(
+    const CYDIVERT_FILTER *ioctl_filter, size_t ioctl_filter_len,
+    CYDIVERT_LAYER layer)
 {
-    PWINDIVERT_FILTER filter = NULL;
-    WINDIVERT_EVENT event;
+    PCYDIVERT_FILTER filter = NULL;
+    CYDIVERT_EVENT event;
     BOOL neg_lb, neg_ub, neg;
     UINT32 lb[4], ub[4];
     int result;
     UINT16 i;
     size_t length;
 
-    if (ioctl_filter_len % sizeof(WINDIVERT_FILTER) != 0)
+    if (ioctl_filter_len % sizeof(CYDIVERT_FILTER) != 0)
     {
-        goto windivert_filter_compile_error;
+        goto cydivert_filter_compile_error;
     }
-    length = ioctl_filter_len / sizeof(WINDIVERT_FILTER);
-    if (length >= WINDIVERT_FILTER_MAXLEN || length == 0)
+    length = ioctl_filter_len / sizeof(CYDIVERT_FILTER);
+    if (length >= CYDIVERT_FILTER_MAXLEN || length == 0)
     {
-        goto windivert_filter_compile_error;
+        goto cydivert_filter_compile_error;
     }
 
-    filter = (PWINDIVERT_FILTER)windivert_malloc(
-        length * sizeof(WINDIVERT_FILTER), FALSE);
+    filter = (PCYDIVERT_FILTER)cydivert_malloc(
+        length * sizeof(CYDIVERT_FILTER), FALSE);
     if (filter == NULL)
     {
-        goto windivert_filter_compile_error;
+        goto cydivert_filter_compile_error;
     }
  
     for (i = 0; i < length; i++)
     {
-        if (ioctl_filter[i].field > WINDIVERT_FILTER_FIELD_MAX ||
-            ioctl_filter[i].test > WINDIVERT_FILTER_TEST_MAX)
+        if (ioctl_filter[i].field > CYDIVERT_FILTER_FIELD_MAX ||
+            ioctl_filter[i].test > CYDIVERT_FILTER_TEST_MAX)
         {
-            goto windivert_filter_compile_error;
+            goto cydivert_filter_compile_error;
         }
         switch (ioctl_filter[i].success)
         {
-            case WINDIVERT_FILTER_RESULT_ACCEPT:
-            case WINDIVERT_FILTER_RESULT_REJECT:
+            case CYDIVERT_FILTER_RESULT_ACCEPT:
+            case CYDIVERT_FILTER_RESULT_REJECT:
                 break;
             default:
                 if (ioctl_filter[i].success <= i ||
                     ioctl_filter[i].success >= length)
                 {
-                    goto windivert_filter_compile_error;
+                    goto cydivert_filter_compile_error;
                 }
                 break;
         }
         switch (ioctl_filter[i].failure)
         {
-            case WINDIVERT_FILTER_RESULT_ACCEPT:
-            case WINDIVERT_FILTER_RESULT_REJECT:
+            case CYDIVERT_FILTER_RESULT_ACCEPT:
+            case CYDIVERT_FILTER_RESULT_REJECT:
                 break;
             default:
                 if (ioctl_filter[i].failure <= i ||
                     ioctl_filter[i].failure >= length)
                 {
-                    goto windivert_filter_compile_error;
+                    goto cydivert_filter_compile_error;
                 }
                 break;
         }
 
         // Enforce layers:
-        if (!WinDivertValidateField(layer, ioctl_filter[i].field))
+        if (!CyDivertValidateField(layer, ioctl_filter[i].field))
         {
-            goto windivert_filter_compile_error;
+            goto cydivert_filter_compile_error;
         }
 
         // Enforce ranges:
@@ -5885,24 +5881,24 @@ static const WINDIVERT_FILTER *windivert_filter_compile(
         ub[0] = ub[1] = ub[2] = ub[3] = 0;
         switch (ioctl_filter[i].field)
         {
-            case WINDIVERT_FILTER_FIELD_PACKET:
-            case WINDIVERT_FILTER_FIELD_PACKET16:
-            case WINDIVERT_FILTER_FIELD_PACKET32:
-            case WINDIVERT_FILTER_FIELD_TCP_PAYLOAD:
-            case WINDIVERT_FILTER_FIELD_TCP_PAYLOAD16:
-            case WINDIVERT_FILTER_FIELD_TCP_PAYLOAD32:
-            case WINDIVERT_FILTER_FIELD_UDP_PAYLOAD:
-            case WINDIVERT_FILTER_FIELD_UDP_PAYLOAD16:
-            case WINDIVERT_FILTER_FIELD_UDP_PAYLOAD32:
+            case CYDIVERT_FILTER_FIELD_PACKET:
+            case CYDIVERT_FILTER_FIELD_PACKET16:
+            case CYDIVERT_FILTER_FIELD_PACKET32:
+            case CYDIVERT_FILTER_FIELD_TCP_PAYLOAD:
+            case CYDIVERT_FILTER_FIELD_TCP_PAYLOAD16:
+            case CYDIVERT_FILTER_FIELD_TCP_PAYLOAD32:
+            case CYDIVERT_FILTER_FIELD_UDP_PAYLOAD:
+            case CYDIVERT_FILTER_FIELD_UDP_PAYLOAD16:
+            case CYDIVERT_FILTER_FIELD_UDP_PAYLOAD32:
             {
                 INT idx = (INT)ioctl_filter[i].arg[1];
                 if (ioctl_filter[i].neg)
                 {
-                    goto windivert_filter_compile_error;
+                    goto cydivert_filter_compile_error;
                 }
-                if (idx > WINDIVERT_MTU_MAX || idx < -WINDIVERT_MTU_MAX)
+                if (idx > CYDIVERT_MTU_MAX || idx < -CYDIVERT_MTU_MAX)
                 {
-                    goto windivert_filter_compile_error;
+                    goto cydivert_filter_compile_error;
                 }
                 lb[1] = ub[1] = ioctl_filter[i].arg[1];
                 break;
@@ -5912,148 +5908,148 @@ static const WINDIVERT_FILTER *windivert_filter_compile(
         }
         switch (ioctl_filter[i].field)
         {
-            case WINDIVERT_FILTER_FIELD_ZERO:
-            case WINDIVERT_FILTER_FIELD_INBOUND:
-            case WINDIVERT_FILTER_FIELD_OUTBOUND:
-            case WINDIVERT_FILTER_FIELD_FRAGMENT:
-            case WINDIVERT_FILTER_FIELD_IP:
-            case WINDIVERT_FILTER_FIELD_IPV6:
-            case WINDIVERT_FILTER_FIELD_ICMP:
-            case WINDIVERT_FILTER_FIELD_ICMPV6:
-            case WINDIVERT_FILTER_FIELD_TCP:
-            case WINDIVERT_FILTER_FIELD_UDP:
-            case WINDIVERT_FILTER_FIELD_IP_DF:
-            case WINDIVERT_FILTER_FIELD_IP_MF:
-            case WINDIVERT_FILTER_FIELD_TCP_URG:
-            case WINDIVERT_FILTER_FIELD_TCP_ACK:
-            case WINDIVERT_FILTER_FIELD_TCP_PSH:
-            case WINDIVERT_FILTER_FIELD_TCP_RST:
-            case WINDIVERT_FILTER_FIELD_TCP_SYN:
-            case WINDIVERT_FILTER_FIELD_TCP_FIN:
+            case CYDIVERT_FILTER_FIELD_ZERO:
+            case CYDIVERT_FILTER_FIELD_INBOUND:
+            case CYDIVERT_FILTER_FIELD_OUTBOUND:
+            case CYDIVERT_FILTER_FIELD_FRAGMENT:
+            case CYDIVERT_FILTER_FIELD_IP:
+            case CYDIVERT_FILTER_FIELD_IPV6:
+            case CYDIVERT_FILTER_FIELD_ICMP:
+            case CYDIVERT_FILTER_FIELD_ICMPV6:
+            case CYDIVERT_FILTER_FIELD_TCP:
+            case CYDIVERT_FILTER_FIELD_UDP:
+            case CYDIVERT_FILTER_FIELD_IP_DF:
+            case CYDIVERT_FILTER_FIELD_IP_MF:
+            case CYDIVERT_FILTER_FIELD_TCP_URG:
+            case CYDIVERT_FILTER_FIELD_TCP_ACK:
+            case CYDIVERT_FILTER_FIELD_TCP_PSH:
+            case CYDIVERT_FILTER_FIELD_TCP_RST:
+            case CYDIVERT_FILTER_FIELD_TCP_SYN:
+            case CYDIVERT_FILTER_FIELD_TCP_FIN:
                 ub[0] = 1;
                 break;
-            case WINDIVERT_FILTER_FIELD_LAYER:
-                ub[0] = WINDIVERT_LAYER_MAX;
+            case CYDIVERT_FILTER_FIELD_LAYER:
+                ub[0] = CYDIVERT_LAYER_MAX;
                 break;
-            case WINDIVERT_FILTER_FIELD_PRIORITY:
+            case CYDIVERT_FILTER_FIELD_PRIORITY:
                 neg_lb = TRUE;
-                lb[0] = ub[0] = WINDIVERT_PRIORITY_MAX;
+                lb[0] = ub[0] = CYDIVERT_PRIORITY_MAX;
                 break;
-            case WINDIVERT_FILTER_FIELD_EVENT:
-                event = (WINDIVERT_EVENT)ioctl_filter[i].arg[0];
+            case CYDIVERT_FILTER_FIELD_EVENT:
+                event = (CYDIVERT_EVENT)ioctl_filter[i].arg[0];
                 switch (layer)
                 {
-                    case WINDIVERT_LAYER_NETWORK:
-                    case WINDIVERT_LAYER_NETWORK_FORWARD:
-                        if (event != WINDIVERT_EVENT_NETWORK_PACKET)
+                    case CYDIVERT_LAYER_NETWORK:
+                    case CYDIVERT_LAYER_NETWORK_FORWARD:
+                        if (event != CYDIVERT_EVENT_NETWORK_PACKET)
                         {
-                            goto windivert_filter_compile_error;
+                            goto cydivert_filter_compile_error;
                         }
                         break;
-                    case WINDIVERT_LAYER_FLOW:
-                        if (event != WINDIVERT_EVENT_FLOW_ESTABLISHED &&
-                            event != WINDIVERT_EVENT_FLOW_DELETED)
+                    case CYDIVERT_LAYER_FLOW:
+                        if (event != CYDIVERT_EVENT_FLOW_ESTABLISHED &&
+                            event != CYDIVERT_EVENT_FLOW_DELETED)
                         {
-                            goto windivert_filter_compile_error;
+                            goto cydivert_filter_compile_error;
                         }
                         break;
-                    case WINDIVERT_LAYER_SOCKET:
-                        if (event != WINDIVERT_EVENT_SOCKET_BIND &&
-                            event != WINDIVERT_EVENT_SOCKET_CONNECT &&
-                            event != WINDIVERT_EVENT_SOCKET_LISTEN &&
-                            event != WINDIVERT_EVENT_SOCKET_ACCEPT &&
-                            event != WINDIVERT_EVENT_SOCKET_CLOSE)
+                    case CYDIVERT_LAYER_SOCKET:
+                        if (event != CYDIVERT_EVENT_SOCKET_BIND &&
+                            event != CYDIVERT_EVENT_SOCKET_CONNECT &&
+                            event != CYDIVERT_EVENT_SOCKET_LISTEN &&
+                            event != CYDIVERT_EVENT_SOCKET_ACCEPT &&
+                            event != CYDIVERT_EVENT_SOCKET_CLOSE)
                         {
-                            goto windivert_filter_compile_error;
+                            goto cydivert_filter_compile_error;
                         }
                         break;
-                    case WINDIVERT_LAYER_REFLECT:
-                        if (event != WINDIVERT_EVENT_REFLECT_OPEN &&
-                            event != WINDIVERT_EVENT_REFLECT_CLOSE)
+                    case CYDIVERT_LAYER_REFLECT:
+                        if (event != CYDIVERT_EVENT_REFLECT_OPEN &&
+                            event != CYDIVERT_EVENT_REFLECT_CLOSE)
                         {
-                            goto windivert_filter_compile_error;
+                            goto cydivert_filter_compile_error;
                         }
                         break;
                     default:
-                        goto windivert_filter_compile_error;
+                        goto cydivert_filter_compile_error;
                 }
-                ub[0] = WINDIVERT_EVENT_MAX;
+                ub[0] = CYDIVERT_EVENT_MAX;
                 break;
-            case WINDIVERT_FILTER_FIELD_IP_HDRLENGTH:
-            case WINDIVERT_FILTER_FIELD_TCP_HDRLENGTH:
+            case CYDIVERT_FILTER_FIELD_IP_HDRLENGTH:
+            case CYDIVERT_FILTER_FIELD_TCP_HDRLENGTH:
                 ub[0] = 0x0F;
                 break;
-            case WINDIVERT_FILTER_FIELD_IP_TOS:
-            case WINDIVERT_FILTER_FIELD_IP_TTL:
-            case WINDIVERT_FILTER_FIELD_IP_PROTOCOL:
-            case WINDIVERT_FILTER_FIELD_IPV6_TRAFFICCLASS:
-            case WINDIVERT_FILTER_FIELD_IPV6_NEXTHDR:
-            case WINDIVERT_FILTER_FIELD_IPV6_HOPLIMIT:
-            case WINDIVERT_FILTER_FIELD_ICMP_TYPE:
-            case WINDIVERT_FILTER_FIELD_ICMP_CODE:
-            case WINDIVERT_FILTER_FIELD_ICMPV6_TYPE:
-            case WINDIVERT_FILTER_FIELD_ICMPV6_CODE:
-            case WINDIVERT_FILTER_FIELD_PROTOCOL:
-            case WINDIVERT_FILTER_FIELD_PACKET:
-            case WINDIVERT_FILTER_FIELD_TCP_PAYLOAD:
-            case WINDIVERT_FILTER_FIELD_UDP_PAYLOAD:
-            case WINDIVERT_FILTER_FIELD_RANDOM8:
+            case CYDIVERT_FILTER_FIELD_IP_TOS:
+            case CYDIVERT_FILTER_FIELD_IP_TTL:
+            case CYDIVERT_FILTER_FIELD_IP_PROTOCOL:
+            case CYDIVERT_FILTER_FIELD_IPV6_TRAFFICCLASS:
+            case CYDIVERT_FILTER_FIELD_IPV6_NEXTHDR:
+            case CYDIVERT_FILTER_FIELD_IPV6_HOPLIMIT:
+            case CYDIVERT_FILTER_FIELD_ICMP_TYPE:
+            case CYDIVERT_FILTER_FIELD_ICMP_CODE:
+            case CYDIVERT_FILTER_FIELD_ICMPV6_TYPE:
+            case CYDIVERT_FILTER_FIELD_ICMPV6_CODE:
+            case CYDIVERT_FILTER_FIELD_PROTOCOL:
+            case CYDIVERT_FILTER_FIELD_PACKET:
+            case CYDIVERT_FILTER_FIELD_TCP_PAYLOAD:
+            case CYDIVERT_FILTER_FIELD_UDP_PAYLOAD:
+            case CYDIVERT_FILTER_FIELD_RANDOM8:
                 ub[0] = 0xFF;
                 break;
-            case WINDIVERT_FILTER_FIELD_IP_FRAGOFF:
+            case CYDIVERT_FILTER_FIELD_IP_FRAGOFF:
                 ub[0] = 0x1FFF;
                 break;
-            case WINDIVERT_FILTER_FIELD_IP_LENGTH:
-            case WINDIVERT_FILTER_FIELD_IP_ID:
-            case WINDIVERT_FILTER_FIELD_IP_CHECKSUM:
-            case WINDIVERT_FILTER_FIELD_IPV6_LENGTH:
-            case WINDIVERT_FILTER_FIELD_ICMP_CHECKSUM:
-            case WINDIVERT_FILTER_FIELD_ICMPV6_CHECKSUM:
-            case WINDIVERT_FILTER_FIELD_TCP_SRCPORT:
-            case WINDIVERT_FILTER_FIELD_TCP_DSTPORT:
-            case WINDIVERT_FILTER_FIELD_TCP_WINDOW:
-            case WINDIVERT_FILTER_FIELD_TCP_CHECKSUM:
-            case WINDIVERT_FILTER_FIELD_TCP_URGPTR:
-            case WINDIVERT_FILTER_FIELD_TCP_PAYLOADLENGTH:
-            case WINDIVERT_FILTER_FIELD_UDP_SRCPORT:
-            case WINDIVERT_FILTER_FIELD_UDP_DSTPORT:
-            case WINDIVERT_FILTER_FIELD_UDP_LENGTH:
-            case WINDIVERT_FILTER_FIELD_UDP_CHECKSUM:
-            case WINDIVERT_FILTER_FIELD_UDP_PAYLOADLENGTH:
-            case WINDIVERT_FILTER_FIELD_LOCALPORT:
-            case WINDIVERT_FILTER_FIELD_REMOTEPORT:
-            case WINDIVERT_FILTER_FIELD_PACKET16:
-            case WINDIVERT_FILTER_FIELD_TCP_PAYLOAD16:
-            case WINDIVERT_FILTER_FIELD_UDP_PAYLOAD16:
-            case WINDIVERT_FILTER_FIELD_RANDOM16:
+            case CYDIVERT_FILTER_FIELD_IP_LENGTH:
+            case CYDIVERT_FILTER_FIELD_IP_ID:
+            case CYDIVERT_FILTER_FIELD_IP_CHECKSUM:
+            case CYDIVERT_FILTER_FIELD_IPV6_LENGTH:
+            case CYDIVERT_FILTER_FIELD_ICMP_CHECKSUM:
+            case CYDIVERT_FILTER_FIELD_ICMPV6_CHECKSUM:
+            case CYDIVERT_FILTER_FIELD_TCP_SRCPORT:
+            case CYDIVERT_FILTER_FIELD_TCP_DSTPORT:
+            case CYDIVERT_FILTER_FIELD_TCP_WINDOW:
+            case CYDIVERT_FILTER_FIELD_TCP_CHECKSUM:
+            case CYDIVERT_FILTER_FIELD_TCP_URGPTR:
+            case CYDIVERT_FILTER_FIELD_TCP_PAYLOADLENGTH:
+            case CYDIVERT_FILTER_FIELD_UDP_SRCPORT:
+            case CYDIVERT_FILTER_FIELD_UDP_DSTPORT:
+            case CYDIVERT_FILTER_FIELD_UDP_LENGTH:
+            case CYDIVERT_FILTER_FIELD_UDP_CHECKSUM:
+            case CYDIVERT_FILTER_FIELD_UDP_PAYLOADLENGTH:
+            case CYDIVERT_FILTER_FIELD_LOCALPORT:
+            case CYDIVERT_FILTER_FIELD_REMOTEPORT:
+            case CYDIVERT_FILTER_FIELD_PACKET16:
+            case CYDIVERT_FILTER_FIELD_TCP_PAYLOAD16:
+            case CYDIVERT_FILTER_FIELD_UDP_PAYLOAD16:
+            case CYDIVERT_FILTER_FIELD_RANDOM16:
                 ub[0] = 0xFFFF;
                 break;
-            case WINDIVERT_FILTER_FIELD_LENGTH:
-                lb[0] = sizeof(WINDIVERT_IPHDR);
-                ub[0] = WINDIVERT_MTU_MAX;
+            case CYDIVERT_FILTER_FIELD_LENGTH:
+                lb[0] = sizeof(CYDIVERT_IPHDR);
+                ub[0] = CYDIVERT_MTU_MAX;
                 break;
-            case WINDIVERT_FILTER_FIELD_IPV6_FLOWLABEL:
+            case CYDIVERT_FILTER_FIELD_IPV6_FLOWLABEL:
                 ub[0] = 0x000FFFFF;
                 break;
-            case WINDIVERT_FILTER_FIELD_IP_SRCADDR:
-            case WINDIVERT_FILTER_FIELD_IP_DSTADDR:
+            case CYDIVERT_FILTER_FIELD_IP_SRCADDR:
+            case CYDIVERT_FILTER_FIELD_IP_DSTADDR:
                 ub[0] = 0xFFFFFFFF;
                 ub[1] = lb[1] = 0x0000FFFF;
                 break;
-            case WINDIVERT_FILTER_FIELD_TIMESTAMP:
+            case CYDIVERT_FILTER_FIELD_TIMESTAMP:
                 lb[1] = 0x80000000;
                 ub[0] = 0xFFFFFFFF;
                 ub[1] = 0x7FFFFFFF;
                 neg_lb = TRUE;
                 break;
-            case WINDIVERT_FILTER_FIELD_ENDPOINTID:
-            case WINDIVERT_FILTER_FIELD_PARENTENDPOINTID:
+            case CYDIVERT_FILTER_FIELD_ENDPOINTID:
+            case CYDIVERT_FILTER_FIELD_PARENTENDPOINTID:
                 ub[0] = ub[1] = 0xFFFFFFFF;
                 break;
-            case WINDIVERT_FILTER_FIELD_IPV6_SRCADDR:
-            case WINDIVERT_FILTER_FIELD_IPV6_DSTADDR:
-            case WINDIVERT_FILTER_FIELD_LOCALADDR:
-            case WINDIVERT_FILTER_FIELD_REMOTEADDR:
+            case CYDIVERT_FILTER_FIELD_IPV6_SRCADDR:
+            case CYDIVERT_FILTER_FIELD_IPV6_DSTADDR:
+            case CYDIVERT_FILTER_FIELD_LOCALADDR:
+            case CYDIVERT_FILTER_FIELD_REMOTEADDR:
                 ub[0] = ub[1] = ub[2] = ub[3] = 0xFFFFFFFF;
                 break;
             default:
@@ -6061,17 +6057,17 @@ static const WINDIVERT_FILTER *windivert_filter_compile(
                 break;
         }
         neg = (ioctl_filter[i].neg? TRUE: FALSE);
-        result = WinDivertCompare128(neg, ioctl_filter[i].arg, neg_lb,
+        result = CyDivertCompare128(neg, ioctl_filter[i].arg, neg_lb,
             lb, /*big=*/TRUE);
         if (result < 0)
         {
-            goto windivert_filter_compile_error;
+            goto cydivert_filter_compile_error;
         }
-        result = WinDivertCompare128(neg, ioctl_filter[i].arg, neg_ub,
+        result = CyDivertCompare128(neg, ioctl_filter[i].arg, neg_ub,
             ub, /*big=*/TRUE);
         if (result > 0)
         {
-            goto windivert_filter_compile_error;
+            goto cydivert_filter_compile_error;
         }
 
         // Disallow negative zero:
@@ -6079,7 +6075,7 @@ static const WINDIVERT_FILTER *windivert_filter_compile(
                 ioctl_filter[i].arg[0] == 0 && ioctl_filter[i].arg[1] == 0 &&
                 ioctl_filter[i].arg[2] == 0 && ioctl_filter[i].arg[3] == 0)
         {
-            goto windivert_filter_compile_error;
+            goto cydivert_filter_compile_error;
         }
 
         filter[i].field   = ioctl_filter[i].field;
@@ -6095,20 +6091,20 @@ static const WINDIVERT_FILTER *windivert_filter_compile(
     
     return filter;
 
-windivert_filter_compile_error:
+cydivert_filter_compile_error:
 
-    windivert_free((PVOID)filter);
+    cydivert_free((PVOID)filter);
     return NULL;
 }
 
 /****************************************************************************/
-/* WINDIVERT REFLECT MANAGER IMPLEMENTATION                                 */
+/* CYDIVERT REFLECT MANAGER IMPLEMENTATION                                 */
 /****************************************************************************/
 
-#define WINDIVERT_REFLECT_PACKET_MAX        12288
+#define CYDIVERT_REFLECT_PACKET_MAX        12288
 
 /*
- * WinDivert reflect state.
+ * CyDivert reflect state.
  */
 static BOOL reflect_inited = FALSE;         // Reflection initialized?
 static BOOL reflect_worker_queued = FALSE;  // Reflect worker queued?
@@ -6118,13 +6114,13 @@ static LIST_ENTRY reflect_contexts;         // All open (non-REFLECT) contexts.
 static LIST_ENTRY reflect_waiters;          // All open REFLECT contexts.
 static WDFWORKITEM reflect_worker;          // Reflect work item.
 #pragma data_seg(push, stack, "PAGE")
-static char reflect_packet[WINDIVERT_REFLECT_PACKET_MAX];
+static char reflect_packet[CYDIVERT_REFLECT_PACKET_MAX];
 #pragma data_seg(pop, stack)
 
 /*
  * Initialize the reflection layer implementation.
  */
-static NTSTATUS windivert_reflect_init(WDFOBJECT parent)
+static NTSTATUS cydivert_reflect_init(WDFOBJECT parent)
 {
     WDF_WORKITEM_CONFIG item_config;
     WDF_OBJECT_ATTRIBUTES obj_attrs;
@@ -6134,7 +6130,7 @@ static NTSTATUS windivert_reflect_init(WDFOBJECT parent)
     InitializeListHead(&reflect_event_queue);
     InitializeListHead(&reflect_contexts);
     InitializeListHead(&reflect_waiters);
-    WDF_WORKITEM_CONFIG_INIT(&item_config, windivert_reflect_worker);
+    WDF_WORKITEM_CONFIG_INIT(&item_config, cydivert_reflect_worker);
     item_config.AutomaticSerialization = FALSE;
     WDF_OBJECT_ATTRIBUTES_INIT(&obj_attrs);
     obj_attrs.ParentObject = parent;
@@ -6151,7 +6147,7 @@ static NTSTATUS windivert_reflect_init(WDFOBJECT parent)
 /*
  * Cleanup the reflection layer implementation.
  */
-static void windivert_reflect_close(void)
+static void cydivert_reflect_close(void)
 {
     if (!reflect_inited)
     {
@@ -6162,9 +6158,9 @@ static void windivert_reflect_close(void)
 }
 
 /*
- * WinDivert handle reflect open event.
+ * CyDivert handle reflect open event.
  */
-static void windivert_reflect_open_event(context_t context)
+static void cydivert_reflect_open_event(context_t context)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
     WDFOBJECT object;
@@ -6181,7 +6177,7 @@ static void windivert_reflect_open_event(context_t context)
     // Queue the event:
     reflect_event = &context->reflect.open_event;
     reflect_event->context = context;
-    reflect_event->event   = WINDIVERT_EVENT_REFLECT_OPEN;
+    reflect_event->event   = CYDIVERT_EVENT_REFLECT_OPEN;
     KeAcquireInStackQueuedSpinLock(&reflect_lock, &lock_handle);
     InsertTailList(&reflect_event_queue, &reflect_event->entry);
     if (!reflect_worker_queued)
@@ -6193,9 +6189,9 @@ static void windivert_reflect_open_event(context_t context)
 }
 
 /*
- * WinDivert handle reflect close event.
+ * CyDivert handle reflect close event.
  */
-static void windivert_reflect_close_event(context_t context)
+static void cydivert_reflect_close_event(context_t context)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
     reflect_event_t reflect_event;
@@ -6212,7 +6208,7 @@ static void windivert_reflect_close_event(context_t context)
     // Queue the event:
     reflect_event = &context->reflect.close_event;
     reflect_event->context = context;
-    reflect_event->event   = WINDIVERT_EVENT_REFLECT_CLOSE;
+    reflect_event->event   = CYDIVERT_EVENT_REFLECT_CLOSE;
     KeAcquireInStackQueuedSpinLock(&reflect_lock, &lock_handle);
     InsertTailList(&reflect_event_queue, &reflect_event->entry);
     if (!reflect_worker_queued)
@@ -6226,12 +6222,12 @@ static void windivert_reflect_close_event(context_t context)
 /*
  * Create REFLECT layer packet to pass the filter.
  */
-static PVOID windivert_reflect_packet(context_t context, ULONG *len_ptr)
+static PVOID cydivert_reflect_packet(context_t context, ULONG *len_ptr)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
-    const WINDIVERT_FILTER *filter;
+    const CYDIVERT_FILTER *filter;
     UINT16 filter_len;
-    WINDIVERT_STREAM stream;
+    CYDIVERT_STREAM stream;
 
     stream.data     = reflect_packet;
     stream.pos      = 0;
@@ -6243,7 +6239,7 @@ static PVOID windivert_reflect_packet(context_t context, ULONG *len_ptr)
     filter_len = context->filter_len;
     KeReleaseInStackQueuedSpinLock(&lock_handle);
     
-    WinDivertSerializeFilter(&stream, filter, (UINT8)filter_len);
+    CyDivertSerializeFilter(&stream, filter, (UINT8)filter_len);
     *len_ptr = stream.pos;
     return (PVOID)stream.data;
 }
@@ -6251,13 +6247,13 @@ static PVOID windivert_reflect_packet(context_t context, ULONG *len_ptr)
 /*
  * Notify all REFLECT layer contexts a new event.
  */
-static void windivert_reflect_event_notify(context_t context,
-    LONGLONG timestamp, WINDIVERT_EVENT event)
+static void cydivert_reflect_event_notify(context_t context,
+    LONGLONG timestamp, CYDIVERT_EVENT event)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
     PLIST_ENTRY entry;
     context_t waiter;
-    const WINDIVERT_FILTER *filter;
+    const CYDIVERT_FILTER *filter;
     PVOID packet = NULL, process;
     ULONG packet_len = 0;
     UINT64 flags;
@@ -6276,8 +6272,8 @@ static void windivert_reflect_event_notify(context_t context,
         filter = waiter->filter;
         flags  = waiter->flags;
         KeReleaseInStackQueuedSpinLock(&lock_handle);
-        match = windivert_filter(/*buffer=*/NULL,
-            /*layer=*/WINDIVERT_LAYER_REFLECT, (PVOID)&context->reflect.data,
+        match = cydivert_filter(/*buffer=*/NULL,
+            /*layer=*/CYDIVERT_LAYER_REFLECT, (PVOID)&context->reflect.data,
             timestamp, event, /*ipv4=*/TRUE, /*outbound=*/FALSE,
             /*loopback=*/FALSE, /*impostor=*/FALSE, /*frag_mode=*/FALSE,
             filter);
@@ -6287,10 +6283,10 @@ static void windivert_reflect_event_notify(context_t context,
         }
         if (packet == NULL)
         {
-            packet = windivert_reflect_packet(context, &packet_len);
+            packet = cydivert_reflect_packet(context, &packet_len);
         }
-        (VOID)windivert_queue_work(waiter, packet, packet_len,
-            /*buffers=*/NULL, process, /*layer=*/WINDIVERT_LAYER_REFLECT,
+        (VOID)cydivert_queue_work(waiter, packet, packet_len,
+            /*buffers=*/NULL, process, /*layer=*/CYDIVERT_LAYER_REFLECT,
             (PVOID)&context->reflect.data, event, flags, /*priority=*/0,
             /*ipv4=*/TRUE, /*outbound=*/FALSE, /*loopback=*/FALSE,
             /*impostor=*/FALSE, /*match=*/TRUE, timestamp);
@@ -6300,20 +6296,20 @@ static void windivert_reflect_event_notify(context_t context,
 /*
  * Notify a new REFLECT layer context of all existing open handles.
  */
-static void windivert_reflect_established_notify(context_t context,
+static void cydivert_reflect_established_notify(context_t context,
     LONGLONG timestamp)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
     PLIST_ENTRY entry;
     BOOL match, ok;
     context_t waiter;
-    const WINDIVERT_FILTER *filter;
+    const CYDIVERT_FILTER *filter;
     PVOID packet, process;
     ULONG packet_len;
     UINT64 flags;
 
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-    if (context->state != WINDIVERT_CONTEXT_STATE_OPEN)
+    if (context->state != CYDIVERT_CONTEXT_STATE_OPEN)
     {
         KeReleaseInStackQueuedSpinLock(&lock_handle);
         return;
@@ -6327,23 +6323,23 @@ static void windivert_reflect_established_notify(context_t context,
     {
         waiter = CONTAINING_RECORD(entry, struct context_s, reflect.entry);
         entry = entry->Flink;
-        match = windivert_filter(/*buffer=*/NULL,
-            /*layer=*/WINDIVERT_LAYER_REFLECT, (PVOID)&waiter->reflect.data,
-            timestamp, /*event=*/WINDIVERT_EVENT_REFLECT_OPEN, /*ipv4=*/TRUE,
+        match = cydivert_filter(/*buffer=*/NULL,
+            /*layer=*/CYDIVERT_LAYER_REFLECT, (PVOID)&waiter->reflect.data,
+            timestamp, /*event=*/CYDIVERT_EVENT_REFLECT_OPEN, /*ipv4=*/TRUE,
             /*outbound=*/FALSE, /*loopback=*/FALSE, /*impostor=*/FALSE,
             /*frag_mode=*/FALSE, filter);
         if (!match)
         {
             continue;
         }
-        packet = windivert_reflect_packet(waiter, &packet_len);
+        packet = cydivert_reflect_packet(waiter, &packet_len);
         KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
         process = (PVOID)waiter->process;
         KeReleaseInStackQueuedSpinLock(&lock_handle);
-        ok = windivert_queue_work(context, packet, packet_len,
-            /*buffers=*/NULL, process, /*layer=*/WINDIVERT_LAYER_REFLECT,
+        ok = cydivert_queue_work(context, packet, packet_len,
+            /*buffers=*/NULL, process, /*layer=*/CYDIVERT_LAYER_REFLECT,
             (PVOID)&waiter->reflect.data,
-            /*event=*/WINDIVERT_EVENT_REFLECT_OPEN, flags, /*priority=*/0,
+            /*event=*/CYDIVERT_EVENT_REFLECT_OPEN, flags, /*priority=*/0,
             /*ipv4=*/TRUE, /*outbound=*/FALSE, /*loopback=*/FALSE,
             /*impostor=*/FALSE, /*match=*/TRUE, timestamp);
         if (!ok)
@@ -6353,7 +6349,7 @@ static void windivert_reflect_established_notify(context_t context,
     }
 
     KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
-    if (context->state != WINDIVERT_CONTEXT_STATE_OPEN)
+    if (context->state != CYDIVERT_CONTEXT_STATE_OPEN)
     {
         KeReleaseInStackQueuedSpinLock(&lock_handle);
         return;
@@ -6362,28 +6358,28 @@ static void windivert_reflect_established_notify(context_t context,
     // have been queued.
     context->shutdown_recv_enabled = TRUE;
     KeReleaseInStackQueuedSpinLock(&lock_handle);
-    windivert_read_service(context);
+    cydivert_read_service(context);
 }
 
 /*
- * WinDivert REFLECT worker.
+ * CyDivert REFLECT worker.
  */
-void windivert_reflect_worker(IN WDFWORKITEM item)
+void cydivert_reflect_worker(IN WDFWORKITEM item)
 {
     KLOCK_QUEUE_HANDLE lock_handle;
     PLIST_ENTRY entry;
     context_t context;
     LONGLONG timestamp;
-    WINDIVERT_EVENT event;
+    CYDIVERT_EVENT event;
     reflect_event_t reflect_event;
     WDFOBJECT object;
-    WINDIVERT_LAYER layer;
+    CYDIVERT_LAYER layer;
 
     UNREFERENCED_PARAMETER(item);
 
     // All reflection events are serialized and handled by this worker.
     // This ensures that we are always operating on a consistent "snapshot"
-    // of the WinDivert handle state.  This worker also has exclusive control 
+    // of the CyDivert handle state.  This worker also has exclusive control 
     // over reflect_contexts/reflect_waiters, so locking is not required.
 
     KeAcquireInStackQueuedSpinLock(&reflect_lock, &lock_handle);
@@ -6396,8 +6392,8 @@ void windivert_reflect_worker(IN WDFWORKITEM item)
         context       = reflect_event->context;
         event         = reflect_event->event;
 
-        DEBUG("REFLECT: %s event for WinDivert context (context=%p)",
-            (event == WINDIVERT_EVENT_REFLECT_OPEN? "open": "close"), context);
+        DEBUG("REFLECT: %s event for CyDivert context (context=%p)",
+            (event == CYDIVERT_EVENT_REFLECT_OPEN? "open": "close"), context);
 
         KeAcquireInStackQueuedSpinLock(&context->lock, &lock_handle);
         object = (WDFOBJECT)context->object;
@@ -6407,28 +6403,28 @@ void windivert_reflect_worker(IN WDFWORKITEM item)
         timestamp = KeQueryPerformanceCounter(NULL).QuadPart;
         switch (event)
         {
-            case WINDIVERT_EVENT_REFLECT_OPEN:
-                if (layer != WINDIVERT_LAYER_REFLECT)
+            case CYDIVERT_EVENT_REFLECT_OPEN:
+                if (layer != CYDIVERT_LAYER_REFLECT)
                 {
                     InsertTailList(&reflect_contexts, &context->reflect.entry);
                 }
                 else
                 {
                     InsertTailList(&reflect_waiters, &context->reflect.entry);
-                    windivert_reflect_established_notify(context, timestamp);
+                    cydivert_reflect_established_notify(context, timestamp);
                 }
                 break;
 
-            case WINDIVERT_EVENT_REFLECT_CLOSE:
+            case CYDIVERT_EVENT_REFLECT_CLOSE:
                 RemoveEntryList(&context->reflect.entry);
                 break;
         }
 
-        if (layer != WINDIVERT_LAYER_REFLECT)
+        if (layer != CYDIVERT_LAYER_REFLECT)
         {
-            windivert_reflect_event_notify(context, timestamp, event);
+            cydivert_reflect_event_notify(context, timestamp, event);
         }
-        if (event == WINDIVERT_EVENT_REFLECT_CLOSE)
+        if (event == CYDIVERT_EVENT_REFLECT_CLOSE)
         {
             WdfObjectDereference(object);
         }
@@ -6442,20 +6438,20 @@ void windivert_reflect_worker(IN WDFWORKITEM item)
 /*
  * Log a driver event.
  */
-static void windivert_log_event(PEPROCESS process, PDRIVER_OBJECT driver,
+static void cydivert_log_event(PEPROCESS process, PDRIVER_OBJECT driver,
     const wchar_t *msg_str)
 {
-    const wchar_t windivert_str[] = WINDIVERT_DEVICE_NAME
-        WINDIVERT_VERSION_LSTR;
+    const wchar_t cydivert_str[] = CYDIVERT_DEVICE_NAME
+        CYDIVERT_VERSION_LSTR;
     wchar_t pid_str[16];
-    size_t windivert_size = sizeof(windivert_str), msg_size, pid_size, size;
+    size_t cydivert_size = sizeof(cydivert_str), msg_size, pid_size = 0, size;
     UNICODE_STRING string;
     UINT8 *str;
     PIO_ERROR_LOG_PACKET packet;
     NTSTATUS status;
 
     size = ERROR_LOG_MAXIMUM_SIZE - sizeof(wchar_t) -
-        (sizeof(IO_ERROR_LOG_PACKET) + windivert_size + sizeof(pid_str));
+        (sizeof(IO_ERROR_LOG_PACKET) + cydivert_size + sizeof(pid_str));
     status = RtlStringCbLengthW(msg_str, size, &msg_size);
     if (!NT_SUCCESS(status))
     {
@@ -6479,7 +6475,7 @@ static void windivert_log_event(PEPROCESS process, PDRIVER_OBJECT driver,
         pid_size = 4 * sizeof(wchar_t);
     }
 
-    size = sizeof(IO_ERROR_LOG_PACKET) + windivert_size + msg_size + pid_size;
+    size = sizeof(IO_ERROR_LOG_PACKET) + cydivert_size + msg_size + pid_size;
     if (size > ERROR_LOG_MAXIMUM_SIZE)
     {
         return;
@@ -6492,10 +6488,10 @@ static void windivert_log_event(PEPROCESS process, PDRIVER_OBJECT driver,
     RtlZeroMemory(packet, size);
     packet->NumberOfStrings = 3;
     packet->StringOffset    = sizeof(IO_ERROR_LOG_PACKET);
-    packet->ErrorCode       = WINDIVERT_INFO_EVENT;
+    packet->ErrorCode       = CYDIVERT_INFO_EVENT;
     str = (UINT8 *)packet + packet->StringOffset;
-    RtlCopyMemory(str, windivert_str, windivert_size);
-    str += windivert_size;
+    RtlCopyMemory(str, cydivert_str, cydivert_size);
+    str += cydivert_size;
     RtlCopyMemory(str, msg_str, msg_size);
     str += msg_size;
     RtlCopyMemory(str, pid_str, pid_size);

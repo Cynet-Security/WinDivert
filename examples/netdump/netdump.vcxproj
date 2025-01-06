@@ -4,9 +4,9 @@
     netdump.vcxproj
     (C) 2019, all rights reserved,
     
-    This file is part of WinDivert.
+    This file is part of CyDivert.
     
-    WinDivert is free software: you can redistribute it and/or modify it under
+    CyDivert is free software: you can redistribute it and/or modify it under
     the terms of the GNU Lesser General Public License as published by the
     Free Software Foundation, either version 3 of the License, or (at your
     option) any later version.
@@ -19,7 +19,7 @@
     You should have received a copy of the GNU Lesser General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
     
-    WinDivert is free software; you can redistribute it and/or modify it under
+    CyDivert is free software; you can redistribute it and/or modify it under
     the terms of the GNU General Public License as published by the Free
     Software Foundation; either version 2 of the License, or (at your option)
     any later version.
@@ -65,8 +65,8 @@
  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
  <ItemDefinitionGroup>
   <Link>
-   <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\install\MSVC\i386\WinDivert.lib;%(AdditionalDependencies)</AdditionalDependencies>
-   <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\install\MSVC\amd64\WinDivert.lib;%(AdditionalDependencies)</AdditionalDependencies>
+   <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..\install\MSVC\i386\CyDivert.lib;%(AdditionalDependencies)</AdditionalDependencies>
+   <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..\install\MSVC\amd64\CyDivert.lib;%(AdditionalDependencies)</AdditionalDependencies>
   </Link>
  </ItemDefinitionGroup>
  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
